@@ -1,0 +1,508 @@
+/* Original warm-dark visual identity -- deliberately distinct from the
+   near-black/teal look of the reference site (find.auslan.fyi), which was
+   only used as a structural inspiration (card + media, icon pagination). */
+:root {
+  --color-bg: #12141c;
+  --color-surface: #1b1e29;
+  --color-surface-raised: #232735;
+  --color-text: #f4f1ea;
+  --color-text-muted: #a9a6b0;
+  --color-border: #2c303d;
+  --color-accent: #ff8a5b;
+  --color-accent-contrast: #1a0f08;
+  --color-warning: #e0a12a;
+  --color-warning-bg: #3a2c10;
+  --color-danger: #e0605a;
+  --font-display: "Segoe UI Rounded", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  line-height: 1.5;
+}
+
+a {
+  color: var(--color-accent);
+}
+
+button {
+  font-family: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.page-container {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+}
+
+.page-title {
+  font-family: var(--font-display);
+  font-size: 2.75rem;
+  text-align: center;
+  margin: 0 0 1.75rem;
+  letter-spacing: 0.02em;
+}
+
+.page-title span {
+  color: var(--color-accent);
+}
+
+/* Ethics banner */
+.ethics-banner {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning);
+  color: var(--color-text);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.ethics-banner strong {
+  color: var(--color-warning);
+}
+
+/* Search bar */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.65rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.search-bar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--color-text);
+  font-size: 1rem;
+}
+
+.search-bar input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.search-bar svg {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.results-count {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
+}
+
+/* Result cards */
+.result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.result-card {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  text-align: left;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 0.9rem;
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.result-card:hover,
+.result-card:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
+.result-card:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+}
+
+.result-card-media {
+  flex-shrink: 0;
+}
+
+.result-card-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.result-card-title {
+  margin: 0 0 0.2rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.result-card-meta {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  margin: 0 0 0.4rem;
+}
+
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.tag-chip {
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.72rem;
+}
+
+.usage-notes {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+  color: var(--color-text);
+}
+
+.usage-notes li {
+  margin-bottom: 0.15rem;
+}
+
+.result-card-preview {
+  font-size: 0.85rem;
+  color: var(--color-text);
+  margin: 0 0 0.5rem;
+}
+
+/* Placeholder media */
+.placeholder-media {
+  width: 150px;
+  height: 112px;
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.placeholder-media .glyph {
+  width: 40px;
+  height: 40px;
+  animation: pulse 2.4s ease-in-out infinite;
+}
+
+.placeholder-media .placeholder-label {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+/* Skeletons */
+.result-card-skeleton {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 0.9rem;
+  display: flex;
+  gap: 1rem;
+}
+
+.skeleton-block {
+  background: linear-gradient(90deg, var(--color-surface-raised) 25%, var(--color-border) 37%, var(--color-surface-raised) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: var(--radius-md);
+}
+
+@keyframes shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--color-text-muted);
+}
+
+.empty-state svg {
+  margin-bottom: 1rem;
+  color: var(--color-text-muted);
+}
+
+.empty-state h2 {
+  color: var(--color-text);
+  margin: 0 0 0.5rem;
+}
+
+.empty-state button {
+  margin-top: 1rem;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  border: none;
+  border-radius: 999px;
+  padding: 0.55rem 1.3rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.pagination button {
+  background: transparent;
+  border: none;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.pagination button:hover {
+  color: var(--color-text);
+  transform: translateY(-2px);
+}
+
+.pagination button.current {
+  color: var(--color-accent);
+}
+
+.pagination button.current svg {
+  stroke-width: 2;
+}
+
+.pagination svg {
+  height: 34px;
+  width: auto;
+  display: block;
+}
+
+.pagination-ellipsis {
+  display: flex;
+  align-items: center;
+  color: var(--color-text-muted);
+}
+
+/* Result card badges row */
+.result-card-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.learned-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(89, 185, 138, 0.15);
+  color: #59b98a;
+  border: 1px solid #59b98a;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+/* Sign detail page */
+.sign-detail-heading {
+  font-size: 1.1rem;
+  margin: 1.75rem 0 0.5rem;
+}
+
+/* Grouped, Auslan-Signbank-style definitions (part of speech -> senses) */
+.definitions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.definition-group {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1.1rem;
+}
+
+.definition-pos {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-accent);
+}
+
+.definition-senses {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.95rem;
+}
+
+.definition-senses li {
+  margin-bottom: 0.3rem;
+}
+
+.sign-detail-steps {
+  font-size: 0.95rem;
+}
+
+.learned-toggle {
+  display: block;
+  margin: 2rem auto 0;
+  background: transparent;
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+  border-radius: 999px;
+  padding: 0.6rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.learned-toggle:hover {
+  background: rgba(255, 138, 91, 0.1);
+}
+
+.learned-toggle.learned {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+/* Sign demonstration (step animation, stands in for a real video) */
+.sign-demo {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.sign-demo-stage {
+  text-align: center;
+  padding: 1.5rem 1rem;
+}
+
+.sign-demo-glyph {
+  color: var(--color-accent);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+
+.sign-demo-step-text {
+  font-size: 1.05rem;
+  margin: 0.75rem 0 0.35rem;
+}
+
+.sign-demo-progress {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.demo-empty {
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* Playback controls (shared by the demonstration stage) */
+.playback-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.playback-controls button {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  border-radius: 999px;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.playback-controls button:hover {
+  border-color: var(--color-accent);
+}
+
+.playback-controls label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.playback-controls select {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.2rem 0.4rem;
+}
+
+.playback-controls input[type="range"] {
+  flex-basis: 100%;
+}

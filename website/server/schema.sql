@@ -49,3 +49,26 @@ CREATE TABLE IF NOT EXISTS signs (
 
   UNIQUE KEY uq_signs_gloss (gloss)
 ) ENGINE=InnoDB;
+
+
+CREATE TABLE IF NOT EXISTS sign_videos (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+    sign_id INT UNSIGNED NOT NULL,
+
+    source_id CHAR(5) NOT NULL,
+
+    file_name VARCHAR(255) NOT NULL,
+
+    video_url VARCHAR(500) NULL,
+
+    created_at TIMESTAMP NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uq_sign_videos_source_id (source_id),
+
+    CONSTRAINT fk_sign_videos_sign
+        FOREIGN KEY (sign_id)
+        REFERENCES signs(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB;

@@ -56,11 +56,32 @@ router.get("/:id", async (req, res, next) => {
       return res.status(400).json({ error: "Invalid sign id" });
     }
 
-    const [rows] = await pool.query("SELECT * FROM signs WHERE id = ?", [id]);
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "Sign not found", id });
-    }
-    res.json(formatSign(rows[0]));
+    const [rows] = await pool.query(
+  "SELECT * FROM signs WHERE id = ?",
+  [id]
+);
+
+if (rows.length === 0) {
+  return res.status(404).json({ error: "Sign not found", id });
+}
+
+const [videoRows] = await pool.query(
+  `SELECT source_id, file_name, video_url
+   FROM sign_videos
+   WHERE sign_id = ?
+   ORDER BY source_id ASC`,
+  [id]
+);
+
+const sign = formatSign(rows[0]);
+
+sign.videos = videoRows.map((video) => ({
+  sourceId: video.source_id,
+  fileName: video.file_name,
+  videoUrl: video.video_url,
+}));
+
+res.json(sign);
   } catch (err) {
     next(err);
   }

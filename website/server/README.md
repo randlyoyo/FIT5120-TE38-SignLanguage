@@ -62,7 +62,7 @@ server, so the frontend just calls `/api/...`).
 
 Query params (all optional): `query` (keyword search across `gloss`,
 `tags`, `keywords` and `definitions`), `page` (default 1), `pageSize`
-(default 4, max 50). There is no `category` param anymore -- classification
+(default 6, max 50). There is no `category` param anymore -- classification
 now lives in `tags`, which `query` already searches.
 
 ```

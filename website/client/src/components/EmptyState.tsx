@@ -10,8 +10,8 @@ export function EmptyState({ onClear }: Props) {
         <path d="m19 19-4-4" strokeLinecap="round" />
         <path d="M8 10h4" strokeLinecap="round" />
       </svg>
-      <h2>No signs found</h2>
-      <p>Try a different keyword.</p>
+      <h2>No matching entries</h2>
+      <p>Try another word, or clear your filters.</p>
       <button type="button" onClick={onClear}>
         Clear filters
       </button>

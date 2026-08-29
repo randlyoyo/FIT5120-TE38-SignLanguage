@@ -2,10 +2,9 @@ const express = require("express");
 const pool = require("../db");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const { formatSign } = require("../utils/formatSign");
+const { formatVideo } = require("../utils/video");
 
 const router = express.Router();
-
-const VIDEO_BASE_URL = (process.env.VIDEO_BASE_URL || "").replace(/\/+$/, "");
 
 // GET /api/signs?query=&tag=&page=&pageSize=
 // Keyword search (US1.1) across gloss, keywords and definitions, an
@@ -66,11 +65,55 @@ router.get("/", async (req, res, next) => {
       [...params, ...orderParams, pageSize, offset]
     );
 
+    // One short (~2s) preview clip per card, so the library grid can play
+    // the actual sign instead of a static thumbnail -- cheap enough at the
+    // default page size of 4 to fetch eagerly rather than lazy-load.
+    const signIds = rows.map((row) => row.id);
+    const previewBySignId = new Map();
+    if (signIds.length) {
+      const [videoRows] = await pool.query(
+        `SELECT sign_id, source_id, file_name, video_url
+         FROM sign_videos
+         WHERE sign_id IN (?)
+         ORDER BY sign_id ASC, source_id ASC`,
+        [signIds]
+      );
+      for (const video of videoRows) {
+        if (!previewBySignId.has(video.sign_id)) {
+          previewBySignId.set(video.sign_id, formatVideo(video));
+        }
+      }
+    }
+
     res.json({
-      results: rows.map(formatSign),
+      results: rows.map((row) => ({
+        ...formatSign(row),
+        previewVideo: previewBySignId.get(row.id) ?? null,
+      })),
       pagination: buildPaginationMeta(page, pageSize, totalResults),
       query: { query: trimmedQuery || null, tag: trimmedTag || null },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/signs/tags -- distinct tag categories with counts, for the
+// library page's category rail (browse-by-topic navigation). Registered
+// before /:id so "tags" doesn't get swallowed as an id param.
+router.get("/tags", async (req, res, next) => {
+  try {
+    const [rows] = await pool.query("SELECT tags FROM signs");
+    const counts = new Map();
+    for (const row of rows) {
+      for (const tag of row.tags ?? []) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      }
+    }
+    const tags = [...counts.entries()]
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => a.tag.localeCompare(b.tag));
+    res.json({ tags });
   } catch (err) {
     next(err);
   }
@@ -103,15 +146,7 @@ const [videoRows] = await pool.query(
 
 const sign = formatSign(rows[0]);
 
-sign.videos = videoRows.map((video) => ({
-  sourceId: video.source_id,
-  fileName: video.file_name,
-  videoUrl:
-    video.video_url ||
-    (VIDEO_BASE_URL
-      ? `${VIDEO_BASE_URL}/${encodeURIComponent(video.file_name)}`
-      : null),
-}));
+sign.videos = videoRows.map(formatVideo);
 
 res.json(sign);
   } catch (err) {

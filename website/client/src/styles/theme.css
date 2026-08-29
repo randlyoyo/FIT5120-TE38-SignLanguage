@@ -1,22 +1,32 @@
-/* Original warm-dark visual identity -- deliberately distinct from the
-   near-black/teal look of the reference site (find.auslan.fyi), which was
-   only used as a structural inspiration (card + media, icon pagination). */
+/* ---------------------------------------------------------------------
+   Design concept: "Specimen card catalogue."
+   The Auslan Sign Library is treated like a field-reference catalogue --
+   every sign is an indexed specimen (its real database id becomes the
+   catalogue number, never an invented sequence). Headwords and structural
+   labels are set in a monospace type, like a typewritten index card;
+   reading copy sits in a humanist sans. Two accents only: a signal-blue
+   ink for interaction, and a red stamp reserved solely for "Learned" --
+   an actual rubber-stamp motif instead of a generic green badge pill.
+   Paper-toned surfaces on a white page keep the "white background" brief
+   while giving the cards a printed, tactile quality instead of a bubbly
+   SaaS-app look.
+   ------------------------------------------------------------------- */
 :root {
-  --color-bg: #12141c;
-  --color-surface: #1b1e29;
-  --color-surface-raised: #232735;
-  --color-text: #f4f1ea;
-  --color-text-muted: #a9a6b0;
-  --color-border: #2c303d;
-  --color-accent: #ff8a5b;
-  --color-accent-contrast: #1a0f08;
-  --color-warning: #e0a12a;
-  --color-warning-bg: #3a2c10;
-  --color-danger: #e0605a;
-  --font-display: "Segoe UI Rounded", "Trebuchet MS", system-ui, sans-serif;
-  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --radius-md: 10px;
-  --radius-lg: 16px;
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f3efe4;
+  --color-text: #201e19;
+  --color-text-muted: #6b6455;
+  --color-border: #e1d9c6;
+  --color-accent: #1f3d7a;
+  --color-accent-rgb: 31, 61, 122;
+  --color-accent-contrast: #ffffff;
+  --color-stamp: #9c2f2f;
+  --color-stamp-rgb: 156, 47, 47;
+  --font-display: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius-md: 3px;
+  --radius-lg: 4px;
 }
 
 * {
@@ -34,7 +44,7 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-body);
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 a {
@@ -53,40 +63,133 @@ input:focus-visible {
 }
 
 .page-container {
-  max-width: 880px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 2.5rem 1.5rem 4rem;
 }
 
-.page-title {
-  font-family: var(--font-display);
-  font-size: 2.75rem;
-  text-align: center;
-  margin: 0 0 1.75rem;
-  letter-spacing: 0.02em;
+/* Sign detail page -- a genuine two-column dictionary-entry layout on
+   wide screens (media pinned alongside the reading content, the way a
+   print dictionary runs an illustration beside its headword), collapsing
+   to a single stacked column on narrow ones. Grid-template-areas lets the
+   visual order differ from the (accessible, back-link-first) DOM order. */
+.detail-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "back"
+    "title"
+    "media"
+    "definitions";
+  gap: 1.5rem;
+  max-width: 640px;
+  margin: 0 auto;
 }
 
-.page-title span {
+@media (min-width: 860px) {
+  .detail-layout {
+    max-width: 1180px;
+    grid-template-columns: minmax(320px, 560px) 1fr;
+    grid-template-areas:
+      "back back"
+      "media title"
+      "media definitions";
+    column-gap: 2.5rem;
+    row-gap: 1rem;
+    align-items: start;
+  }
+
+  .detail-media {
+    position: sticky;
+    top: 1.5rem;
+  }
+}
+
+.detail-back {
+  grid-area: back;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0;
+}
+
+.detail-media {
+  grid-area: media;
+}
+
+.detail-media .sign-demo {
+  margin: 0;
+}
+
+.detail-title {
+  grid-area: title;
+}
+
+.detail-definitions-area {
+  grid-area: definitions;
+}
+
+/* Library header -- a running-header layout (wordmark left, tools right)
+   with a heavy rule underneath, like the title page of a reference book
+   rather than a centered hero. */
+.library-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 1.5rem 2.5rem;
+  padding-bottom: 1.25rem;
+  margin-bottom: 2rem;
+  border-bottom: 3px solid var(--color-text);
+}
+
+.library-eyebrow {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--color-accent);
+  margin: 0 0 0.2rem;
+}
+
+.page-title {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  margin: 0;
+  line-height: 1;
+}
+
+.library-header-tools {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  width: 320px;
+  max-width: 100%;
+}
+
+.library-header-tools .results-count {
+  align-self: flex-end;
 }
 
 /* Search bar */
 .search-bar {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  padding: 0.65rem 1.25rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid var(--color-text);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.9rem;
+  transition: box-shadow 0.15s ease;
 }
 
 .search-bar:focus-within {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(255, 138, 91, 0.18);
+  box-shadow: 2px 2px 0 var(--color-accent);
 }
 
 .search-bar input {
@@ -94,7 +197,8 @@ input:focus-visible {
   background: transparent;
   border: none;
   color: var(--color-text);
-  font-size: 1rem;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
 }
 
 .search-bar input::placeholder {
@@ -107,16 +211,123 @@ input:focus-visible {
 }
 
 .results-count {
+  font-family: var(--font-display);
   color: var(--color-text-muted);
-  font-size: 0.85rem;
-  margin: 0 0 1rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0;
 }
 
-/* Result cards */
-.result-list {
+/* Library body -- a shelf-directory rail alongside the result grid,
+   instead of tag browsing living only inside each card. */
+.library-layout {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.library-main {
+  min-width: 0;
+}
+
+.category-rail {
+  position: sticky;
+  top: 1.5rem;
+  border-right: 1px solid var(--color-border);
+  padding-right: 1rem;
+}
+
+.category-rail-heading {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  margin: 0 0 0.6rem;
+}
+
+.category-rail ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: 0.1rem;
+  max-height: 72vh;
+  overflow-y: auto;
+}
+
+.category-rail a {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+}
+
+.category-rail a:hover {
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  text-decoration: none;
+}
+
+.category-rail a.active {
+  color: var(--color-accent);
+  border-left-color: var(--color-accent);
+  background: rgba(var(--color-accent-rgb), 0.06);
+  font-weight: 600;
+}
+
+.category-rail-count {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 760px) {
+  .library-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .category-rail {
+    position: static;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    padding: 0 0 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .category-rail ul {
+    flex-direction: row;
+    max-height: none;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  .category-rail a {
+    white-space: nowrap;
+    border-left: none;
+    border-bottom: 2px solid transparent;
+  }
+
+  .category-rail a.active {
+    border-left: none;
+    border-bottom-color: var(--color-accent);
+  }
+}
+
+/* Result cards -- a responsive grid of specimen cards, closer to how a
+   sign dictionary (Auslan Signbank, find.auslan.fyi) lays out browse
+   results than a narrow single-column list. */
+.result-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.5rem 1.25rem;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -125,25 +336,25 @@ input:focus-visible {
 .result-card {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: 0.65rem;
   width: 100%;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: 0.9rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  padding: 0.75rem;
   transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .result-card:hover {
-  border-color: var(--color-accent);
+  border-color: var(--color-text);
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 3px 3px 0 var(--color-border);
 }
 
 .result-card-link {
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.65rem;
   width: 100%;
   text-align: left;
   cursor: pointer;
@@ -157,56 +368,111 @@ input:focus-visible {
   text-decoration: none;
 }
 
-.result-card-top-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+/* The media frame gets viewfinder corner brackets that snap in on hover --
+   "focusing on a specimen" -- instead of a generic lift + shadow. */
+.result-card-media {
+  position: relative;
+  width: 100%;
 }
 
-.result-card-media {
-  flex-shrink: 0;
+.result-card-media::before,
+.result-card-media::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-accent);
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+
+.result-card-media::before {
+  top: 0;
+  left: 0;
+  border-right: none;
+  border-bottom: none;
+  transform: translate(5px, 5px);
+}
+
+.result-card-media::after {
+  bottom: 0;
+  right: 0;
+  border-left: none;
+  border-top: none;
+  transform: translate(-5px, -5px);
+}
+
+.result-card:hover .result-card-media::before,
+.result-card:hover .result-card-media::after {
+  opacity: 1;
+  transform: translate(0, 0);
+}
+
+.catalog-number {
+  position: absolute;
+  left: 0.4rem;
+  bottom: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: rgba(20, 18, 14, 0.6);
+  padding: 0.1rem 0.4rem;
+  border-radius: 2px;
+  z-index: 1;
 }
 
 .result-card-body {
   min-width: 0;
   flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .result-card-title {
   margin: 0;
-  font-size: 1.1rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 
 .result-card-meta {
   color: var(--color-text-muted);
-  font-size: 0.78rem;
-  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  margin: 0.15rem 0 0.5rem;
 }
 
 .tag-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.4rem;
   margin-bottom: 0.5rem;
 }
 
 .tag-chip {
-  background: var(--color-surface-raised);
-  color: var(--color-text-muted);
-  border-radius: 999px;
-  padding: 0.15rem 0.65rem;
-  font-size: 0.72rem;
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left-width: 3px;
+  border-radius: 2px;
+  padding: 0.15rem 0.5rem 0.15rem 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.62rem;
   font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
   text-decoration: none;
   cursor: pointer;
-  transition: filter 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease;
 }
 
 .tag-chip:hover {
-  filter: brightness(1.25);
-  transform: translateY(-1px);
+  background: var(--color-surface-raised);
   text-decoration: none;
 }
 
@@ -215,46 +481,50 @@ input:focus-visible {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .active-tag-filter button {
   background: transparent;
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);
-  border-radius: 999px;
-  padding: 0.15rem 0.65rem;
-  font-size: 0.75rem;
+  border-radius: var(--radius-md);
+  padding: 0.15rem 0.6rem;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  text-transform: uppercase;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease;
 }
 
 .active-tag-filter button:hover {
-  border-color: var(--color-accent);
+  border-color: var(--color-text);
   color: var(--color-text);
-}
-
-.usage-notes {
-  margin: 0;
-  padding-left: 1.1rem;
-  font-size: 0.85rem;
-  color: var(--color-text);
-}
-
-.usage-notes li {
-  margin-bottom: 0.15rem;
 }
 
 .result-card-preview {
   font-size: 0.85rem;
   color: var(--color-text);
   margin: 0 0 0.5rem;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
-/* Placeholder media */
+/* Media */
+.result-card-video {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  background: #000;
+  display: block;
+}
+
 .placeholder-media {
-  width: 150px;
-  height: 112px;
+  width: 100%;
+  aspect-ratio: 4 / 3;
   border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
@@ -273,14 +543,15 @@ input:focus-visible {
 
 .placeholder-media .placeholder-label {
   position: absolute;
-  bottom: 6px;
-  right: 8px;
-  font-size: 0.62rem;
+  top: 0.4rem;
+  right: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.4);
   padding: 0.1rem 0.4rem;
-  border-radius: 999px;
+  border-radius: 2px;
 }
 
 @keyframes pulse {
@@ -293,9 +564,10 @@ input:focus-visible {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: 0.9rem;
+  padding: 0.75rem;
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.65rem;
 }
 
 .skeleton-block {
@@ -323,22 +595,29 @@ input:focus-visible {
 }
 
 .empty-state h2 {
+  font-family: var(--font-display);
+  text-transform: uppercase;
   color: var(--color-text);
   margin: 0 0 0.5rem;
 }
 
 .empty-state button {
   margin-top: 1rem;
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
+  background: var(--color-text);
+  color: #fff;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   padding: 0.55rem 1.3rem;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   font-weight: 600;
   cursor: pointer;
 }
 
-/* Pagination */
+/* Pagination -- left exactly as-is; colors still flow from the tokens
+   above, but no layout/markup here changed. */
 .pagination {
   display: flex;
   justify-content: center;
@@ -385,18 +664,29 @@ input:focus-visible {
   color: var(--color-text-muted);
 }
 
+/* "Learned" stamp -- the one deliberate bold accent in the whole system.
+   An outlined button before the sign is learned; once toggled it reads as
+   an inked rubber stamp, rotated slightly, as if the entry has been
+   logged in the catalogue. */
 .learned-badge {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  flex-shrink: 0;
-  background: rgba(89, 185, 138, 0.15);
-  color: #59b98a;
-  border: 1px solid #59b98a;
-  border-radius: 999px;
-  padding: 0.15rem 0.6rem;
-  font-size: 0.72rem;
-  font-weight: 600;
+  gap: 0.25rem;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-stamp);
+  border: 2px solid var(--color-stamp);
+  border-radius: 2px;
+  padding: 0.1rem 0.45rem;
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transform: rotate(-6deg);
 }
 
 /* Sign detail page */
@@ -405,18 +695,32 @@ input:focus-visible {
   border: none;
   padding: 0;
   color: var(--color-accent);
-  font-size: 0.95rem;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   cursor: pointer;
-  font-family: inherit;
 }
 
 .back-link:hover {
   text-decoration: underline;
 }
 
+.catalog-number-inline {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  letter-spacing: 0.03em;
+}
+
 .sign-detail-heading {
-  font-size: 1.1rem;
-  margin: 1.75rem 0 0.5rem;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.85rem;
+  margin: 2rem 0 0.6rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--color-border);
 }
 
 /* Grouped, Auslan-Signbank-style definitions (part of speech -> senses) */
@@ -429,16 +733,17 @@ input:focus-visible {
 .definition-group {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-accent);
   border-radius: var(--radius-md);
   padding: 0.9rem 1.1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
 .definition-pos {
+  font-family: var(--font-display);
   margin: 0 0 0.4rem;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--color-accent);
 }
 
@@ -452,66 +757,100 @@ input:focus-visible {
   margin-bottom: 0.3rem;
 }
 
-.sign-detail-steps {
-  font-size: 0.95rem;
-}
-
 .learned-toggle {
   display: block;
   margin: 1.25rem auto 1.75rem;
   background: transparent;
-  border: 1px solid var(--color-accent);
-  color: var(--color-accent);
-  border-radius: 999px;
-  padding: 0.6rem 1.5rem;
+  border: 1.5px solid var(--color-text);
+  color: var(--color-text);
+  border-radius: var(--radius-md);
+  padding: 0.55rem 1.4rem;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .learned-toggle:hover {
-  background: rgba(255, 138, 91, 0.1);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 .learned-toggle.learned {
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
+  border: 2px solid var(--color-stamp);
+  color: var(--color-stamp);
+  background: rgba(var(--color-stamp-rgb), 0.06);
+  transform: rotate(-2deg);
 }
 
-/* Sign demonstration (step animation, stands in for a real video) */
+.learned-toggle.learned:hover {
+  border-color: var(--color-stamp);
+  color: var(--color-stamp);
+}
+
+/* Sign demonstration stage */
 .sign-demo {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
   margin: 1.5rem 0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .sign-demo-stage {
   text-align: center;
-  padding: 1.5rem 1rem;
-}
-
-.sign-demo-glyph {
-  color: var(--color-accent);
-  animation: pulse 2.4s ease-in-out infinite;
-}
-
-.sign-demo-step-text {
-  font-size: 1.05rem;
-  margin: 0.75rem 0 0.35rem;
-}
-
-.sign-demo-progress {
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
-  margin: 0;
+  padding: 0.5rem 0 1rem;
 }
 
 .demo-empty {
   color: var(--color-text-muted);
   text-align: center;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+}
+
+.sign-demo-video {
+  display: block;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  border-radius: var(--radius-md);
+  background: #000;
+}
+
+.video-variants {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0.9rem 0;
+  flex-wrap: wrap;
+}
+
+.video-variants button {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-md);
+  padding: 0.3rem 0.8rem;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.video-variants button:hover {
+  border-color: var(--color-accent);
+  color: var(--color-text);
+}
+
+.video-variants button.active {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: rgba(var(--color-accent-rgb), 0.08);
 }
 
 /* Playback controls (shared by the demonstration stage) */
@@ -524,14 +863,19 @@ input:focus-visible {
 }
 
 .playback-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   background: transparent;
   border: 1px solid var(--color-border);
   color: var(--color-text);
-  border-radius: 999px;
-  width: 40px;
-  height: 40px;
+  border-radius: var(--radius-md);
+  padding: 0.4rem 0.9rem;
   cursor: pointer;
-  font-size: 1rem;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .playback-controls button:hover {
@@ -543,17 +887,28 @@ input:focus-visible {
   align-items: center;
   gap: 0.4rem;
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  text-transform: uppercase;
 }
 
 .playback-controls select {
   background: var(--color-surface-raised);
   color: var(--color-text);
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 0.2rem 0.4rem;
+  font-family: var(--font-display);
 }
 
 .playback-controls input[type="range"] {
   flex-basis: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

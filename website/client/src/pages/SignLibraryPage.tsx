@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { CategoryRail } from "../components/CategoryRail";
 import { EmptyState } from "../components/EmptyState";
 import { HandGlyphPagination } from "../components/Pagination/HandGlyphPagination";
 import { ResultCard } from "../components/ResultCard";
@@ -7,6 +8,7 @@ import { ResultCardSkeleton } from "../components/ResultCardSkeleton";
 import { SearchBar } from "../components/SearchBar";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useSignSearch } from "../hooks/useSignSearch";
+import { useTags } from "../hooks/useTags";
 import { tagChipStyle } from "../lib/tagColors";
 
 export function SignLibraryPage() {
@@ -38,6 +40,7 @@ export function SignLibraryPage() {
   }, [debouncedQuery]);
 
   const { data, isLoading, isError } = useSignSearch({ query: debouncedQuery, tag, page });
+  const tags = useTags();
 
   function updateParams(next: { page?: number }) {
     setSearchParams((prev) => {
@@ -71,52 +74,59 @@ export function SignLibraryPage() {
 
   return (
     <div className="page-container">
-      <h1 className="page-title">
-        Auslan <span>Sign Library</span>
-      </h1>
-
-      <SearchBar value={queryInput} onChange={setQueryInput} />
-
-      {tag && (
-        <div className="active-tag-filter">
-          <span style={tagChipStyle(tag)} className="tag-chip">
-            #{tag}
-          </span>
-          <button type="button" onClick={clearTag} aria-label={`Clear tag filter ${tag}`}>
-            &times; Clear tag
-          </button>
+      <header className="library-header">
+        <div>
+          <p className="library-eyebrow">Auslan</p>
+          <h1 className="page-title">Sign Library</h1>
         </div>
-      )}
+        <div className="library-header-tools">
+          <SearchBar value={queryInput} onChange={setQueryInput} />
+          {!isLoading && !isError && (
+            <p className="results-count">{totalResults} entries indexed</p>
+          )}
+        </div>
+      </header>
 
-      {!isLoading && !isError && (
-        <p className="results-count">
-          {totalResults} sign{totalResults === 1 ? "" : "s"} found
-        </p>
-      )}
+      <div className="library-layout">
+        <CategoryRail tags={tags} activeTag={tag} />
 
-      {isError && <p role="alert">Couldn't load the sign library. Is the server running?</p>}
+        <div className="library-main">
+          {tag && (
+            <div className="active-tag-filter">
+              <span style={tagChipStyle(tag)} className="tag-chip">
+                #{tag}
+              </span>
+              <button type="button" onClick={clearTag} aria-label={`Clear tag filter ${tag}`}>
+                &times; Clear tag
+              </button>
+            </div>
+          )}
 
-      {isLoading ? (
-        <ul className="result-list">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <ResultCardSkeleton key={i} />
-          ))}
-        </ul>
-      ) : results.length === 0 && !isError ? (
-        <EmptyState onClear={clearFilters} />
-      ) : (
-        <ul className="result-list">
-          {results.map((sign) => (
-            <ResultCard key={sign.id} sign={sign} />
-          ))}
-        </ul>
-      )}
+          {isError && <p role="alert">Couldn't load the sign library. Is the server running?</p>}
 
-      <HandGlyphPagination
-        page={page}
-        totalPages={totalPages}
-        onPageChange={(p) => updateParams({ page: p })}
-      />
+          {isLoading ? (
+            <ul className="result-list">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <ResultCardSkeleton key={i} />
+              ))}
+            </ul>
+          ) : results.length === 0 && !isError ? (
+            <EmptyState onClear={clearFilters} />
+          ) : (
+            <ul className="result-list">
+              {results.map((sign) => (
+                <ResultCard key={sign.id} sign={sign} />
+              ))}
+            </ul>
+          )}
+
+          <HandGlyphPagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={(p) => updateParams({ page: p })}
+          />
+        </div>
+      </div>
     </div>
   );
 }

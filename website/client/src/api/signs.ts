@@ -1,4 +1,4 @@
-import type { Sign, SignsResponse } from "./types";
+import type { Sign, SignsResponse, TagCount } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
@@ -32,4 +32,11 @@ export async function fetchSignById(id: number, signal?: AbortSignal): Promise<S
   const res = await fetch(`${API_BASE}/signs/${id}`, { signal });
   if (!res.ok) throw new Error(`Failed to fetch sign ${id} (${res.status})`);
   return res.json();
+}
+
+export async function fetchTags(signal?: AbortSignal): Promise<TagCount[]> {
+  const res = await fetch(`${API_BASE}/signs/tags`, { signal });
+  if (!res.ok) throw new Error(`Failed to fetch tags (${res.status})`);
+  const data = await res.json();
+  return data.tags;
 }

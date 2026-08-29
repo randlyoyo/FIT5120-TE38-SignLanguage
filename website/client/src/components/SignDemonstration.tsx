@@ -5,7 +5,6 @@ const SPEEDS = [0.5, 1, 2] as const;
 
 interface Props {
   gloss: string;
-  steps: string[];
   videos: SignVideo[];
 }
 

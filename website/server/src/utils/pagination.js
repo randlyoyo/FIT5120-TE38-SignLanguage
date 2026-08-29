@@ -1,4 +1,4 @@
-const DEFAULT_PAGE_SIZE = 4;
+const DEFAULT_PAGE_SIZE = 6;
 const MAX_PAGE_SIZE = 50;
 
 /** Parses page/pageSize query params into safe, clamped integers. */

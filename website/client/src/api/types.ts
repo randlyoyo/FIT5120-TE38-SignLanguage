@@ -18,6 +18,7 @@ export interface Sign {
   tags: string[];
   keywords: string[];
   videos?: SignVideo[];
+  previewVideo?: SignVideo | null;
 }
 
 export interface PaginationMeta {
@@ -31,4 +32,9 @@ export interface SignsResponse {
   results: Sign[];
   pagination: PaginationMeta;
   query: { query: string | null; tag: string | null };
+}
+
+export interface TagCount {
+  tag: string;
+  count: number;
 }

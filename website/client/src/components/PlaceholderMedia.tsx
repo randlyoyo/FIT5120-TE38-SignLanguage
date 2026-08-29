@@ -19,7 +19,7 @@ export function PlaceholderMedia({ seed, gloss }: Props) {
     <div
       className="placeholder-media"
       style={{
-        background: `linear-gradient(135deg, hsl(${hue} 55% 32%), hsl(${(hue + 40) % 360} 55% 20%))`,
+        background: `linear-gradient(135deg, hsl(${hue} 28% 28%), hsl(${(hue + 40) % 360} 28% 16%))`,
       }}
       role="img"
       aria-label={`Placeholder illustration -- no verified video available yet for ${gloss}.`}

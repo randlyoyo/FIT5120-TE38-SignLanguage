@@ -5,9 +5,10 @@
   "type": "commonjs",
   "main": "src/index.js",
   "scripts": {
-    "dev": "nodemon src/index.js",
-    "start": "node src/index.js",
-    "seed": "node seed.js"
+  "dev": "nodemon src/index.js",
+  "start": "node src/index.js",
+  "seed": "node seed.js",
+  "import:real": "node scripts/importRealData.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

@@ -4,10 +4,11 @@ import type { SignsResponse } from "../api/types";
 
 interface Params {
   query: string;
+  tag: string;
   page: number;
 }
 
-export function useSignSearch({ query, page }: Params) {
+export function useSignSearch({ query, tag, page }: Params) {
   const [data, setData] = useState<SignsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
@@ -17,7 +18,7 @@ export function useSignSearch({ query, page }: Params) {
     setIsLoading(true);
     setIsError(false);
 
-    fetchSigns({ query, page, signal: controller.signal })
+    fetchSigns({ query, tag, page, signal: controller.signal })
       .then(setData)
       .catch((err) => {
         if (err.name !== "AbortError") {
@@ -30,7 +31,7 @@ export function useSignSearch({ query, page }: Params) {
       });
 
     return () => controller.abort();
-  }, [query, page]);
+  }, [query, tag, page]);
 
   return { data, isLoading, isError };
 }

@@ -7,24 +7,35 @@ const router = express.Router();
 
 const VIDEO_BASE_URL = (process.env.VIDEO_BASE_URL || "").replace(/\/+$/, "");
 
-// GET /api/signs?query=&page=&pageSize=
-// Keyword search (US1.1) across gloss, tags, keywords and definitions,
-// plus pagination. There is no separate category filter -- classification
-// now lives in `tags`, which is just another field this search matches.
+// GET /api/signs?query=&tag=&page=&pageSize=
+// Keyword search (US1.1) across gloss, keywords and definitions, an
+// optional exact `tag` filter (US1.x tag browsing), plus pagination.
+// When `query` is given, results are ranked keyword matches first
+// (gloss/keywords), tag matches second, definition matches last --
+// `keywords` and `tags` are distinct fields in the schema (search-only
+// synonyms vs. visible classification), and search order should reflect
+// that distinction.
 router.get("/", async (req, res, next) => {
   try {
-    const { query = "" } = req.query;
+    const { query = "", tag = "" } = req.query;
     const { page, pageSize, offset } = parsePagination(req.query);
+    const trimmedQuery = query.trim();
+    const trimmedTag = tag.trim();
 
     const conditions = [];
     const params = [];
 
-    if (query.trim()) {
-      const like = `%${query.trim()}%`;
+    if (trimmedQuery) {
+      const like = `%${trimmedQuery}%`;
       conditions.push(
-        "(gloss LIKE ? OR JSON_SEARCH(tags, 'one', ?) IS NOT NULL OR JSON_SEARCH(keywords, 'one', ?) IS NOT NULL OR JSON_SEARCH(definitions, 'one', ?) IS NOT NULL)"
+        "(gloss LIKE ? OR JSON_SEARCH(keywords, 'one', ?) IS NOT NULL OR JSON_SEARCH(tags, 'one', ?) IS NOT NULL OR JSON_SEARCH(definitions, 'one', ?) IS NOT NULL)"
       );
       params.push(like, like, like, like);
+    }
+
+    if (trimmedTag) {
+      conditions.push("JSON_CONTAINS(tags, JSON_QUOTE(?))");
+      params.push(trimmedTag);
     }
 
     const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -35,15 +46,30 @@ router.get("/", async (req, res, next) => {
     );
     const totalResults = countRows[0].total;
 
+    let orderClause = "ORDER BY gloss ASC";
+    let orderParams = [];
+    if (trimmedQuery) {
+      const like = `%${trimmedQuery}%`;
+      orderClause = `ORDER BY
+        CASE
+          WHEN gloss LIKE ? THEN 0
+          WHEN JSON_SEARCH(keywords, 'one', ?) IS NOT NULL THEN 1
+          WHEN JSON_SEARCH(tags, 'one', ?) IS NOT NULL THEN 2
+          ELSE 3
+        END ASC,
+        gloss ASC`;
+      orderParams = [like, like, like];
+    }
+
     const [rows] = await pool.query(
-      `SELECT * FROM signs ${whereClause} ORDER BY gloss ASC LIMIT ? OFFSET ?`,
-      [...params, pageSize, offset]
+      `SELECT * FROM signs ${whereClause} ${orderClause} LIMIT ? OFFSET ?`,
+      [...params, ...orderParams, pageSize, offset]
     );
 
     res.json({
       results: rows.map(formatSign),
       pagination: buildPaginationMeta(page, pageSize, totalResults),
-      query: { query: query.trim() || null },
+      query: { query: trimmedQuery || null, tag: trimmedTag || null },
     });
   } catch (err) {
     next(err);

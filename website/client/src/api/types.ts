@@ -30,5 +30,5 @@ export interface PaginationMeta {
 export interface SignsResponse {
   results: Sign[];
   pagination: PaginationMeta;
-  query: { query: string | null };
+  query: { query: string | null; tag: string | null };
 }

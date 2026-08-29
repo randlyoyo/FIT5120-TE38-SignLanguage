@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { EmptyState } from "../components/EmptyState";
-import { EthicsBanner } from "../components/EthicsBanner";
 import { HandGlyphPagination } from "../components/Pagination/HandGlyphPagination";
 import { ResultCard } from "../components/ResultCard";
 import { ResultCardSkeleton } from "../components/ResultCardSkeleton";
 import { SearchBar } from "../components/SearchBar";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useSignSearch } from "../hooks/useSignSearch";
+import { tagChipStyle } from "../lib/tagColors";
 
 export function SignLibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const page = Number(searchParams.get("page")) || 1;
+  const tag = searchParams.get("tag") ?? "";
 
   // The search input keeps its own local state so every keystroke feels
   // instant. Routing every keystroke through useSearchParams (which is
@@ -36,7 +37,7 @@ export function SignLibraryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery]);
 
-  const { data, isLoading, isError } = useSignSearch({ query: debouncedQuery, page });
+  const { data, isLoading, isError } = useSignSearch({ query: debouncedQuery, tag, page });
 
   function updateParams(next: { page?: number }) {
     setSearchParams((prev) => {
@@ -45,6 +46,16 @@ export function SignLibraryPage() {
         if (next.page > 1) params.set("page", String(next.page));
         else params.delete("page");
       }
+      return params;
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function clearTag() {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      params.delete("tag");
+      params.delete("page");
       return params;
     });
   }
@@ -64,9 +75,18 @@ export function SignLibraryPage() {
         Auslan <span>Sign Library</span>
       </h1>
 
-      <EthicsBanner />
-
       <SearchBar value={queryInput} onChange={setQueryInput} />
+
+      {tag && (
+        <div className="active-tag-filter">
+          <span style={tagChipStyle(tag)} className="tag-chip">
+            #{tag}
+          </span>
+          <button type="button" onClick={clearTag} aria-label={`Clear tag filter ${tag}`}>
+            &times; Clear tag
+          </button>
+        </div>
+      )}
 
       {!isLoading && !isError && (
         <p className="results-count">

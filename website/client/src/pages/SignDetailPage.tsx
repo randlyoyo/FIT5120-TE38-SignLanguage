@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { fetchSignById } from "../api/signs";
 import { SignDemonstration } from "../components/SignDemonstration";
 import { isLearned, toggleLearned } from "../lib/learnedSigns";
+import { tagChipStyle } from "../lib/tagColors";
 import type { Sign } from "../api/types";
 
 export function SignDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const signId = Number(id);
 
   const [sign, setSign] = useState<Sign | null>(null);
@@ -33,7 +35,9 @@ export function SignDetailPage() {
     return (
       <div className="page-container">
         <p role="alert">Couldn't load this sign.</p>
-        <Link to="/">&larr; Back to library</Link>
+        <button type="button" className="back-link" onClick={() => navigate(-1)}>
+          &larr; Back to library
+        </button>
       </div>
     );
   }
@@ -49,7 +53,9 @@ export function SignDetailPage() {
   return (
     <div className="page-container">
       <p>
-        <Link to="/">&larr; Back to library</Link>
+        <button type="button" className="back-link" onClick={() => navigate(-1)}>
+          &larr; Back to library
+        </button>
       </p>
 
       <h1 className="page-title" style={{ fontSize: "2.25rem" }}>
@@ -61,12 +67,25 @@ export function SignDetailPage() {
       {sign.tags.length > 0 && (
         <div className="tag-chips" style={{ justifyContent: "center" }}>
           {sign.tags.map((tag) => (
-            <span key={tag} className="tag-chip">
+            <Link
+              key={tag}
+              to={`/?tag=${encodeURIComponent(tag)}`}
+              className="tag-chip"
+              style={tagChipStyle(tag)}
+            >
               #{tag}
-            </span>
+            </Link>
           ))}
         </div>
       )}
+
+      <button
+        type="button"
+        className={`learned-toggle ${learned ? "learned" : ""}`}
+        onClick={() => setLearned(toggleLearned(sign.id))}
+      >
+        {learned ? "✓ Learned" : "Mark as learned"}
+      </button>
 
       <h2 className="sign-detail-heading">Sign Definition</h2>
       <div className="definitions">
@@ -94,14 +113,6 @@ export function SignDetailPage() {
           <li key={i}>{note}</li>
         ))}
       </ol>
-
-      <button
-        type="button"
-        className={`learned-toggle ${learned ? "learned" : ""}`}
-        onClick={() => setLearned(toggleLearned(sign.id))}
-      >
-        {learned ? "✓ Learned" : "Mark as learned"}
-      </button>
     </div>
   );
 }

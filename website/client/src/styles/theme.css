@@ -70,21 +70,6 @@ input:focus-visible {
   color: var(--color-accent);
 }
 
-/* Ethics banner */
-.ethics-banner {
-  background: var(--color-warning-bg);
-  border: 1px solid var(--color-warning);
-  color: var(--color-text);
-  border-radius: var(--radius-md);
-  padding: 0.75rem 1rem;
-  font-size: 0.85rem;
-  margin-bottom: 1.5rem;
-}
-
-.ethics-banner strong {
-  color: var(--color-warning);
-}
-
 /* Search bar */
 .search-bar {
   display: flex;
@@ -95,6 +80,13 @@ input:focus-visible {
   border-radius: 999px;
   padding: 0.65rem 1.25rem;
   margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.search-bar:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(255, 138, 91, 0.18);
 }
 
 .search-bar input {
@@ -132,28 +124,44 @@ input:focus-visible {
 
 .result-card {
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.7rem;
   width: 100%;
-  text-align: left;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 0.9rem;
-  cursor: pointer;
-  color: inherit;
-  text-decoration: none;
-  transition: border-color 0.15s ease, transform 0.15s ease;
-}
-
-.result-card:hover,
-.result-card:visited {
-  color: inherit;
-  text-decoration: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .result-card:hover {
   border-color: var(--color-accent);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.result-card-link {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+}
+
+.result-card-link:hover,
+.result-card-link:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
+.result-card-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
 .result-card-media {
@@ -166,7 +174,7 @@ input:focus-visible {
 }
 
 .result-card-title {
-  margin: 0 0 0.2rem;
+  margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
 }
@@ -188,8 +196,42 @@ input:focus-visible {
   background: var(--color-surface-raised);
   color: var(--color-text-muted);
   border-radius: 999px;
-  padding: 0.15rem 0.6rem;
+  padding: 0.15rem 0.65rem;
   font-size: 0.72rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.tag-chip:hover {
+  filter: brightness(1.25);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+
+/* Active tag filter pill, shown above the results when browsing by tag */
+.active-tag-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.active-tag-filter button {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  border-radius: 999px;
+  padding: 0.15rem 0.65rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.active-tag-filter button:hover {
+  border-color: var(--color-accent);
+  color: var(--color-text);
 }
 
 .usage-notes {
@@ -343,18 +385,11 @@ input:focus-visible {
   color: var(--color-text-muted);
 }
 
-/* Result card badges row */
-.result-card-badges {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-top: 0.5rem;
-}
-
 .learned-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+  flex-shrink: 0;
   background: rgba(89, 185, 138, 0.15);
   color: #59b98a;
   border: 1px solid #59b98a;
@@ -365,6 +400,20 @@ input:focus-visible {
 }
 
 /* Sign detail page */
+.back-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-accent);
+  font-size: 0.95rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
 .sign-detail-heading {
   font-size: 1.1rem;
   margin: 1.75rem 0 0.5rem;
@@ -382,6 +431,7 @@ input:focus-visible {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: 0.9rem 1.1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
 .definition-pos {
@@ -408,7 +458,7 @@ input:focus-visible {
 
 .learned-toggle {
   display: block;
-  margin: 2rem auto 0;
+  margin: 1.25rem auto 1.75rem;
   background: transparent;
   border: 1px solid var(--color-accent);
   color: var(--color-accent);
@@ -435,6 +485,7 @@ input:focus-visible {
   border-radius: var(--radius-lg);
   padding: 1.5rem;
   margin: 1.5rem 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .sign-demo-stage {

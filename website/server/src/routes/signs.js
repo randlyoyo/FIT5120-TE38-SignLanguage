@@ -5,6 +5,8 @@ const { formatSign } = require("../utils/formatSign");
 
 const router = express.Router();
 
+const VIDEO_BASE_URL = (process.env.VIDEO_BASE_URL || "").replace(/\/+$/, "");
+
 // GET /api/signs?query=&page=&pageSize=
 // Keyword search (US1.1) across gloss, tags, keywords and definitions,
 // plus pagination. There is no separate category filter -- classification
@@ -78,7 +80,11 @@ const sign = formatSign(rows[0]);
 sign.videos = videoRows.map((video) => ({
   sourceId: video.source_id,
   fileName: video.file_name,
-  videoUrl: video.video_url,
+  videoUrl:
+    video.video_url ||
+    (VIDEO_BASE_URL
+      ? `${VIDEO_BASE_URL}/${encodeURIComponent(video.file_name)}`
+      : null),
 }));
 
 res.json(sign);

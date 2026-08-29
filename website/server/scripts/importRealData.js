@@ -18,22 +18,26 @@ async function importRealData() {
     await conn.beginTransaction();
 
     for (const sign of signs) {
-      await conn.query(
-        `INSERT INTO signs
-          (gloss, definitions, usage_notes, tags, keywords, source)
-         VALUES (?, CAST(? AS JSON), CAST(? AS JSON), CAST(? AS JSON), CAST(? AS JSON), ?)
-         ON DUPLICATE KEY UPDATE
-           gloss = VALUES(gloss)`,
-        [
-          sign.gloss,
-          JSON.stringify(sign.definitions),
-          JSON.stringify(sign.usage_notes),
-          JSON.stringify(sign.tags),
-          JSON.stringify(sign.keywords),
-          sign.source,
-        ]
-      );
-    }
+  await conn.query(
+    `INSERT INTO signs
+      (gloss, definitions, usage_notes, tags, keywords, source)
+     VALUES (?, CAST(? AS JSON), CAST(? AS JSON), CAST(? AS JSON), CAST(? AS JSON), ?)
+     ON DUPLICATE KEY UPDATE
+       definitions = VALUES(definitions),
+       usage_notes = VALUES(usage_notes),
+       tags = VALUES(tags),
+       keywords = VALUES(keywords),
+       source = VALUES(source)`,
+    [
+      sign.gloss,
+      JSON.stringify(sign.definitions),
+      JSON.stringify(sign.usage_notes),
+      JSON.stringify(sign.tags),
+      JSON.stringify(sign.keywords),
+      sign.source,
+    ]
+  );
+}
 
     const [signRows] = await conn.query("SELECT id, gloss FROM signs");
     const signIdByGloss = new Map(signRows.map((row) => [row.gloss, row.id]));

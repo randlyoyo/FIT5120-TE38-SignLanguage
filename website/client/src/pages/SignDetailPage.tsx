@@ -82,7 +82,11 @@ export function SignDetailPage() {
         ))}
       </div>
 
-      <SignDemonstration gloss={sign.gloss} steps={sign.usageNotes} />
+      <SignDemonstration
+       gloss={sign.gloss}
+       steps={sign.usageNotes}
+       videos={sign.videos ?? []}
+      />
 
       <h2 className="sign-detail-heading">How to sign it</h2>
       <ol className="usage-notes sign-detail-steps">

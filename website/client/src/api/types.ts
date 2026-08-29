@@ -3,6 +3,12 @@ export interface DefinitionGroup {
   senses: string[];
 }
 
+export interface SignVideo {
+  sourceId: string;
+  fileName: string;
+  videoUrl: string | null;
+}
+
 export interface Sign {
   id: number;
   gloss: string;
@@ -11,6 +17,7 @@ export interface Sign {
   source: string | null;
   tags: string[];
   keywords: string[];
+  videos?: SignVideo[];
 }
 
 export interface PaginationMeta {

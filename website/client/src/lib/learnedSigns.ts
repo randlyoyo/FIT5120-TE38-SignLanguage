@@ -15,6 +15,10 @@ function writeIds(ids: number[]) {
   window.localStorage.setItem(KEY, JSON.stringify(ids));
 }
 
+export function getLearnedIds(): number[] {
+  return readIds();
+}
+
 export function isLearned(id: number): boolean {
   return readIds().includes(id);
 }

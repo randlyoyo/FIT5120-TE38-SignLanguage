@@ -176,6 +176,30 @@ input:focus-visible {
   align-self: flex-end;
 }
 
+.learned-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  align-self: flex-start;
+  padding: 0.55rem 0.9rem;
+  border: 1.5px solid var(--color-text);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.learned-link-button:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
 /* Search bar */
 .search-bar {
   display: flex;
@@ -789,6 +813,18 @@ input:focus-visible {
 .learned-toggle.learned:hover {
   border-color: var(--color-stamp);
   color: var(--color-stamp);
+}
+
+.learned-back-header {
+  margin-bottom: 0.5rem;
+}
+
+.learned-header {
+  margin-bottom: 1.5rem;
+}
+
+.learned-empty-state {
+  margin-top: 1.5rem;
 }
 
 /* Sign demonstration stage */

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { CategoryRail } from "../components/CategoryRail";
 import { EmptyState } from "../components/EmptyState";
 import { HandGlyphPagination } from "../components/Pagination/HandGlyphPagination";
@@ -81,6 +81,9 @@ export function SignLibraryPage() {
         </div>
         <div className="library-header-tools">
           <SearchBar value={queryInput} onChange={setQueryInput} />
+          <Link to="/learned" className="learned-link-button">
+            View learned words
+          </Link>
           {!isLoading && !isError && (
             <p className="results-count">{totalResults} entries indexed</p>
           )}

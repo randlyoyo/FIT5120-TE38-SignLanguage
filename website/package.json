@@ -1,5 +1,5 @@
 {
-  "name": "auslan-website",
+  "name": "handmirror-website",
   "private": true,
   "scripts": {
     "dev": "concurrently -n CLIENT,SERVER -c blue,green \"npm:dev:client\" \"npm:dev:server\"",

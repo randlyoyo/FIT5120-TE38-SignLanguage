@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
    Design concept: "Specimen card catalogue."
-   The Auslan Sign Library is treated like a field-reference catalogue --
+   HandMirror treats its Auslan sign library like a field-reference catalogue --
    every sign is an indexed specimen (its real database id becomes the
    catalogue number, never an invented sequence). Headwords and structural
    labels are set in a monospace type, like a typewritten index card;
@@ -66,6 +66,152 @@ input:focus-visible {
   max-width: 1120px;
   margin: 0 auto;
   padding: 2.5rem 1.5rem 4rem;
+}
+
+/* Site masthead -- a thin running strip above every page, like a running
+   header on a printed reference book, carrying the brand mark and the one
+   top-level nav link. */
+.site-header {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.site-header-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0.85rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.site-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+}
+
+.site-brand:hover {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.site-brand svg {
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.site-nav {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.site-nav a {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.site-nav a:hover,
+.site-nav a.active {
+  color: var(--color-accent);
+}
+
+/* Homepage */
+.home-hero {
+  max-width: 640px;
+  padding-bottom: 2.5rem;
+  margin-bottom: 2.5rem;
+  border-bottom: 3px solid var(--color-text);
+}
+
+.home-hero-title {
+  font-size: 3rem;
+  margin: 0.3rem 0 1rem;
+}
+
+.home-hero-tagline {
+  font-size: 1.05rem;
+  color: var(--color-text-muted);
+  margin: 0 0 1.5rem;
+  max-width: 52ch;
+}
+
+.home-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.home-cta {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-text);
+  color: #fff;
+  border-radius: var(--radius-md);
+  padding: 0.65rem 1.4rem;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.home-cta:hover {
+  background: var(--color-accent);
+  text-decoration: none;
+  color: #fff;
+}
+
+.home-hero-count {
+  margin: 0;
+}
+
+.home-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+
+.home-feature-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.home-feature-card:hover {
+  border-color: var(--color-text);
+  transform: translateY(-2px);
+  box-shadow: 3px 3px 0 var(--color-border);
+}
+
+.home-feature-title {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin: 0 0 0.5rem;
+}
+
+.home-feature-body {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin: 0;
 }
 
 /* Sign detail page -- a genuine two-column dictionary-entry layout on

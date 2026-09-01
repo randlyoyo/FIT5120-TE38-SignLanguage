@@ -16,14 +16,14 @@ export function CategoryRail({ tags, activeTag }: Props) {
       <p className="category-rail-heading">Index</p>
       <ul>
         <li>
-          <Link to="/" className={!activeTag ? "active" : ""}>
+          <Link to="/library" className={!activeTag ? "active" : ""}>
             All entries
           </Link>
         </li>
         {tags.map(({ tag, count }) => (
           <li key={tag}>
             <Link
-              to={`/?tag=${encodeURIComponent(tag)}`}
+              to={`/library?tag=${encodeURIComponent(tag)}`}
               className={activeTag === tag ? "active" : ""}
             >
               <span>{tag}</span>

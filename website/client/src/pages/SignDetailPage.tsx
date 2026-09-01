@@ -74,7 +74,7 @@ export function SignDetailPage() {
               {sign.tags.map((tag) => (
                 <Link
                   key={tag}
-                  to={`/?tag=${encodeURIComponent(tag)}`}
+                  to={`/library?tag=${encodeURIComponent(tag)}`}
                   className="tag-chip"
                   style={tagChipStyle(tag)}
                 >

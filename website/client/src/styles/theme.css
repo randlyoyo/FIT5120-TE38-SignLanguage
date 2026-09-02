@@ -256,7 +256,13 @@ input:focus-visible {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
   margin: 0;
+}
+
+.detail-gloss-title {
+  font-size: 2.1rem;
 }
 
 .detail-media {
@@ -442,6 +448,7 @@ input:focus-visible {
 
   .category-rail {
     position: static;
+    min-width: 0;
     border-right: none;
     border-bottom: 1px solid var(--color-border);
     padding: 0 0 0.75rem;
@@ -451,6 +458,7 @@ input:focus-visible {
   .category-rail ul {
     flex-direction: row;
     max-height: none;
+    min-width: 0;
     overflow-x: auto;
     padding-bottom: 0.25rem;
   }
@@ -1049,6 +1057,85 @@ input:focus-visible {
 
 .playback-controls input[type="range"] {
   flex-basis: 100%;
+}
+
+/* Mobile layout -- the desktop pass above assumes a wide viewport for the
+   masthead, hero type scale, and the two-column detail/library layouts.
+   Below this breakpoint everything collapses to a single readable column
+   with smaller display type and tighter spacing, instead of shrinking the
+   desktop layout down and clipping or overflowing it. */
+@media (max-width: 640px) {
+  .page-container {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .site-header-inner {
+    padding: 0.7rem 1rem;
+    gap: 0.75rem;
+  }
+
+  .site-brand span {
+    font-size: 0.9rem;
+  }
+
+  .site-nav {
+    gap: 0.85rem;
+  }
+
+  .home-hero {
+    padding-bottom: 1.75rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .home-hero-title {
+    font-size: 2.1rem;
+  }
+
+  .home-hero-tagline {
+    font-size: 0.95rem;
+  }
+
+  .home-hero-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .home-features {
+    grid-template-columns: 1fr;
+  }
+
+  .page-title {
+    font-size: 1.7rem;
+  }
+
+  .detail-gloss-title {
+    font-size: 1.6rem;
+  }
+
+  .library-header {
+    gap: 1rem;
+  }
+
+  .library-header-tools {
+    width: 100%;
+  }
+
+  .library-header-tools .results-count {
+    align-self: flex-start;
+  }
+
+  .sign-demo {
+    padding: 1rem;
+  }
+
+  .definition-group {
+    padding: 0.75rem 0.9rem;
+  }
+
+  .playback-controls {
+    justify-content: flex-start;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -53,21 +53,19 @@ export function SignDetailPage() {
   return (
     <div className="page-container">
       <div className="detail-layout">
-        <p className="detail-back">
+        <div className="detail-back">
           <button type="button" className="back-link" onClick={() => navigate(-1)}>
             &larr; Back to library
           </button>
           <span className="catalog-number-inline">No. {sign.id}</span>
-        </p>
+        </div>
 
         <div className="detail-media">
           <SignDemonstration gloss={sign.gloss} videos={sign.videos ?? []} />
         </div>
 
         <div className="detail-title">
-          <h1 className="page-title" style={{ fontSize: "2.1rem" }}>
-            {sign.gloss}
-          </h1>
+          <h1 className="page-title detail-gloss-title">{sign.gloss}</h1>
           <p className="result-card-meta">{sign.source ?? "Unknown source"}</p>
           {sign.tags.length > 0 && (
             <div className="tag-chips">

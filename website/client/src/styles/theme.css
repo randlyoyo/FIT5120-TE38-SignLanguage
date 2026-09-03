@@ -83,7 +83,8 @@ input:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
 }
 
 .site-brand {
@@ -115,9 +116,10 @@ input:focus-visible {
 
 .site-nav a {
   font-family: var(--font-display);
-  font-size: 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   color: var(--color-text-muted);
   text-decoration: none;
 }
@@ -256,7 +258,13 @@ input:focus-visible {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
   margin: 0;
+}
+
+.detail-gloss-title {
+  font-size: 2.1rem;
 }
 
 .detail-media {
@@ -292,8 +300,8 @@ input:focus-visible {
 .library-eyebrow {
   font-family: var(--font-display);
   text-transform: uppercase;
-  letter-spacing: 0.22em;
-  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--color-accent);
   margin: 0 0 0.2rem;
@@ -359,8 +367,8 @@ input:focus-visible {
 .results-count {
   font-family: var(--font-display);
   color: var(--color-text-muted);
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   margin: 0;
 }
@@ -388,8 +396,9 @@ input:focus-visible {
 .category-rail-heading {
   font-family: var(--font-display);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  font-size: 0.74rem;
+  font-weight: 600;
   color: var(--color-text-muted);
   margin: 0 0 0.6rem;
 }
@@ -409,8 +418,8 @@ input:focus-visible {
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.3rem 0.5rem;
-  font-size: 0.78rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.86rem;
   color: var(--color-text-muted);
   text-decoration: none;
   border-left: 2px solid transparent;
@@ -431,7 +440,7 @@ input:focus-visible {
 
 .category-rail-count {
   font-family: var(--font-display);
-  font-size: 0.68rem;
+  font-size: 0.74rem;
   color: var(--color-text-muted);
 }
 
@@ -442,6 +451,7 @@ input:focus-visible {
 
   .category-rail {
     position: static;
+    min-width: 0;
     border-right: none;
     border-bottom: 1px solid var(--color-border);
     padding: 0 0 0.75rem;
@@ -451,6 +461,7 @@ input:focus-visible {
   .category-rail ul {
     flex-direction: row;
     max-height: none;
+    min-width: 0;
     overflow-x: auto;
     padding-bottom: 0.25rem;
   }
@@ -588,7 +599,7 @@ input:focus-visible {
 
 .result-card-meta {
   color: var(--color-text-muted);
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   margin: 0.15rem 0 0.5rem;
 }
 
@@ -606,11 +617,11 @@ input:focus-visible {
   border: 1px solid var(--color-border);
   border-left-width: 3px;
   border-radius: 2px;
-  padding: 0.15rem 0.5rem 0.15rem 0.4rem;
+  padding: 0.2rem 0.55rem 0.2rem 0.45rem;
   font-family: var(--font-display);
-  font-size: 0.62rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   text-decoration: none;
   cursor: pointer;
@@ -635,9 +646,9 @@ input:focus-visible {
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);
   border-radius: var(--radius-md);
-  padding: 0.15rem 0.6rem;
+  padding: 0.2rem 0.65rem;
   font-family: var(--font-display);
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   text-transform: uppercase;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease;
@@ -826,11 +837,11 @@ input:focus-visible {
   color: var(--color-stamp);
   border: 2px solid var(--color-stamp);
   border-radius: 2px;
-  padding: 0.1rem 0.45rem;
+  padding: 0.15rem 0.5rem;
   font-family: var(--font-display);
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   transform: rotate(-6deg);
 }
@@ -887,20 +898,22 @@ input:focus-visible {
 .definition-pos {
   font-family: var(--font-display);
   margin: 0 0 0.4rem;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   color: var(--color-accent);
 }
 
 .definition-senses {
   margin: 0;
   padding-left: 1.1rem;
-  font-size: 0.95rem;
+  font-size: 1rem;
+  line-height: 1.6;
 }
 
 .definition-senses li {
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.4rem;
 }
 
 .learned-toggle {
@@ -935,6 +948,18 @@ input:focus-visible {
 .learned-toggle.learned:hover {
   border-color: var(--color-stamp);
   color: var(--color-stamp);
+}
+
+.learned-back-header {
+  margin-bottom: 0.5rem;
+}
+
+.learned-header {
+  margin-bottom: 1.5rem;
+}
+
+.learned-empty-state {
+  margin-top: 1.5rem;
 }
 
 /* Sign demonstration stage */
@@ -980,9 +1005,9 @@ input:focus-visible {
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);
   border-radius: var(--radius-md);
-  padding: 0.3rem 0.8rem;
+  padding: 0.32rem 0.85rem;
   font-family: var(--font-display);
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
@@ -1019,7 +1044,7 @@ input:focus-visible {
   padding: 0.4rem 0.9rem;
   cursor: pointer;
   font-family: var(--font-display);
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -1034,7 +1059,7 @@ input:focus-visible {
   gap: 0.4rem;
   color: var(--color-text-muted);
   font-family: var(--font-display);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   text-transform: uppercase;
 }
 
@@ -1043,12 +1068,92 @@ input:focus-visible {
   color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: 0.2rem 0.4rem;
+  padding: 0.25rem 0.45rem;
   font-family: var(--font-display);
+  font-size: 0.82rem;
 }
 
 .playback-controls input[type="range"] {
   flex-basis: 100%;
+}
+
+/* Mobile layout -- the desktop pass above assumes a wide viewport for the
+   masthead, hero type scale, and the two-column detail/library layouts.
+   Below this breakpoint everything collapses to a single readable column
+   with smaller display type and tighter spacing, instead of shrinking the
+   desktop layout down and clipping or overflowing it. */
+@media (max-width: 640px) {
+  .page-container {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .site-header-inner {
+    padding: 0.7rem 1rem;
+    gap: 0.75rem;
+  }
+
+  .site-brand span {
+    font-size: 0.9rem;
+  }
+
+  .site-nav {
+    gap: 0.85rem;
+  }
+
+  .home-hero {
+    padding-bottom: 1.75rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .home-hero-title {
+    font-size: 2.1rem;
+  }
+
+  .home-hero-tagline {
+    font-size: 0.95rem;
+  }
+
+  .home-hero-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .home-features {
+    grid-template-columns: 1fr;
+  }
+
+  .page-title {
+    font-size: 1.7rem;
+  }
+
+  .detail-gloss-title {
+    font-size: 1.6rem;
+  }
+
+  .library-header {
+    gap: 1rem;
+  }
+
+  .library-header-tools {
+    width: 100%;
+  }
+
+  .library-header-tools .results-count {
+    align-self: flex-start;
+  }
+
+  .sign-demo {
+    padding: 1rem;
+  }
+
+  .definition-group {
+    padding: 0.75rem 0.9rem;
+  }
+
+  .playback-controls {
+    justify-content: flex-start;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchSigns } from "../api/signs";
+import { ResultCard } from "../components/ResultCard";
+import type { Sign } from "../api/types";
 
 const FEATURES = [
   {
@@ -19,11 +21,17 @@ const FEATURES = [
 
 export function HomePage() {
   const [totalEntries, setTotalEntries] = useState<number | null>(null);
+  const [featured, setFeatured] = useState<Sign | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
     fetchSigns({ pageSize: 1, signal: controller.signal })
-      .then((data) => setTotalEntries(data.pagination.totalResults))
+      .then((data) => {
+        setTotalEntries(data.pagination.totalResults);
+        const randomPage = Math.floor(Math.random() * data.pagination.totalResults) + 1;
+        return fetchSigns({ page: randomPage, pageSize: 1, signal: controller.signal });
+      })
+      .then((data) => setFeatured(data.results[0] ?? null))
       .catch((err) => {
         if (err.name !== "AbortError") console.error(err);
       });
@@ -33,21 +41,32 @@ export function HomePage() {
   return (
     <div className="page-container">
       <section className="home-hero">
-        <p className="library-eyebrow">Auslan sign language, indexed</p>
-        <h1 className="page-title home-hero-title">HandMirror</h1>
-        <p className="home-hero-tagline">
-          A searchable Auslan sign reference, catalogued like a field
-          specimen collection — look a sign up, see how it's formed, and
-          track what you've learned.
-        </p>
-        <div className="home-hero-actions">
-          <Link to="/library" className="home-cta">
-            Browse the library &rarr;
-          </Link>
-          {totalEntries !== null && (
-            <p className="results-count home-hero-count">{totalEntries} entries indexed</p>
-          )}
+        <div className="home-hero-text">
+          <p className="library-eyebrow">Auslan sign language, indexed</p>
+          <h1 className="page-title home-hero-title">HandMirror</h1>
+          <p className="home-hero-tagline">
+            A searchable Auslan sign reference, catalogued like a field
+            specimen collection — look a sign up, see how it's formed, and
+            track what you've learned.
+          </p>
+          <div className="home-hero-actions">
+            <Link to="/library" className="home-cta">
+              Browse the library &rarr;
+            </Link>
+            {totalEntries !== null && (
+              <p className="results-count home-hero-count">{totalEntries} entries indexed</p>
+            )}
+          </div>
         </div>
+
+        {featured && (
+          <div className="home-featured">
+            <p className="home-featured-label">Featured entry</p>
+            <ul className="result-list">
+              <ResultCard sign={featured} />
+            </ul>
+          </div>
+        )}
       </section>
 
       <section className="home-features">

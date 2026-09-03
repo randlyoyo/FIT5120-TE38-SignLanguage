@@ -8,6 +8,12 @@ import { SignLibraryPage } from "./pages/SignLibraryPage";
 function App() {
   return (
     <>
+      <div className="edge-spine edge-spine-left" aria-hidden="true">
+        <span>HandMirror</span>
+      </div>
+      <div className="edge-spine edge-spine-right" aria-hidden="true">
+        <span>Auslan Sign Catalogue</span>
+      </div>
       <SiteHeader />
       <Routes>
         <Route path="/" element={<HomePage />} />

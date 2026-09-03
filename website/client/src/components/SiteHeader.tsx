@@ -37,6 +37,9 @@ export function SiteHeader() {
           <NavLink to="/library" className={({ isActive }) => (isActive ? "active" : "")}>
             Library
           </NavLink>
+          <NavLink to="/learned" className={({ isActive }) => (isActive ? "active" : "")}>
+            Learned
+          </NavLink>
         </nav>
       </div>
     </header>

@@ -73,60 +73,69 @@ export function SignLibraryPage() {
   const totalResults = data?.pagination.totalResults ?? 0;
 
   return (
-    <div className="page-container">
-      <header className="library-header">
-        <div>
-          <p className="library-eyebrow">Auslan</p>
-          <h1 className="page-title">Sign Library</h1>
-        </div>
-        <div className="library-header-tools">
-          <SearchBar value={queryInput} onChange={setQueryInput} />
-          {!isLoading && !isError && (
-            <p className="results-count">{totalResults} entries indexed</p>
-          )}
+    <>
+      <header className="library-hero-band home-hero-band">
+        <div className="library-hero-inner">
+          <div>
+            <p className="library-eyebrow-light">Auslan</p>
+            <h1 className="page-title">Sign Library</h1>
+          </div>
+          <div className="library-header-tools">
+            <SearchBar value={queryInput} onChange={setQueryInput} />
+            {!isLoading && !isError && (
+              <p className="results-count library-hero-count">{totalResults} entries indexed</p>
+            )}
+          </div>
         </div>
       </header>
 
-      <div className="library-layout">
-        <CategoryRail tags={tags} activeTag={tag} />
+      <div className="page-container">
+        <div className="library-layout">
+          <CategoryRail tags={tags} activeTag={tag} />
 
-        <div className="library-main">
-          {tag && (
-            <div className="active-tag-filter">
-              <span style={tagChipStyle(tag)} className="tag-chip">
-                #{tag}
-              </span>
-              <button type="button" onClick={clearTag} aria-label={`Clear tag filter ${tag}`}>
-                &times; Clear tag
-              </button>
-            </div>
-          )}
+          <div className="library-main">
+            {tag && (
+              <div className="active-tag-filter">
+                <span style={tagChipStyle(tag)} className="tag-chip">
+                  #{tag}
+                </span>
+                <button type="button" onClick={clearTag} aria-label={`Clear tag filter ${tag}`}>
+                  &times; Clear tag
+                </button>
+              </div>
+            )}
 
-          {isError && <p role="alert">Couldn't load the sign library. Is the server running?</p>}
+            {isError && <p role="alert">Couldn't load the sign library. Is the server running?</p>}
 
-          {isLoading ? (
-            <ul className="result-list">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <ResultCardSkeleton key={i} />
-              ))}
-            </ul>
-          ) : results.length === 0 && !isError ? (
-            <EmptyState onClear={clearFilters} />
-          ) : (
-            <ul className="result-list">
-              {results.map((sign) => (
-                <ResultCard key={sign.id} sign={sign} />
-              ))}
-            </ul>
-          )}
-
-          <HandGlyphPagination
-            page={page}
-            totalPages={totalPages}
-            onPageChange={(p) => updateParams({ page: p })}
-          />
+            {isLoading ? (
+              <ul className="result-list">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <ResultCardSkeleton key={i} />
+                ))}
+              </ul>
+            ) : results.length === 0 && !isError ? (
+              <EmptyState onClear={clearFilters} />
+            ) : (
+              <ul className="result-list">
+                {results.map((sign) => (
+                  <ResultCard key={sign.id} sign={sign} />
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
+
+        {/* Rendered outside .library-layout, not inside .library-main --
+            .library-main is only the narrower right-hand grid column (after
+            the category rail), so centering the nav there put it visibly
+            off-center from the page as a whole. This centers it against the
+            full page-container width instead. */}
+        <HandGlyphPagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={(p) => updateParams({ page: p })}
+        />
       </div>
-    </div>
+    </>
   );
 }

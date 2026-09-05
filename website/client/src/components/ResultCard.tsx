@@ -15,7 +15,10 @@ function primarySense(sign: Sign): string | null {
 
 export function ResultCard({ sign }: Props) {
   const preview = primarySense(sign);
-  const previewVideoUrl = sign.previewVideo?.videoUrl;
+  // The list endpoint sets `previewVideo`; the single-sign endpoint (used by
+  // e.g. the Learned page, which fetches signs by id) sets `videos` instead --
+  // fall back to its first entry so both shapes render a preview here.
+  const previewVideoUrl = sign.previewVideo?.videoUrl ?? sign.videos?.[0]?.videoUrl;
 
   return (
     <li className="result-card">

@@ -49,15 +49,22 @@ router.get("/", async (req, res, next) => {
     let orderParams = [];
     if (trimmedQuery) {
       const like = `%${trimmedQuery}%`;
+      const prefixLike = `${trimmedQuery}%`;
+      // Rank an exact gloss match first, then a gloss that starts with the
+      // query, before falling back to "contains" -- otherwise "love" and
+      // "glove" tie (both match gloss LIKE '%love%') and the alphabetical
+      // tiebreak puts "glove" ahead of the exact "love" match.
       orderClause = `ORDER BY
         CASE
-          WHEN gloss LIKE ? THEN 0
-          WHEN JSON_SEARCH(keywords, 'one', ?) IS NOT NULL THEN 1
-          WHEN JSON_SEARCH(tags, 'one', ?) IS NOT NULL THEN 2
-          ELSE 3
+          WHEN gloss = ? THEN 0
+          WHEN gloss LIKE ? THEN 1
+          WHEN gloss LIKE ? THEN 2
+          WHEN JSON_SEARCH(keywords, 'one', ?) IS NOT NULL THEN 3
+          WHEN JSON_SEARCH(tags, 'one', ?) IS NOT NULL THEN 4
+          ELSE 5
         END ASC,
         gloss ASC`;
-      orderParams = [like, like, like];
+      orderParams = [trimmedQuery, prefixLike, like, like, like];
     }
 
     const [rows] = await pool.query(

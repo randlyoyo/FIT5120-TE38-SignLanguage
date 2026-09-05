@@ -130,10 +130,27 @@ const countBase = (props: GlyphProps) => ({
 // Wide spacing between fingers so each one reads clearly as a distinct
 // finger even at a glance, instead of bunching into an unreadable cluster.
 const palm = <rect x="7" y="13" width="17" height="8" rx="3" />;
-const thumbCurled = <path d="M7 16c-1.2.2-1.8.9-1.8 1.7" />;
-const thumbExtended = <path d="M7 16C2 15 0 11.5 1.2 8" />;
-const fingerStub = (x: number) => `M${x} 13V11`;
-const fingerFull = (x: number, topY: number) => `M${x} 13V${topY}`;
+const thumbExtended = (
+  <g>
+    <path d="M7 16C2.5 15.2 0.6 12 1.5 8.8" />
+    <circle cx="1.2" cy="7.6" r="2.1" fill="currentColor" stroke="none" />
+  </g>
+);
+
+// A raised finger is drawn as a thin stem topped with a bold filled dot --
+// like a pin, not a subtly-longer line -- so the count reads at a glance as
+// "how many dots do you see". Fingers that aren't part of the count are
+// omitted entirely instead of drawn short/curled: an ambiguous "half-finger"
+// was the main reason this glyph read as meaningless squiggles rather than
+// a hand showing a number.
+function RaisedFinger({ x, topY }: { x: number; topY: number }) {
+  return (
+    <g>
+      <path d={`M${x} 13V${topY}`} />
+      <circle cx={x} cy={topY - 0.4} r="2.1" fill="currentColor" stroke="none" />
+    </g>
+  );
+}
 
 const INDEX_X = 10.5;
 const MIDDLE_X = 14.5;
@@ -144,11 +161,7 @@ export function HandCount1(props: GlyphProps) {
   return (
     <svg {...countBase(props)}>
       {palm}
-      <path d={fingerFull(INDEX_X, 5)} />
-      <path d={fingerStub(MIDDLE_X)} />
-      <path d={fingerStub(RING_X)} />
-      <path d={fingerStub(PINKY_X)} />
-      {thumbCurled}
+      <RaisedFinger x={INDEX_X} topY={5} />
     </svg>
   );
 }
@@ -157,11 +170,8 @@ export function HandCount2(props: GlyphProps) {
   return (
     <svg {...countBase(props)}>
       {palm}
-      <path d={fingerFull(INDEX_X, 5)} />
-      <path d={fingerFull(MIDDLE_X, 3.5)} />
-      <path d={fingerStub(RING_X)} />
-      <path d={fingerStub(PINKY_X)} />
-      {thumbCurled}
+      <RaisedFinger x={INDEX_X} topY={5} />
+      <RaisedFinger x={MIDDLE_X} topY={3.5} />
     </svg>
   );
 }
@@ -170,11 +180,9 @@ export function HandCount3(props: GlyphProps) {
   return (
     <svg {...countBase(props)}>
       {palm}
-      <path d={fingerFull(INDEX_X, 5)} />
-      <path d={fingerFull(MIDDLE_X, 3.5)} />
-      <path d={fingerFull(RING_X, 5)} />
-      <path d={fingerStub(PINKY_X)} />
-      {thumbCurled}
+      <RaisedFinger x={INDEX_X} topY={5} />
+      <RaisedFinger x={MIDDLE_X} topY={3.5} />
+      <RaisedFinger x={RING_X} topY={5} />
     </svg>
   );
 }
@@ -183,11 +191,10 @@ export function HandCount4(props: GlyphProps) {
   return (
     <svg {...countBase(props)}>
       {palm}
-      <path d={fingerFull(INDEX_X, 5)} />
-      <path d={fingerFull(MIDDLE_X, 3.5)} />
-      <path d={fingerFull(RING_X, 5)} />
-      <path d={fingerFull(PINKY_X, 7)} />
-      {thumbCurled}
+      <RaisedFinger x={INDEX_X} topY={5} />
+      <RaisedFinger x={MIDDLE_X} topY={3.5} />
+      <RaisedFinger x={RING_X} topY={5} />
+      <RaisedFinger x={PINKY_X} topY={7} />
     </svg>
   );
 }
@@ -196,10 +203,10 @@ export function HandCount5(props: GlyphProps) {
   return (
     <svg {...countBase(props)}>
       {palm}
-      <path d={fingerFull(INDEX_X, 5)} />
-      <path d={fingerFull(MIDDLE_X, 3.5)} />
-      <path d={fingerFull(RING_X, 5)} />
-      <path d={fingerFull(PINKY_X, 7)} />
+      <RaisedFinger x={INDEX_X} topY={5} />
+      <RaisedFinger x={MIDDLE_X} topY={3.5} />
+      <RaisedFinger x={RING_X} topY={5} />
+      <RaisedFinger x={PINKY_X} topY={7} />
       {thumbExtended}
     </svg>
   );
@@ -215,8 +222,12 @@ const HAND_COUNTS = [HandCount1, HandCount2, HandCount3, HandCount4, HandCount5]
 // transform>, the second copy mirrored so its thumb points outward to match
 // a real pair of hands.
 const localPalm = <rect x="0" y="13" width="17" height="8" rx="3" />;
-const localThumbCurled = <path d="M0 16c-1.2.2-1.8.9-1.8 1.7" />;
-const localThumbExtended = <path d="M0 16C-5 15 -7 11.5 -5.8 8" />;
+const localThumbExtended = (
+  <g>
+    <path d="M0 16C-5 15.2 -6.9 12 -6 8.8" />
+    <circle cx="-5.8" cy="7.6" r="2.1" fill="currentColor" stroke="none" />
+  </g>
+);
 const L_INDEX = 3.5;
 const L_MIDDLE = 7.5;
 const L_RING = 11.5;
@@ -226,11 +237,11 @@ function handShape(count: number) {
   return (
     <>
       {localPalm}
-      <path d={fingerFull(L_INDEX, 5)} />
-      {count >= 2 ? <path d={fingerFull(L_MIDDLE, 3.5)} /> : <path d={fingerStub(L_MIDDLE)} />}
-      {count >= 3 ? <path d={fingerFull(L_RING, 5)} /> : <path d={fingerStub(L_RING)} />}
-      {count >= 4 ? <path d={fingerFull(L_PINKY, 7)} /> : <path d={fingerStub(L_PINKY)} />}
-      {count >= 5 ? localThumbExtended : localThumbCurled}
+      <RaisedFinger x={L_INDEX} topY={5} />
+      {count >= 2 && <RaisedFinger x={L_MIDDLE} topY={3.5} />}
+      {count >= 3 && <RaisedFinger x={L_RING} topY={5} />}
+      {count >= 4 && <RaisedFinger x={L_PINKY} topY={7} />}
+      {count >= 5 && localThumbExtended}
     </>
   );
 }

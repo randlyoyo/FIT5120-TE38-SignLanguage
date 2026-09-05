@@ -27,6 +27,10 @@
   --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --radius-md: 3px;
   --radius-lg: 4px;
+  /* Reserved for the homepage hero only (video frame, big CTA, feature
+     cards) -- a deliberately friendlier, rounder register for the "front
+     door" that the rest of the reference-catalogue system doesn't use. */
+  --radius-hero: 20px;
 }
 
 * {
@@ -63,9 +67,62 @@ input:focus-visible {
 }
 
 .page-container {
-  max-width: 1120px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 2.5rem 1.5rem 4rem;
+  padding: 2.5rem 2rem 4rem;
+}
+
+/* Running spine -- the outer margin left over on wide monitors is treated
+   like the printed spine of a bound reference volume (title running one
+   way, one running fact the other) rather than left empty or filled with
+   decoration. Only appears once there is genuine margin to spare. */
+.edge-spine {
+  display: none;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 44px;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.edge-spine span {
+  writing-mode: vertical-rl;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  /* Fixed-position across the whole viewport height, so it passes over
+     both the plain white page and the homepage's blue hero band -- a
+     single flat color can't stay legible against both, so invert against
+     whatever's underneath instead of picking one. */
+  color: #ffffff;
+  mix-blend-mode: difference;
+  opacity: 0.75;
+}
+
+.edge-spine-left {
+  left: 0;
+  border-right: 1px solid var(--color-border);
+}
+
+.edge-spine-left span {
+  transform: rotate(180deg);
+}
+
+.edge-spine-right {
+  right: 0;
+  border-left: 1px solid var(--color-border);
+}
+
+@media (min-width: 1680px) {
+  .edge-spine {
+    display: flex;
+  }
 }
 
 /* Site masthead -- a thin running strip above every page, like a running
@@ -77,13 +134,14 @@ input:focus-visible {
 }
 
 .site-header-inner {
-  max-width: 1120px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 0.85rem 1.5rem;
+  padding: 0.85rem 2rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
 }
 
 .site-brand {
@@ -110,41 +168,124 @@ input:focus-visible {
 
 .site-nav {
   display: flex;
-  gap: 1.25rem;
+  gap: 0.75rem;
 }
 
+/* Nav links read as small raised tabs (same paper-card language as the
+   result/feature cards) rather than plain text, so the hover state -- a
+   hard offset shadow lifting the tab off the header -- reads as a much
+   stronger "this is clickable" signal than a color change alone. */
 .site-nav a {
+  display: inline-flex;
+  align-items: center;
   font-family: var(--font-display);
-  font-size: 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   color: var(--color-text-muted);
   text-decoration: none;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  transition: color 0.15s ease, border-color 0.15s ease, transform 0.15s ease,
+    box-shadow 0.15s ease, background-color 0.15s ease;
 }
 
-.site-nav a:hover,
+.site-nav a:hover {
+  color: var(--color-accent);
+  border-color: var(--color-text);
+  transform: translateY(-2px);
+  box-shadow: 3px 3px 0 var(--color-border);
+}
+
 .site-nav a.active {
   color: var(--color-accent);
+  border-color: var(--color-border);
+  background: var(--color-surface-raised);
 }
 
-/* Homepage */
-.home-hero {
-  max-width: 640px;
-  padding-bottom: 2.5rem;
-  margin-bottom: 2.5rem;
-  border-bottom: 3px solid var(--color-text);
+/* Homepage hero -- full-bleed, same outer-band + inner max-width wrapper
+   pattern as .site-header, so a first-time visitor gets a single-glance
+   answer to "what is this, and is it for me": a big brand mark, one plain
+   sentence describing the whole product, one obvious button, and a live
+   example pulled from the real catalogue instead of stock photography.
+   The background pattern is the system's own hand glyph, tiled faintly --
+   a literal background image built from the product's own iconography
+   rather than a licensed photo. */
+.home-hero-band {
+  background-color: var(--color-accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' opacity='0.06'%3E%3Crect x='70' y='88' width='24' height='11' rx='4'/%3E%3Cpath d='M76 88V75M82 88V69M88 88V75M94 90V80'/%3E%3C/g%3E%3C/svg%3E");
+  color: #fff;
 }
 
+.home-hero-inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 3.5rem 2rem 4rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2.75rem;
+  align-items: center;
+}
+
+@media (min-width: 960px) {
+  .home-hero-inner {
+    grid-template-columns: minmax(380px, 600px) minmax(300px, 400px);
+    justify-content: space-between;
+  }
+}
+
+.home-hero-text {
+  max-width: 60ch;
+}
+
+.home-lockup {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0 0 1.75rem;
+}
+
+.home-lockup svg {
+  flex-shrink: 0;
+}
+
+.home-lockup span {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Sentence case, not the sitewide all-caps .page-title treatment -- a
+   three-beat welcome line reads as shouting in all caps, and legibility
+   for a first-time (including a child) reader matters more here than
+   matching every other heading in the app. */
 .home-hero-title {
-  font-size: 3rem;
-  margin: 0.3rem 0 1rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 1.5rem + 2.6vw, 3.2rem);
+  line-height: 1.14;
+  letter-spacing: -0.01em;
+  margin: 0 0 1.1rem;
 }
 
 .home-hero-tagline {
-  font-size: 1.05rem;
-  color: var(--color-text-muted);
-  margin: 0 0 1.5rem;
-  max-width: 52ch;
+  font-size: 1.08rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.92);
+  margin: 0 0 0.85rem;
+  max-width: 56ch;
+}
+
+.home-hero-detail {
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0 0 1.75rem;
+  max-width: 56ch;
 }
 
 .home-hero-actions {
@@ -157,61 +298,305 @@ input:focus-visible {
 .home-cta {
   display: inline-flex;
   align-items: center;
-  background: var(--color-text);
-  color: #fff;
-  border-radius: var(--radius-md);
-  padding: 0.65rem 1.4rem;
+  background: #fff;
+  color: var(--color-accent);
+  border-radius: 999px;
+  padding: 0.85rem 1.8rem;
   font-family: var(--font-display);
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.92rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   text-decoration: none;
-  transition: background 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .home-cta:hover {
-  background: var(--color-accent);
+  transform: translateY(-2px);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.25);
   text-decoration: none;
-  color: #fff;
+  color: var(--color-accent);
 }
 
-.home-hero-count {
+/* Combined-class selector, not just .home-hero-count -- .results-count is
+   defined later in this file with equal specificity, so a plain
+   .home-hero-count rule here was silently losing the cascade to its grey
+   .results-count color, which is illegible on the blue band. */
+.results-count.home-hero-count {
   margin: 0;
+  color: rgba(255, 255, 255, 0.85);
 }
 
-.home-features {
+/* The hero's visual anchor is a real, live demonstration pulled from the
+   catalogue (a fresh one each visit), not a stock photo -- a hand mid-sign
+   is the single most characteristic image in this product's world. Two
+   small corner squares in the system's own paper/stamp colors peek out
+   from behind the frame for a bit of warmth without borrowing anyone
+   else's exact motif. */
+.home-video-block {
+  justify-self: center;
+  width: 100%;
+  max-width: 380px;
+}
+
+/* Mobile default: a normal-flow, width-driven block at the poster's own
+   ratio. The full-bleed, edge-to-edge treatment (see the min-width:960px
+   block below) only makes sense once the hero is genuinely a shared-row,
+   two-column layout -- below that breakpoint text and poster are just
+   stacked, so there's no shared row height to stretch to fill. */
+.home-poster-block {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+}
+
+.home-video-frame {
+  position: relative;
+}
+
+.home-video-accent {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+}
+
+.home-video-accent-a {
+  top: -14px;
+  left: -14px;
+  background: var(--color-surface-raised);
+}
+
+.home-video-accent-b {
+  bottom: -14px;
+  right: -14px;
+  background: var(--color-stamp);
+}
+
+.home-video-media {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-hero);
+  overflow: hidden;
+  background: var(--color-text);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+}
+
+.home-video-media video,
+.home-video-media img,
+.home-video-media svg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* The hero poster sits directly on the blue band at its own original
+   ratio -- no card frame, no corner accents, no cropping -- unlike the
+   live per-sign video below, which is real footage of varying quality and
+   benefits from being contained in a consistent frame. */
+.home-poster-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Full-bleed vertically, only once text and poster genuinely share one
+   grid row (matches .home-hero-inner's own two-column breakpoint): negative
+   margins matching that row's own top/bottom padding pull this column past
+   the padding to the band's real edges, and align-self overrides the row's
+   centering so the column stretches to the row's full height (set by the
+   text column). The image itself is positioned so it can scale to that
+   full height, and however wide its ratio then needs, without its own
+   intrinsic size ever feeding back into the column's width or the row's
+   height -- doing that with a percentage height in normal flow is circular
+   and balloons the row to match the image instead of the other way around.
+   Declared after the mobile-default rules above (same selectors, same
+   specificity) so this wins on cascade order once the media query matches. */
+@media (min-width: 960px) {
+  .home-poster-block {
+    align-self: stretch;
+    width: 340px;
+    margin: -3.5rem 0 -4rem;
+  }
+
+  .home-poster-img {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    height: 100%;
+  }
+}
+
+.home-video-media .placeholder-media {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: 0;
+}
+
+.home-video-caption {
+  position: relative;
+  margin: 1rem 0 0;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: center;
+}
+
+.home-video-caption strong {
+  color: #fff;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+/* The video block is reused outside the blue hero band (inside the
+   "every entry" showcase section, on the white page background), where
+   the caption's white-on-blue colors would be invisible. */
+.home-video-caption-dark {
+  color: var(--color-text-muted);
+}
+
+.home-video-caption-dark strong {
+  color: var(--color-text);
+}
+
+.home-section-heading {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.5rem;
+}
+
+.home-section-lead {
+  font-size: 1.02rem;
+  color: var(--color-text-muted);
+  margin: 0 0 1.75rem;
+  max-width: 56ch;
+}
+
+/* Three stacked feature sections below the poster -- library, then a real
+   entry (video reused from the old hero slot), then the AI-recognition
+   feature that's still being built -- so scrolling down the homepage tells
+   a first-time visitor what the product actually does, one feature at a
+   time, instead of a flat grid of icon cards. */
+.home-showcase-section {
+  padding: 3.5rem 0;
+}
+
+.home-showcase-section + .home-showcase-section {
+  border-top: 1px solid var(--color-border);
+}
+
+.home-showcase-kicker {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  margin: 0 0 0.6rem;
+}
+
+.home-showcase-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  align-items: center;
 }
 
-.home-feature-card {
-  background: var(--color-surface);
+@media (min-width: 860px) {
+  .home-showcase-grid {
+    grid-template-columns: 1.1fr 1fr;
+    gap: 3.5rem;
+  }
+
+  .home-showcase-grid-reverse .home-showcase-visual {
+    order: -1;
+  }
+}
+
+.home-showcase-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.home-showcase-link:hover {
+  text-decoration: underline;
+}
+
+.home-library-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.home-library-preview-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.1rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 1.25rem;
+  border-radius: var(--radius-hero);
+  text-decoration: none;
+  color: var(--color-text);
   transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.home-feature-card:hover {
+.home-library-preview-chip:hover {
   border-color: var(--color-text);
   transform: translateY(-2px);
   box-shadow: 3px 3px 0 var(--color-border);
 }
 
-.home-feature-title {
+.home-library-preview-gloss {
   font-family: var(--font-display);
-  font-size: 0.95rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  margin: 0 0 0.5rem;
 }
 
-.home-feature-body {
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
-  margin: 0;
+.home-coming-soon-badge {
+  display: inline-block;
+  padding: 0.4rem 0.9rem;
+  border: 1px dashed var(--color-accent);
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-accent);
+}
+
+.home-ai-preview {
+  max-width: 320px;
+  margin: 0 auto;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-hero);
+  color: var(--color-accent);
+  opacity: 0.85;
+}
+
+.home-ai-preview svg {
+  width: 55%;
+  height: auto;
 }
 
 /* Sign detail page -- a genuine two-column dictionary-entry layout on
@@ -234,13 +619,13 @@ input:focus-visible {
 
 @media (min-width: 860px) {
   .detail-layout {
-    max-width: 1180px;
-    grid-template-columns: minmax(320px, 560px) 1fr;
+    max-width: 1320px;
+    grid-template-columns: minmax(360px, 620px) minmax(320px, 640px);
     grid-template-areas:
       "back back"
       "media title"
       "media definitions";
-    column-gap: 2.5rem;
+    column-gap: 3.5rem;
     row-gap: 1rem;
     align-items: start;
   }
@@ -256,7 +641,13 @@ input:focus-visible {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
   margin: 0;
+}
+
+.detail-gloss-title {
+  font-size: clamp(2.1rem, 1.7rem + 1.2vw, 2.6rem);
 }
 
 .detail-media {
@@ -275,33 +666,73 @@ input:focus-visible {
   grid-area: definitions;
 }
 
-/* Library header -- a running-header layout (wordmark left, tools right)
-   with a heavy rule underneath, like the title page of a reference book
-   rather than a centered hero. */
-.library-header {
+/* Library/Learned header -- reuses the homepage's full-bleed
+   .home-hero-band so every page shares one masthead identity, while
+   everything below (rail, cards, pagination) keeps the sharp-edged
+   "specimen catalogue" register. */
+.library-hero-band {
+  padding: 2.25rem 0;
+}
+
+.library-hero-inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 2rem;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
   flex-wrap: wrap;
   gap: 1.5rem 2.5rem;
-  padding-bottom: 1.25rem;
-  margin-bottom: 2rem;
-  border-bottom: 3px solid var(--color-text);
 }
 
-.library-eyebrow {
+.library-eyebrow-light {
   font-family: var(--font-display);
   text-transform: uppercase;
-  letter-spacing: 0.22em;
-  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  font-size: 0.8rem;
   font-weight: 600;
-  color: var(--color-accent);
+  color: rgba(255, 255, 255, 0.75);
   margin: 0 0 0.2rem;
+}
+
+.results-count.library-hero-count {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.library-hero-band .search-bar {
+  background: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.7rem 1.1rem;
+}
+
+.library-hero-band .search-bar:focus-within {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
+}
+
+.learned-progress {
+  gap: 0.5rem;
+}
+
+.progress-bar {
+  width: 240px;
+  max-width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: #fff;
+  border-radius: 999px;
+  transition: width 0.3s ease;
 }
 
 .page-title {
   font-family: var(--font-display);
-  font-size: 2.4rem;
+  font-size: clamp(2.4rem, 2rem + 1.2vw, 2.9rem);
   font-weight: 700;
   letter-spacing: -0.01em;
   text-transform: uppercase;
@@ -359,8 +790,8 @@ input:focus-visible {
 .results-count {
   font-family: var(--font-display);
   color: var(--color-text-muted);
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   margin: 0;
 }
@@ -369,8 +800,8 @@ input:focus-visible {
    instead of tag browsing living only inside each card. */
 .library-layout {
   display: grid;
-  grid-template-columns: 190px 1fr;
-  gap: 2rem;
+  grid-template-columns: 240px 1fr;
+  gap: 2.5rem;
   align-items: start;
 }
 
@@ -388,10 +819,11 @@ input:focus-visible {
 .category-rail-heading {
   font-family: var(--font-display);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--color-text-muted);
-  margin: 0 0 0.6rem;
+  margin: 0 0 0.75rem;
 }
 
 .category-rail ul {
@@ -409,8 +841,8 @@ input:focus-visible {
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.3rem 0.5rem;
-  font-size: 0.78rem;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.94rem;
   color: var(--color-text-muted);
   text-decoration: none;
   border-left: 2px solid transparent;
@@ -422,6 +854,13 @@ input:focus-visible {
   text-decoration: none;
 }
 
+.category-rail-skeleton {
+  display: block;
+  width: 80%;
+  height: 0.94rem;
+  margin: 0.55rem 0.6rem;
+}
+
 .category-rail a.active {
   color: var(--color-accent);
   border-left-color: var(--color-accent);
@@ -431,7 +870,7 @@ input:focus-visible {
 
 .category-rail-count {
   font-family: var(--font-display);
-  font-size: 0.68rem;
+  font-size: 0.74rem;
   color: var(--color-text-muted);
 }
 
@@ -442,6 +881,7 @@ input:focus-visible {
 
   .category-rail {
     position: static;
+    min-width: 0;
     border-right: none;
     border-bottom: 1px solid var(--color-border);
     padding: 0 0 0.75rem;
@@ -451,6 +891,7 @@ input:focus-visible {
   .category-rail ul {
     flex-direction: row;
     max-height: none;
+    min-width: 0;
     overflow-x: auto;
     padding-bottom: 0.25rem;
   }
@@ -472,8 +913,8 @@ input:focus-visible {
    results than a narrow single-column list. */
 .result-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1.5rem 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 1.75rem 1.5rem;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -487,7 +928,7 @@ input:focus-visible {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: 0.75rem;
+  padding: 0.9rem;
   transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -580,7 +1021,7 @@ input:focus-visible {
 .result-card-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.01em;
@@ -588,8 +1029,8 @@ input:focus-visible {
 
 .result-card-meta {
   color: var(--color-text-muted);
-  font-size: 0.75rem;
-  margin: 0.15rem 0 0.5rem;
+  font-size: 0.85rem;
+  margin: 0.2rem 0 0.5rem;
 }
 
 .tag-chips {
@@ -606,11 +1047,11 @@ input:focus-visible {
   border: 1px solid var(--color-border);
   border-left-width: 3px;
   border-radius: 2px;
-  padding: 0.15rem 0.5rem 0.15rem 0.4rem;
+  padding: 0.2rem 0.55rem 0.2rem 0.45rem;
   font-family: var(--font-display);
-  font-size: 0.62rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   text-decoration: none;
   cursor: pointer;
@@ -635,9 +1076,9 @@ input:focus-visible {
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);
   border-radius: var(--radius-md);
-  padding: 0.15rem 0.6rem;
+  padding: 0.2rem 0.65rem;
   font-family: var(--font-display);
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   text-transform: uppercase;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease;
@@ -649,7 +1090,7 @@ input:focus-visible {
 }
 
 .result-card-preview {
-  font-size: 0.85rem;
+  font-size: 0.92rem;
   color: var(--color-text);
   margin: 0 0 0.5rem;
   display: -webkit-box;
@@ -706,16 +1147,6 @@ input:focus-visible {
 }
 
 /* Skeletons */
-.result-card-skeleton {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-}
-
 .skeleton-block {
   background: linear-gradient(90deg, var(--color-surface-raised) 25%, var(--color-border) 37%, var(--color-surface-raised) 63%);
   background-size: 400% 100%;
@@ -762,14 +1193,28 @@ input:focus-visible {
   cursor: pointer;
 }
 
-/* Pagination -- left exactly as-is; colors still flow from the tokens
-   above, but no layout/markup here changed. */
+/* Pagination -- rendered as a sibling of .library-layout (not nested inside
+   its narrower .library-main column), so centering it here centers it on
+   the full page width instead of just the content column next to the rail. */
+.pagination-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 2.5rem;
+}
+
+.pagination-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
 .pagination {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 1rem;
-  margin-top: 2rem;
   flex-wrap: wrap;
 }
 
@@ -799,7 +1244,7 @@ input:focus-visible {
 }
 
 .pagination svg {
-  height: 34px;
+  height: 44px;
   width: auto;
   display: block;
 }
@@ -826,11 +1271,11 @@ input:focus-visible {
   color: var(--color-stamp);
   border: 2px solid var(--color-stamp);
   border-radius: 2px;
-  padding: 0.1rem 0.45rem;
+  padding: 0.15rem 0.5rem;
   font-family: var(--font-display);
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   transform: rotate(-6deg);
 }
@@ -887,20 +1332,62 @@ input:focus-visible {
 .definition-pos {
   font-family: var(--font-display);
   margin: 0 0 0.4rem;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   color: var(--color-accent);
 }
 
 .definition-senses {
   margin: 0;
   padding-left: 1.1rem;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
+  line-height: 1.65;
 }
 
 .definition-senses li {
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.4rem;
+}
+
+/* Step-by-step breakdown of how to perform the sign -- numbered circles
+   instead of a plain list, so a beginner can follow along one motion at a
+   time rather than parsing a paragraph. */
+.usage-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: usage-step;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.usage-steps li {
+  counter-increment: usage-step;
+  position: relative;
+  padding-left: 2.3rem;
+  font-size: 1rem;
+  line-height: 1.55;
+  min-height: 1.6rem;
+}
+
+.usage-steps li::before {
+  content: counter(usage-step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .learned-toggle {
@@ -935,6 +1422,14 @@ input:focus-visible {
 .learned-toggle.learned:hover {
   border-color: var(--color-stamp);
   color: var(--color-stamp);
+}
+
+.learned-back-header {
+  margin-bottom: 0.5rem;
+}
+
+.learned-empty-state {
+  margin-top: 1.5rem;
 }
 
 /* Sign demonstration stage */
@@ -980,9 +1475,9 @@ input:focus-visible {
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);
   border-radius: var(--radius-md);
-  padding: 0.3rem 0.8rem;
+  padding: 0.32rem 0.85rem;
   font-family: var(--font-display);
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
@@ -1019,7 +1514,7 @@ input:focus-visible {
   padding: 0.4rem 0.9rem;
   cursor: pointer;
   font-family: var(--font-display);
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -1034,7 +1529,7 @@ input:focus-visible {
   gap: 0.4rem;
   color: var(--color-text-muted);
   font-family: var(--font-display);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   text-transform: uppercase;
 }
 
@@ -1043,12 +1538,96 @@ input:focus-visible {
   color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: 0.2rem 0.4rem;
+  padding: 0.25rem 0.45rem;
   font-family: var(--font-display);
+  font-size: 0.82rem;
 }
 
 .playback-controls input[type="range"] {
   flex-basis: 100%;
+}
+
+/* Mobile layout -- the desktop pass above assumes a wide viewport for the
+   masthead, hero type scale, and the two-column detail/library layouts.
+   Below this breakpoint everything collapses to a single readable column
+   with smaller display type and tighter spacing, instead of shrinking the
+   desktop layout down and clipping or overflowing it. */
+@media (max-width: 640px) {
+  .page-container {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .site-header-inner {
+    padding: 0.7rem 1rem;
+    gap: 0.75rem;
+  }
+
+  .site-brand span {
+    font-size: 0.9rem;
+  }
+
+  .site-nav {
+    gap: 0.4rem;
+  }
+
+  .site-nav a {
+    padding: 0.35rem 0.5rem;
+  }
+
+  .home-hero-inner {
+    padding: 2.25rem 1rem 2.75rem;
+  }
+
+  .home-lockup span {
+    font-size: 1.1rem;
+  }
+
+  .home-hero-tagline,
+  .home-hero-detail {
+    font-size: 0.95rem;
+  }
+
+  .home-hero-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .home-features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-title {
+    font-size: 1.7rem;
+  }
+
+  .detail-gloss-title {
+    font-size: 1.6rem;
+  }
+
+  .library-hero-inner {
+    gap: 1rem;
+  }
+
+  .library-header-tools {
+    width: 100%;
+  }
+
+  .library-header-tools .results-count {
+    align-self: flex-start;
+  }
+
+  .sign-demo {
+    padding: 1rem;
+  }
+
+  .definition-group {
+    padding: 0.75rem 0.9rem;
+  }
+
+  .playback-controls {
+    justify-content: flex-start;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

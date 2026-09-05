@@ -105,6 +105,17 @@ export function SignDetailPage() {
               </div>
             ))}
           </div>
+
+          {sign.usageNotes.length > 0 && (
+            <>
+              <h2 className="sign-detail-heading">How It's Formed</h2>
+              <ol className="usage-steps">
+                {sign.usageNotes.map((note, i) => (
+                  <li key={i}>{note}</li>
+                ))}
+              </ol>
+            </>
+          )}
         </div>
       </div>
     </div>

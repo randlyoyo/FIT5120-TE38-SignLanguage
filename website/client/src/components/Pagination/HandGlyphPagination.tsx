@@ -28,22 +28,25 @@ export function HandGlyphPagination({ page, totalPages, onPageChange }: Props) {
   if (totalPages <= 1) return null;
 
   return (
-    <nav className="pagination" aria-label="Search results pages">
-      {getVisiblePages(page, totalPages).map((entry, i) =>
-        entry === "ellipsis" ? (
-          <span key={`ellipsis-${i}`} className="pagination-ellipsis" aria-hidden="true">
-            &hellip;
-          </span>
-        ) : (
-          <PageButton
-            key={entry}
-            pageNumber={entry}
-            isCurrent={entry === page}
-            onClick={() => onPageChange(entry)}
-          />
-        )
-      )}
-    </nav>
+    <div className="pagination-wrap">
+      <p className="pagination-hint">Turn the page &mdash; raised fingers count it</p>
+      <nav className="pagination" aria-label="Search results pages">
+        {getVisiblePages(page, totalPages).map((entry, i) =>
+          entry === "ellipsis" ? (
+            <span key={`ellipsis-${i}`} className="pagination-ellipsis" aria-hidden="true">
+              &hellip;
+            </span>
+          ) : (
+            <PageButton
+              key={entry}
+              pageNumber={entry}
+              isCurrent={entry === page}
+              onClick={() => onPageChange(entry)}
+            />
+          )
+        )}
+      </nav>
+    </div>
   );
 }
 

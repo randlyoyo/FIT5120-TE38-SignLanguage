@@ -12,6 +12,12 @@
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
+    <!-- A render-blocking <link>, not a JS import in main.tsx -- in Vite's
+         dev server a CSS import injects a <style> tag only once that JS
+         module has loaded, so the grid layout visibly snaps in after an
+         unstyled first paint. A <link> is fetched and applied before the
+         page paints at all, in both dev and the production build. -->
+    <link rel="stylesheet" href="/src/styles/theme.css" />
   </head>
   <body>
     <div id="root"></div>

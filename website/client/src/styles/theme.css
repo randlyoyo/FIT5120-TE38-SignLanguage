@@ -147,12 +147,12 @@ input:focus-visible {
 .site-brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.55rem;
   color: var(--color-text);
   text-decoration: none;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 1.35rem;
   letter-spacing: 0.01em;
 }
 
@@ -179,13 +179,13 @@ input:focus-visible {
   display: inline-flex;
   align-items: center;
   font-family: var(--font-display);
-  font-size: 0.82rem;
+  font-size: 1rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--color-text-muted);
   text-decoration: none;
-  padding: 0.4rem 0.7rem;
+  padding: 0.45rem 0.85rem;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: var(--color-bg);
@@ -617,19 +617,6 @@ input:focus-visible {
   margin: 0 auto;
 }
 
-/* Only reserved when the Learn/Practice toggle actually renders (a sign
-   outside the recognizer's vocabulary has no "mode" content at all) --
-   otherwise an always-present empty grid row still eats a full row-gap
-   between the catalog number and the title for nothing. */
-.detail-layout.has-mode-toggle {
-  grid-template-areas:
-    "back"
-    "mode"
-    "title"
-    "media"
-    "definitions";
-}
-
 @media (min-width: 860px) {
   .detail-layout {
     max-width: 1320px;
@@ -641,14 +628,6 @@ input:focus-visible {
     column-gap: 3.5rem;
     row-gap: 1rem;
     align-items: start;
-  }
-
-  .detail-layout.has-mode-toggle {
-    grid-template-areas:
-      "back  back"
-      "media mode"
-      "media title"
-      "media definitions";
   }
 
   .detail-media {
@@ -667,6 +646,12 @@ input:focus-visible {
   margin: 0;
 }
 
+.detail-back-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .detail-gloss-title {
   font-size: clamp(2.1rem, 1.7rem + 1.2vw, 2.6rem);
 }
@@ -683,17 +668,27 @@ input:focus-visible {
   grid-area: title;
 }
 
+/* Practice mode puts nothing but the capture stage in this slot (no
+   heading, no intro line) so its top edge lines up with the demo video's
+   in .detail-media, which starts at the same grid row. */
+.detail-title .practice-verify {
+  margin-bottom: 0;
+}
+
+.detail-title .practice-stage {
+  max-width: 100%;
+}
+
 .detail-definitions-area {
   grid-area: definitions;
 }
 
-/* Learn/Practice toggle -- sits directly below the catalog number, and
-   only ever switches the definitions-area content beside it; the demo
-   video in .detail-media is untouched by either mode. */
+/* Learn/Practice toggle -- to the left of the catalog number, in the same
+   row as the back link. Only ever swaps the title/definitions content
+   beside and below it; the demo video in .detail-media is untouched by
+   either mode. */
 .detail-mode-toggle {
-  grid-area: mode;
   display: inline-flex;
-  align-self: start;
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -743,15 +738,50 @@ input:focus-visible {
   animation: detail-mode-in 0.25s ease;
 }
 
-/* Practice mode's capture stage should feel as substantial as the sign
-   demonstration video beside it, not the smaller widget this used to be
-   when it was a "try it yourself" postscript under the definitions. */
-.detail-practice-panel .practice-verify {
-  margin-bottom: 0;
+/* Prev/next catalogue-entry arrows -- fixed to the viewport edges (a
+   gallery-style control, not part of the entry card), so they're reachable
+   regardless of scroll position. Hidden below the width where the layout's
+   own side margins get too tight to hold them without overlapping content. */
+.detail-nav-arrow {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  z-index: 10;
+  transition: color 0.15s ease;
 }
 
-.detail-practice-panel .practice-stage {
-  max-width: 100%;
+.detail-nav-arrow:hover {
+  color: var(--color-accent);
+}
+
+.detail-nav-arrow:disabled {
+  opacity: 0.2;
+  cursor: default;
+  pointer-events: none;
+}
+
+.detail-nav-arrow.prev {
+  left: 0.75rem;
+}
+
+.detail-nav-arrow.next {
+  right: 0.75rem;
+}
+
+@media (max-width: 1400px) {
+  .detail-nav-arrow {
+    display: none;
+  }
 }
 
 /* Library/Learned header -- reuses the homepage's full-bleed
@@ -845,11 +875,11 @@ input:focus-visible {
 .search-bar {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.7rem;
   background: var(--color-surface);
   border: 1px solid var(--color-text);
   border-radius: var(--radius-md);
-  padding: 0.6rem 0.9rem;
+  padding: 0.65rem 1rem;
   transition: box-shadow 0.15s ease;
 }
 
@@ -885,8 +915,8 @@ input:focus-visible {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   background: transparent;
   border: none;
@@ -1874,6 +1904,7 @@ input:focus-visible {
 
   .site-nav a {
     padding: 0.35rem 0.5rem;
+    font-size: 0.8rem;
   }
 
   .home-hero-inner {

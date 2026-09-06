@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { fetchRecognitionVocabulary } from "../api/recognize";
 import { CategoryRail } from "../components/CategoryRail";
 import { EmptyState } from "../components/EmptyState";
 import { HandGlyphPagination } from "../components/Pagination/HandGlyphPagination";
@@ -25,6 +26,20 @@ export function SignLibraryPage() {
   // drives the actual API fetch.
   const [queryInput, setQueryInput] = useState(searchParams.get("query") ?? "");
   const debouncedQuery = useDebouncedValue(queryInput, 300);
+
+  // Hidden entirely (not shown-then-erroring) when the recognizer isn't
+  // deployed -- fetchRecognitionVocabulary() resolves to an empty set rather
+  // than rejecting in that case (same convention SignDetailPage uses).
+  const [canGestureSearch, setCanGestureSearch] = useState(false);
+  useEffect(() => {
+    let active = true;
+    fetchRecognitionVocabulary().then((vocabulary) => {
+      if (active) setCanGestureSearch(vocabulary.size > 0);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const currentQuery = searchParams.get("query") ?? "";
@@ -81,7 +96,11 @@ export function SignLibraryPage() {
             <h1 className="page-title">Sign Library</h1>
           </div>
           <div className="library-header-tools">
-            <SearchBar value={queryInput} onChange={setQueryInput} />
+            <SearchBar
+              value={queryInput}
+              onChange={setQueryInput}
+              canGestureSearch={canGestureSearch}
+            />
             {!isLoading && !isError && (
               <p className="results-count library-hero-count">{totalResults} entries indexed</p>
             )}

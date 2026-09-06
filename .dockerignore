@@ -1,0 +1,16 @@
+# Keeps the Fly.io build context (repo root, see website/server/Dockerfile)
+# small and fast -- without this, the whole monorepo (including every
+# node_modules tree, git history, and the unrelated client app) gets
+# uploaded to the builder on every deploy.
+.git
+.claude
+node_modules
+**/node_modules
+website/client
+web
+handover
+*.pdf
+*.pptx
+*.docx
+*.jpg
+.DS_Store

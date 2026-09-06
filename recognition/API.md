@@ -507,14 +507,53 @@ it: lowering the hands is movement, not stillness.
 ### So the recording must stop itself
 
 Fixed-length capture is not acceptable. Stop as soon as the hands come to rest.
-The client already has the landmarks live, so this is a few lines:
+The client already has the landmarks live, so this costs a few lines.
+
+**Work in the §3 normalised frame** — shoulder midpoint at the origin, shoulder
+width as the unit, y increasing downward. Raw image coordinates will not do:
+the thresholds below are in shoulder widths, which is what makes them
+independent of how far the learner sits from the camera.
+
+Measured over 800 validation clips, separating the frames the trim discards
+(hands at rest) from the frames it keeps (signing):
+
+| | wrist height | per-frame wrist speed |
+|---|---|---|
+| at rest | median **1.45**, 10–90% [1.33, 1.60] | median 0.006, 90th 0.018 |
+| signing | median 0.50, 10–90% [−0.15, 1.44] | median 0.048, 90th 0.187 |
+
+Wrist height is measured as the *higher* of the two wrists, so one raised hand
+is enough to count as still signing.
+
+Neither signal is sufficient alone — at rest height alone, 64% of signing
+frames also qualify, because plenty of signs are made low. Combine them, and
+require the hands to have been **raised at least once** before rest detection
+arms at all, otherwise it fires immediately on the stillness before the attempt
+starts:
 
 ```js
-// in the §3 normalised frame (shoulder midpoint at origin, shoulder width = 1)
-const resting = wristY > shoulderY + 0.3 && wristSpeed < 0.01;
-restFrames = resting ? restFrames + 1 : 0;
-if (restFrames > 10) stop();     // ~0.4 s at 25 fps
+// all values in the §3 normalised frame
+const wristY = Math.min(leftWristY, rightWristY);   // higher of the two
+const speed  = Math.max(leftWristSpeed, rightWristSpeed);
+
+if (!started && wristY < 0.8) started = true;       // hands came up
+if (started) {
+  restFrames = (wristY > 1.2 && speed < 0.03) ? restFrames + 1 : 0;
+  if (restFrames >= 8) stop();                      // ~0.32 s at 25 fps
+}
 ```
+
+At these thresholds the rule stops mid-sign on **0.1%** of validation clips.
+Loosening the speed cut to 0.05 raises that to 0.6%, and dropping the
+consecutive-frame count to 5 raises it to 1.8% — the eight-frame requirement is
+what makes the rule safe, not the thresholds themselves.
+
+**What this measurement could not check:** how long the rule takes to fire
+*after* a sign genuinely ends. The training clips are cut tight to the sign, so
+94% of them simply run out of frames before eight rest frames accumulate. In
+real use the learner lowers their hands and leaves them there, so the frames
+exist — but the trailing latency is unverified, and the fallback ceiling below
+is what covers it being wrong.
 
 Keep a hard ceiling — 5 seconds — as a fallback for when rest detection fails,
 not as the normal path.
@@ -522,8 +561,8 @@ not as the normal path.
 ```
 countdown 3-2-1
    │
-   ├── hands at rest for 0.4 s ──▶ stop        (the normal case)
-   └── 5 s elapsed ─────────────▶ stop        (fallback only)
+   ├── hands at rest for ~0.3 s ──▶ stop        (the normal case)
+   └── 5 s elapsed ───────────────▶ stop        (fallback only)
 ```
 
 Stopping early also halves the upload: about 95 KB for a 2-second capture

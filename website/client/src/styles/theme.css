@@ -1432,6 +1432,117 @@ input:focus-visible {
   margin-top: 1.5rem;
 }
 
+/* Practice-verify (recognition/API.md) -- deliberately reuses only the
+   site's two existing accents: signal-blue for a match, plain muted text
+   for "not yet", never the stamp red, which this codebase reserves solely
+   for "Learned" (see theme.css's header comment). */
+.practice-intro {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  margin: 0 0 1rem;
+}
+
+.practice-verify {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin: 0 0 1.5rem;
+  text-align: center;
+}
+
+.practice-start-button {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.65rem 1.6rem;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.practice-start-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 3px 3px 0 var(--color-border);
+}
+
+.practice-stage {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 4 / 3;
+  margin: 1.25rem auto 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-text);
+}
+
+.practice-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  /* Display-only mirror for the user's comfort -- the underlying frames
+     MediaPipe reads are never flipped (recognition/API.md §2). */
+  transform: scaleX(-1);
+}
+
+.practice-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.practice-overlay.practice-recording {
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.practice-result {
+  margin-top: 1.25rem;
+}
+
+.practice-result-verdict {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 0.3rem;
+}
+
+.practice-result.matched .practice-result-verdict {
+  color: var(--color-accent);
+}
+
+.practice-result.not-matched .practice-result-verdict {
+  color: var(--color-text-muted);
+}
+
+.practice-result-detail {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.practice-error {
+  margin-top: 1.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
 /* Sign demonstration stage */
 .sign-demo {
   background: var(--color-surface);

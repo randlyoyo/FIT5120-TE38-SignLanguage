@@ -44,8 +44,16 @@ bank resident anyway.
 
 ## 2. Landmark extraction
 
-**Model:** MediaPipe Holistic Landmarker, bundle `float16/1`
-(`models/holistic_landmarker.task` — ship this file, do not re-download).
+**Model:** MediaPipe Holistic Landmarker, bundle `float16/1`. Load it straight
+from Google's CDN at the pinned URL — there is no copy to host or deploy:
+
+```
+https://storage.googleapis.com/mediapipe-models/holistic_landmarker/holistic_landmarker/float16/1/holistic_landmarker.task
+```
+
+`sha256 e2dab61191e2dcd0a15f943d8e3ed1dce13c82dfa597b9dd39f562975a50c3f8` — this
+is the exact bundle the training keypoints were extracted with. Keep the `/1/`
+in the path; `latest` would silently move under you.
 
 **JS package:** `@mediapipe/tasks-vision@0.10.33`. The version must match the
 `mediapipe==0.10.33` used to extract the training data. A different bundle or a
@@ -229,7 +237,7 @@ Result: `Float32Array(96 * 98)`, row-major, no NaN.
 ## 4. Encoder
 
 **File:** `models/encoder.onnx` (3.7 MB)
-**Runtime:** `onnxruntime-web` ≥ 1.20
+**Runtime:** `onnxruntime-node` ≥ 1.20 (the encoder runs server-side)
 
 | | name | shape | dtype |
 |---|---|---|---|
@@ -393,7 +401,7 @@ Always four candidates, ordered nearest first.
 |---|---|---|
 | 400 | `{ error: "unusable_capture", detail }` | too few frames, no motion, no shoulders, fps out of range |
 | 404 | `{ error: "unknown_word", word }` | verify only |
-| 503 | `{ error: "model_unavailable" }` | `bank.f32` not deployed — see `ASSETS.md` |
+| 503 | `{ error: "model_unavailable" }` | model assets missing from the deployment |
 
 `unusable_capture` is a retake prompt, not an error to log — it fires when the
 learner barely moved, or the camera lost them.
@@ -530,15 +538,14 @@ recognition/
 ├── API.md                      this document
 ├── ASSETS.md                   how to obtain the two uncommitted files
 ├── models/
-│   ├── encoder.onnx            3.7 MB   ship to the browser
-│   ├── holistic_landmarker.task 13 MB   ship to the browser
+│   ├── encoder.onnx            3.7 MB   committed
+│   ├── bank.i8                 9.9 MB   committed, server-side
 │   ├── manifest.json                    vocabulary, dims, tau
-│   ├── bank.f32                39.5 MB  server-side only
-│   └── bank_index.json                  word → offset
+│   └── bank_index.json                  word → offset, dtype
 ├── scripts/
 │   ├── verifyDoc.mjs           independent implementation of §3, passes §7
-│   ├── buildBank.mjs           bank.npy -> bank.f32
-│   └── fetchModel.sh           pinned MediaPipe bundle, hash-checked
+│   ├── buildBank.mjs           bank.npy -> bank.i8, only needed after retraining
+│   └── fetchModel.sh           optional local copy of the MediaPipe bundle
 └── test/
     └── golden.json             0.6 MB   conformance fixtures
 

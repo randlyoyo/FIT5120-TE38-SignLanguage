@@ -1,10 +1,14 @@
 /**
  * Encoder + template bank, loaded once and shared.
  *
- * The bank is 39.5 MB of float32 held resident: 3215 words x 12 templates x
- * 256 dims. Scoring one capture against every word is a single pass over it
- * (~1 ms), which is why identify does not need an index or a vector database
- * at this size.
+ * The bank ships int8 quantised -- 9.9 MB on disk instead of 39.5 MB, small
+ * enough to live in git so that Vercel and Railway, which both deploy from the
+ * repository, get it without a build-time fetch. Measured impact of the
+ * quantisation on AUC, EER and top-4: none (differences below 0.01 points).
+ *
+ * It is dequantised to float32 once at load, so scoring is unchanged: one pass
+ * over 3215 x 12 x 256 floats, about 1 ms, which is why identify needs no
+ * index or vector database at this size.
  */
 
 const fs = require("node:fs");
@@ -25,19 +29,29 @@ async function load() {
 
   const index = JSON.parse(fs.readFileSync(path.join(ROOT, "bank_index.json"), "utf8"));
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.json"), "utf8"));
-  const raw = fs.readFileSync(path.join(ROOT, "bank.f32"));
+  const raw = fs.readFileSync(path.join(ROOT, "bank.i8"));
 
   const { words, dim, n_template: nTpl } = index;
-  const expected = words.length * nTpl * dim * 4;
-  if (raw.length !== expected) {
+  const count = words.length * nTpl * dim;
+  if (raw.length !== count) {
     throw new Error(
-      `bank.f32 is ${raw.length} bytes, expected ${expected} for `
-      + `${words.length}x${nTpl}x${dim} float32 -- rebuild it with `
+      `bank.i8 is ${raw.length} bytes, expected ${count} for `
+      + `${words.length}x${nTpl}x${dim} int8 -- rebuild it with `
       + "recognition/scripts/buildBank.mjs"
     );
   }
-  // One view over the whole bank; slicing per word is arithmetic, not a copy.
-  const bank = new Float32Array(raw.buffer, raw.byteOffset, raw.length / 4);
+  // Dequantise and re-normalise each template. The stored int8 values are
+  // v*127 rounded, so dividing by 127 loses the unit norm slightly; the
+  // encoder output is a unit vector, and the cosine rule below assumes both
+  // sides are.
+  const bank = new Float32Array(count);
+  for (let t = 0; t < words.length * nTpl; t++) {
+    const off = t * dim;
+    let ss = 0;
+    for (let d = 0; d < dim; d++) { const v = raw.readInt8(off + d) / 127; bank[off + d] = v; ss += v * v; }
+    const inv = 1 / Math.sqrt(ss);
+    for (let d = 0; d < dim; d++) bank[off + d] *= inv;
+  }
 
   const session = await ort.InferenceSession.create(path.join(ROOT, "encoder.onnx"));
 

@@ -591,6 +591,23 @@ if (started) {
 }
 ```
 
+**Normalise before comparing, do not threshold raw screen coordinates.** A
+displacement expressed as a fraction of the frame means different things to
+different people, because it scales with how far the signer sits from the
+camera. Shoulder width measured across the splits:
+
+| split | shoulder width (screen fraction) |
+|---|---|
+| Train / Valid | 0.19 – 0.25 |
+| Test_ITW | 0.19 – 0.22 |
+| **Test_MTV** (consumer cameras, varied rooms) | **0.13 – 0.49** |
+
+The studio splits sit in a narrow band because the camera never moves, which
+makes a raw threshold look stable there. Test_MTV is the honest preview of real
+users: a fixed 0.015 of frame width lands anywhere between 0.031 and 0.120
+shoulder widths depending on who is sitting where — a four-fold spread in what
+"still" means. Dividing by shoulder width removes it.
+
 At these thresholds the rule stops mid-sign on **0.1%** of validation clips.
 Loosening the speed cut to 0.05 raises that to 0.6%, and dropping the
 consecutive-frame count to 5 raises it to 1.8% — the eight-frame requirement is
@@ -602,6 +619,13 @@ what makes the rule safe, not the thresholds themselves.
 real use the learner lowers their hands and leaves them there, so the frames
 exist — but the trailing latency is unverified, and the fallback ceiling below
 is what covers it being wrong.
+
+**A longer hold is the safer direction to err in.** Eight frames (~0.32 s) is
+the measured minimum that keeps early stops at 0.1%; waiting longer — 0.7 s is
+a reasonable choice, borrowed from voice-activity-detection hangover periods —
+costs a little extra trailing content and buys more protection against the
+brief internal pauses a real sign contains. Shortening it is what gets
+expensive: five frames raises early stops to 1.8%.
 
 Keep a hard ceiling — 5 seconds — as a fallback for when rest detection fails,
 not as the normal path.

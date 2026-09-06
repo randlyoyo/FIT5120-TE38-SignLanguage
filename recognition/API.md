@@ -307,13 +307,34 @@ value: it was measured on green-screen studio footage. See [Limits](#limits).
 
 Distance to every word by the same rule, then the five smallest.
 
-Confidence is the **margin** between the best and second-best word, not the
-absolute distance:
+Confidence is derived from the **margin** between the best and second-best
+word, not from the absolute distance:
 
 ```
-margin    = distance[2nd] - distance[1st]
-confident = margin >= 0.04
+margin     = distance[2nd] - distance[1st]
+confidence = calibrated P(top-1 is correct | margin)
+confident  = margin >= 0.04
 ```
+
+`confidence` is a real probability, not a rescaled score: of the captures
+returned at 0.85, about 85% do have the right word first. It comes from an
+isotonic fit of margin against outcome on the validation split, shipped as the
+knot table in `models/confidence.json` and linearly interpolated. Calibration
+error on held-out splits is 0.7–2.6 points.
+
+| margin | confidence |
+|---|---|
+| 0.00 | 22% |
+| 0.02 | 52% |
+| 0.04 | 70% |
+| 0.06 | 83% |
+| 0.10 | 92% |
+| 0.14 | 97% |
+| 0.20 | 99% |
+
+A plain logistic fit on margin and distance was tried first and rejected: its
+average was right but individual bins were off by up to 32 points, which is
+exactly the failure a displayed percentage must not have.
 
 Absolute distance is a poor confidence signal here — it predicts a correct
 top-1 at AUC 0.70, while the margin reaches 0.88. Distances vary too much
@@ -397,6 +418,7 @@ learner their capture was mostly still.
     { "word": "INTERVIEW", "distance": 0.4859 },
     { "word": "DECLARE (CRICKET)", "distance": 0.4915 }
   ],
+  "confidence": 0.99,
   "margin": 0.2215,
   "confident": true,
   "marginThreshold": 0.04,
@@ -617,6 +639,11 @@ best-conditioned multi-view clips still reach only ~52%. The residual is real
 rooms, consumer cameras, and unseen signers — the exact conditions this app will
 run in.
 
+**`confidence` inherits all of this.** It was calibrated on the validation
+split, so it is honest about *that* distribution and optimistic about a webcam
+in a living room. Until real captures are measured, treat a displayed 90% as
+"the model is unusually sure for this kind of input", not as a 90% guarantee.
+
 **So the headline numbers are an upper bound.** EER 0.73% and top-1 85.9% were
 measured on green-screen Kinect footage. Real webcam performance is somewhere
 between that and the ~50% seen on consumer-camera captures, and nobody has
@@ -645,6 +672,7 @@ recognition/
 ├── models/
 │   ├── encoder.onnx            3.7 MB   committed
 │   ├── bank.i8                 9.9 MB   committed, server-side
+│   ├── confidence.json                  margin -> P(correct) knots
 │   ├── manifest.json                    vocabulary, dims, tau
 │   └── bank_index.json                  word → offset, dtype
 ├── scripts/

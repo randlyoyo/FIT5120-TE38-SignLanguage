@@ -55,6 +55,13 @@ async function load() {
 
   const session = await ort.InferenceSession.create(path.join(ROOT, "encoder.onnx"));
 
+  // margin -> P(top-1 correct), fitted by isotonic regression on the validation
+  // split. A raw distance or margin is not a probability; this table is what
+  // makes a percentage mean what a reader assumes it means.
+  const calibration = JSON.parse(
+    fs.readFileSync(path.join(ROOT, "confidence.json"), "utf8")
+  );
+
   state = {
     session, bank, words, dim, nTpl,
     T: manifest.T,
@@ -64,6 +71,7 @@ async function load() {
     // margin predicts a correct top-1 at AUC 0.88, absolute distance only
     // 0.70 -- distance varies too much between words to threshold globally.
     marginConfident: manifest.margin_confident ?? 0.04,
+    calibration,
     wordIndex: new Map(words.map((w, i) => [w, i])),
   };
   return state;
@@ -100,4 +108,18 @@ function distanceToAll(s, embedding) {
   return out;
 }
 
-module.exports = { load, embed, distanceToWord, distanceToAll, ROOT };
+/**
+ * Margin -> calibrated probability that the top candidate is the right word.
+ * Linear interpolation between the fitted knots; clamped outside their range.
+ */
+function confidenceFromMargin(s, margin) {
+  const { margin: xs, p_top1: ys } = s.calibration;
+  if (margin <= xs[0]) return ys[0];
+  if (margin >= xs[xs.length - 1]) return ys[ys.length - 1];
+  let i = 1;
+  while (i < xs.length && xs[i] < margin) i++;
+  const t = (margin - xs[i - 1]) / (xs[i] - xs[i - 1]);
+  return ys[i - 1] + t * (ys[i] - ys[i - 1]);
+}
+
+module.exports = { load, embed, distanceToWord, distanceToAll, confidenceFromMargin, ROOT };

@@ -749,8 +749,8 @@ input:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  width: 84px;
+  height: 84px;
   padding: 0;
   background: transparent;
   border: none;
@@ -770,12 +770,15 @@ input:focus-visible {
   pointer-events: none;
 }
 
+/* Pulled in past .edge-spine's 44px-wide running-text strip (only present
+   at >=1680px, but this offset reads fine without it too) so the arrow
+   sits to the spine's inner side instead of overlapping its border/text. */
 .detail-nav-arrow.prev {
-  left: 0.75rem;
+  left: 3.25rem;
 }
 
 .detail-nav-arrow.next {
-  right: 0.75rem;
+  right: 3.25rem;
 }
 
 @media (max-width: 1400px) {

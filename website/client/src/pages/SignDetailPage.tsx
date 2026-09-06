@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { fetchRecognitionVocabulary } from "../api/recognize";
 import { fetchSignById } from "../api/signs";
+import { PracticeVerify } from "../components/PracticeVerify";
 import { SignDemonstration } from "../components/SignDemonstration";
 import { isLearned, toggleLearned } from "../lib/learnedSigns";
 import { tagChipStyle } from "../lib/tagColors";
@@ -14,6 +16,12 @@ export function SignDetailPage() {
   const [sign, setSign] = useState<Sign | null>(null);
   const [isError, setIsError] = useState(false);
   const [learned, setLearned] = useState(false);
+  // Hidden rather than shown-with-an-error for a sign outside the
+  // recognizer's closed vocabulary (API.md §9), and equally hidden if the
+  // recognizer isn't deployed at all yet -- fetchRecognitionVocabulary()
+  // resolves to an empty set rather than rejecting in that case, so both
+  // "not supported" and "not ready" read the same way here: no button.
+  const [canPractice, setCanPractice] = useState(false);
 
   useEffect(() => {
     if (!Number.isInteger(signId)) return;
@@ -30,6 +38,16 @@ export function SignDetailPage() {
       });
     return () => controller.abort();
   }, [signId]);
+
+  useEffect(() => {
+    let active = true;
+    fetchRecognitionVocabulary().then((vocabulary) => {
+      if (active) setCanPractice(vocabulary.has(sign?.gloss ?? ""));
+    });
+    return () => {
+      active = false;
+    };
+  }, [sign?.gloss]);
 
   if (isError) {
     return (
@@ -114,6 +132,16 @@ export function SignDetailPage() {
                   <li key={i}>{note}</li>
                 ))}
               </ol>
+            </>
+          )}
+
+          {canPractice && (
+            <>
+              <h2 className="sign-detail-heading">Try It Yourself</h2>
+              <p className="practice-intro">
+                Sign {sign.gloss} at your camera and we'll check it against this entry.
+              </p>
+              <PracticeVerify gloss={sign.gloss} />
             </>
           )}
         </div>

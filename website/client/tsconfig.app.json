@@ -16,6 +16,15 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* @mediapipe/tasks-vision@0.10.33's package.json "exports" map is
+       malformed (mixes condition keys with subpath keys), which bundler-mode
+       resolution rejects the same way Vite's real resolver does (see the
+       matching alias in vite.config.ts). Pointing straight at the .d.ts
+       file sidesteps "exports" resolution for the type checker too. */
+    "paths": {
+      "@mediapipe/tasks-vision": ["./node_modules/@mediapipe/tasks-vision/vision.d.ts"]
+    },
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,

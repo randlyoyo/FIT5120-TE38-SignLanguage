@@ -147,12 +147,12 @@ input:focus-visible {
 .site-brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.55rem;
   color: var(--color-text);
   text-decoration: none;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 1.35rem;
   letter-spacing: 0.01em;
 }
 
@@ -179,13 +179,13 @@ input:focus-visible {
   display: inline-flex;
   align-items: center;
   font-family: var(--font-display);
-  font-size: 0.82rem;
+  font-size: 1rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--color-text-muted);
   text-decoration: none;
-  padding: 0.4rem 0.7rem;
+  padding: 0.45rem 0.85rem;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: var(--color-bg);
@@ -646,6 +646,12 @@ input:focus-visible {
   margin: 0;
 }
 
+.detail-back-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .detail-gloss-title {
   font-size: clamp(2.1rem, 1.7rem + 1.2vw, 2.6rem);
 }
@@ -662,8 +668,123 @@ input:focus-visible {
   grid-area: title;
 }
 
+/* Practice mode puts nothing but the capture stage in this slot (no
+   heading, no intro line) so its top edge lines up with the demo video's
+   in .detail-media, which starts at the same grid row. */
+.detail-title .practice-verify {
+  margin-bottom: 0;
+}
+
+.detail-title .practice-stage {
+  max-width: 100%;
+}
+
 .detail-definitions-area {
   grid-area: definitions;
+}
+
+/* Learn/Practice toggle -- to the left of the catalog number, in the same
+   row as the back link. Only ever swaps the title/definitions content
+   beside and below it; the demo video in .detail-media is untouched by
+   either mode. */
+.detail-mode-toggle {
+  display: inline-flex;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.25rem;
+  gap: 0.25rem;
+}
+
+.detail-mode-tab {
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-md) - 1px);
+  padding: 0.45rem 1.1rem;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.detail-mode-tab:hover {
+  color: var(--color-text);
+}
+
+.detail-mode-tab.active {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+/* Replayed on every Learn <-> Practice switch (SignDetailPage remounts this
+   panel via a `key={mode}` prop) so the swap reads as a deliberate change of
+   view rather than content silently popping in. */
+@keyframes detail-mode-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.detail-mode-panel {
+  animation: detail-mode-in 0.25s ease;
+}
+
+/* Prev/next catalogue-entry arrows -- fixed to the viewport edges (a
+   gallery-style control, not part of the entry card), so they're reachable
+   regardless of scroll position. Hidden below the width where the layout's
+   own side margins get too tight to hold them without overlapping content. */
+.detail-nav-arrow {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 168px;
+  height: 168px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  z-index: 10;
+  transition: color 0.15s ease;
+}
+
+.detail-nav-arrow:hover {
+  color: var(--color-accent);
+}
+
+.detail-nav-arrow:disabled {
+  opacity: 0.2;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Pulled in past .edge-spine's 44px-wide running-text strip (only present
+   at >=1680px, but this offset reads fine without it too) so the arrow
+   sits to the spine's inner side instead of overlapping its border/text. */
+.detail-nav-arrow.prev {
+  left: 3.25rem;
+}
+
+.detail-nav-arrow.next {
+  right: 3.25rem;
+}
+
+@media (max-width: 1400px) {
+  .detail-nav-arrow {
+    display: none;
+  }
 }
 
 /* Library/Learned header -- reuses the homepage's full-bleed
@@ -757,11 +878,11 @@ input:focus-visible {
 .search-bar {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.7rem;
   background: var(--color-surface);
   border: 1px solid var(--color-text);
   border-radius: var(--radius-md);
-  padding: 0.6rem 0.9rem;
+  padding: 0.65rem 1rem;
   transition: box-shadow 0.15s ease;
 }
 
@@ -787,12 +908,115 @@ input:focus-visible {
   flex-shrink: 0;
 }
 
+/* Search-by-signing */
+.search-bar-wrap {
+  position: relative;
+}
+
+.search-bar-gesture-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.search-bar-gesture-button:hover {
+  color: var(--color-accent);
+}
+
+.gesture-search-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  width: 320px;
+  max-width: min(90vw, 320px);
+  background: var(--color-surface);
+  border: 1px solid var(--color-text);
+  border-radius: var(--radius-lg);
+  box-shadow: 3px 3px 0 var(--color-border);
+  padding: 1rem;
+  text-align: left;
+}
+
+.gesture-search-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.gesture-search-title {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.gesture-search-close {
+  background: transparent;
+  border: none;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0 0.2rem;
+}
+
+.gesture-search-close:hover {
+  color: var(--color-text);
+}
+
+.gesture-search-stage {
+  max-width: 100%;
+}
+
+.gesture-search-results {
+  text-align: center;
+}
+
+.gesture-search-retry {
+  padding: 0.5rem 1.2rem;
+  font-size: 0.75rem;
+}
+
 .results-count {
   font-family: var(--font-display);
   color: var(--color-text-muted);
   font-size: 0.78rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  margin: 0;
+}
+
+/* Gesture-search results -- a small, focused view of exactly the model's
+   top-4 candidates, standing in for the normal rail+grid+pagination layout
+   rather than living alongside it. */
+.gesture-results-panel {
+  margin: 0.5rem 0 2rem;
+}
+
+.gesture-results-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.gesture-results-header .sign-detail-heading {
   margin: 0;
 }
 
@@ -1432,6 +1656,117 @@ input:focus-visible {
   margin-top: 1.5rem;
 }
 
+/* Practice-verify (recognition/API.md) -- deliberately reuses only the
+   site's two existing accents: signal-blue for a match, plain muted text
+   for "not yet", never the stamp red, which this codebase reserves solely
+   for "Learned" (see theme.css's header comment). */
+.practice-intro {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  margin: 0 0 1rem;
+}
+
+.practice-verify {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin: 0 0 1.5rem;
+  text-align: center;
+}
+
+.practice-start-button {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.65rem 1.6rem;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.practice-start-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 3px 3px 0 var(--color-border);
+}
+
+.practice-stage {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 4 / 3;
+  margin: 1.25rem auto 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-text);
+}
+
+.practice-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  /* Display-only mirror for the user's comfort -- the underlying frames
+     MediaPipe reads are never flipped (recognition/API.md §2). */
+  transform: scaleX(-1);
+}
+
+.practice-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.practice-overlay.practice-recording {
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.practice-result {
+  margin-top: 1.25rem;
+}
+
+.practice-result-verdict {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 0.3rem;
+}
+
+.practice-result.matched .practice-result-verdict {
+  color: var(--color-accent);
+}
+
+.practice-result.not-matched .practice-result-verdict {
+  color: var(--color-text-muted);
+}
+
+.practice-result-detail {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.practice-error {
+  margin-top: 1.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
 /* Sign demonstration stage */
 .sign-demo {
   background: var(--color-surface);
@@ -1572,6 +1907,7 @@ input:focus-visible {
 
   .site-nav a {
     padding: 0.35rem 0.5rem;
+    font-size: 0.8rem;
   }
 
   .home-hero-inner {

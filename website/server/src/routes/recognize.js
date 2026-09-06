@@ -1,7 +1,9 @@
 const express = require("express");
 
 const { UnusableCapture } = require("../recognition/features");
-const { load, embed, distanceToWord, distanceToAll } = require("../recognition/model");
+const {
+  load, embed, distanceToWord, distanceToAll, confidenceFromMargin,
+} = require("../recognition/model");
 
 const router = express.Router();
 
@@ -88,6 +90,10 @@ router.post("/identify", async (req, res, next) => {
 
     res.json({
       candidates: top.map((i) => ({ word: s.words[i], distance: dist[i] })),
+      // Calibrated: of the captures scored at 0.85, about 85% really do have
+      // the right word first. Fitted on the validation split, so it inherits
+      // that split's conditions -- see API.md section 9.
+      confidence: confidenceFromMargin(s, margin),
       margin,
       // Advisory only. Low margin does NOT mean the list is wrong: among
       // low-margin captures the correct word is still in the top four 79-91%

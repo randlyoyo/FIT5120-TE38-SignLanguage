@@ -413,10 +413,15 @@ learner their capture was mostly still.
 ```json
 {
   "candidates": [
-    { "word": "QUEER",  "distance": 0.2289 },
-    { "word": "BALLET", "distance": 0.4504 },
-    { "word": "INTERVIEW", "distance": 0.4859 },
-    { "word": "DECLARE (CRICKET)", "distance": 0.4915 }
+    {
+      "word": "QUEER",
+      "distance": 0.2289,
+      "keywords": ["queer"],
+      "groupIndex": 725
+    },
+    { "word": "BALLET", "distance": 0.4504, "keywords": ["ballet", "shine", "shiny", "glitter"], "groupIndex": 3160 },
+    { "word": "INTERVIEW", "distance": 0.4859, "keywords": ["interview", "interviewed"], "groupIndex": 724 },
+    { "word": "DECLARE (CRICKET)", "distance": 0.4915, "keywords": ["declare", "cricket"], "groupIndex": 2614 }
   ],
   "confidence": 0.99,
   "margin": 0.2215,
@@ -428,9 +433,30 @@ learner their capture was mostly still.
 
 Always four candidates, ordered nearest first.
 
+`keywords` (up to four) exist because four glosses can look alike in a list —
+`DECLARE (CRICKET)` means little on its own. `groupIndex` is the dataset
+dictionary's `Group_Index`, for citing the Auslan Signbank entry.
+
+**`groupIndex` is not the model's class index.** It runs to 3220 with six gaps
+(431, 532, 722, 1292, 2488, 2603), so using it as one would allocate six dead
+output slots. The model is indexed by the order in `bank_index.json`; this
+field is a cross-reference only.
+
 ### `GET /api/recognize/vocabulary`
 
 `{ "count": 3215, "words": [...] }` — which glosses can be recognised at all.
+
+`?detail=1` returns objects instead of bare strings:
+
+```json
+{ "gloss": "TURN ON (START)", "group_index": 1,
+  "state": "AustraliaWide-traditional",
+  "keywords": ["turn on", "start", "switch on", "light", "illuminate"] }
+```
+
+Keywords are merged from the sign library and the dataset dictionary — the
+dictionary contributes 7030 search terms the library did not have, which is
+why searching "light" should reach `TURN ON (START)`.
 
 ### Errors
 
@@ -673,6 +699,7 @@ recognition/
 │   ├── encoder.onnx            3.7 MB   committed
 │   ├── bank.i8                 9.9 MB   committed, server-side
 │   ├── confidence.json                  margin -> P(correct) knots
+│   ├── vocabulary.json                  Signbank index, state, keywords
 │   ├── manifest.json                    vocabulary, dims, tau
 │   └── bank_index.json                  word → offset, dtype
 ├── scripts/

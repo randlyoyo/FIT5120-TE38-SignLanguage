@@ -62,6 +62,18 @@ async function load() {
     fs.readFileSync(path.join(ROOT, "confidence.json"), "utf8")
   );
 
+  // Cross-reference to the dataset's own dictionary: the official Group_Index
+  // for citing Auslan Signbank, the regional State, and search keywords merged
+  // from both the dictionary and the sign library.
+  //
+  // Group_Index is NOT the model's class index and must not be used as one --
+  // it runs to 3220 with six gaps, so it would waste output slots. The model
+  // is indexed by the order in bank_index.json; this is a lookup, not an
+  // ordering.
+  const vocabulary = JSON.parse(
+    fs.readFileSync(path.join(ROOT, "vocabulary.json"), "utf8")
+  );
+
   state = {
     session, bank, words, dim, nTpl,
     T: manifest.T,
@@ -72,6 +84,7 @@ async function load() {
     // 0.70 -- distance varies too much between words to threshold globally.
     marginConfident: manifest.margin_confident ?? 0.04,
     calibration,
+    vocabulary,
     wordIndex: new Map(words.map((w, i) => [w, i])),
   };
   return state;

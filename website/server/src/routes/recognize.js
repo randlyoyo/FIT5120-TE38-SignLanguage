@@ -89,7 +89,17 @@ router.post("/identify", async (req, res, next) => {
     const margin = dist[order[1]] - dist[order[0]];
 
     res.json({
-      candidates: top.map((i) => ({ word: s.words[i], distance: dist[i] })),
+      candidates: top.map((i) => {
+        const v = s.vocabulary[s.words[i]];
+        return {
+          word: s.words[i],
+          distance: dist[i],
+          // Keywords give the learner something to recognise when four glosses
+          // look alike; group_index cites the dictionary entry.
+          keywords: v ? v.keywords.slice(0, 4) : [],
+          groupIndex: v ? v.group_index : null,
+        };
+      }),
       // Calibrated: of the captures scored at 0.85, about 85% really do have
       // the right word first. Fitted on the validation split, so it inherits
       // that split's conditions -- see API.md section 9.
@@ -108,10 +118,18 @@ router.post("/identify", async (req, res, next) => {
   }
 });
 
-// GET /api/recognize/vocabulary -- which glosses can be recognised at all
+// GET /api/recognize/vocabulary -- which glosses can be recognised at all.
+// ?detail=1 adds the dictionary cross-reference: Signbank's Group_Index, the
+// regional State, and merged search keywords.
 router.get("/vocabulary", async (req, res, next) => {
   try {
     const s = await load();
+    if (req.query.detail) {
+      return res.json({
+        count: s.words.length,
+        words: s.words.map((w) => ({ gloss: w, ...s.vocabulary[w] })),
+      });
+    }
     res.json({ count: s.words.length, words: s.words });
   } catch (err) {
     fail(err, res, next);

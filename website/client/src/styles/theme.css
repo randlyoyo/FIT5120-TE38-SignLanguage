@@ -617,6 +617,19 @@ input:focus-visible {
   margin: 0 auto;
 }
 
+/* Only reserved when the Learn/Practice toggle actually renders (a sign
+   outside the recognizer's vocabulary has no "mode" content at all) --
+   otherwise an always-present empty grid row still eats a full row-gap
+   between the catalog number and the title for nothing. */
+.detail-layout.has-mode-toggle {
+  grid-template-areas:
+    "back"
+    "mode"
+    "title"
+    "media"
+    "definitions";
+}
+
 @media (min-width: 860px) {
   .detail-layout {
     max-width: 1320px;
@@ -628,6 +641,14 @@ input:focus-visible {
     column-gap: 3.5rem;
     row-gap: 1rem;
     align-items: start;
+  }
+
+  .detail-layout.has-mode-toggle {
+    grid-template-areas:
+      "back  back"
+      "media mode"
+      "media title"
+      "media definitions";
   }
 
   .detail-media {
@@ -664,6 +685,73 @@ input:focus-visible {
 
 .detail-definitions-area {
   grid-area: definitions;
+}
+
+/* Learn/Practice toggle -- sits directly below the catalog number, and
+   only ever switches the definitions-area content beside it; the demo
+   video in .detail-media is untouched by either mode. */
+.detail-mode-toggle {
+  grid-area: mode;
+  display: inline-flex;
+  align-self: start;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.25rem;
+  gap: 0.25rem;
+}
+
+.detail-mode-tab {
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-md) - 1px);
+  padding: 0.45rem 1.1rem;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.detail-mode-tab:hover {
+  color: var(--color-text);
+}
+
+.detail-mode-tab.active {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+/* Replayed on every Learn <-> Practice switch (SignDetailPage remounts this
+   panel via a `key={mode}` prop) so the swap reads as a deliberate change of
+   view rather than content silently popping in. */
+@keyframes detail-mode-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.detail-mode-panel {
+  animation: detail-mode-in 0.25s ease;
+}
+
+/* Practice mode's capture stage should feel as substantial as the sign
+   demonstration video beside it, not the smaller widget this used to be
+   when it was a "try it yourself" postscript under the definitions. */
+.detail-practice-panel .practice-verify {
+  margin-bottom: 0;
+}
+
+.detail-practice-panel .practice-stage {
+  max-width: 100%;
 }
 
 /* Library/Learned header -- reuses the homepage's full-bleed
@@ -865,41 +953,6 @@ input:focus-visible {
   text-align: center;
 }
 
-.gesture-search-hint {
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  margin: 0.75rem 0 0.6rem;
-}
-
-.gesture-search-candidates {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: center;
-  margin: 0 0 1rem;
-  padding: 0;
-}
-
-.gesture-search-candidates button {
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 0.4rem 0.8rem;
-  font-family: var(--font-display);
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--color-text);
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.gesture-search-candidates button:hover {
-  transform: translateY(-2px);
-  box-shadow: 2px 2px 0 var(--color-border);
-  color: var(--color-accent);
-}
-
 .gesture-search-retry {
   padding: 0.5rem 1.2rem;
   font-size: 0.75rem;
@@ -911,6 +964,26 @@ input:focus-visible {
   font-size: 0.78rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  margin: 0;
+}
+
+/* Gesture-search results -- a small, focused view of exactly the model's
+   top-4 candidates, standing in for the normal rail+grid+pagination layout
+   rather than living alongside it. */
+.gesture-results-panel {
+  margin: 0.5rem 0 2rem;
+}
+
+.gesture-results-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.gesture-results-header .sign-detail-heading {
   margin: 0;
 }
 

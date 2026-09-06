@@ -21,7 +21,7 @@ export function SearchBar({ value, onChange, canGestureSearch = false, onGesture
   return (
     <div className="search-bar-wrap">
       <div className="search-bar">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="11" cy="11" r="7" />
           <path d="m20 20-3.5-3.5" strokeLinecap="round" />
         </svg>
@@ -46,7 +46,7 @@ export function SearchBar({ value, onChange, canGestureSearch = false, onGesture
                 camera and sign" affordance, styled closer to the playful
                 camera marks search apps use than the rest of the site's
                 thin utility icons. */}
-            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
               <rect x="2.5" y="7.5" width="19" height="12" rx="4" strokeLinejoin="round" />
               <rect x="8.5" y="4.5" width="7" height="3.6" rx="1.8" strokeLinejoin="round" />
               <circle cx="12" cy="13.5" r="4.3" fill="currentColor" stroke="none" />

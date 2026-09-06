@@ -30,8 +30,15 @@ webcam frame ──▶ MediaPipe Holistic ──▶ 48 landmarks/frame
                                     matched: distance < τ
 ```
 
-All inference runs **in the browser**. Video never leaves the device; the only
-network call fetches 12 KB of template vectors for the selected word.
+MediaPipe runs **in the browser** — video never leaves the device. The
+landmarks (about 190 KB of JSON for a 4-second capture) are posted to the
+server, which runs the feature pipeline, the encoder and the template search.
+
+Server-side rather than in-browser inference, deliberately: §3 is the most
+failure-prone part of this system, and keeping one implementation means one
+thing to keep in step with the training code. It also lets the model change
+without shipping a new client, and identification needs the 39.5 MB template
+bank resident anyway.
 
 ---
 
@@ -238,71 +245,164 @@ Parity with the PyTorch source is 2.4e-07 max absolute difference.
 
 ---
 
-## 5. Decision rule
+## 5. Two modes
+
+The same embedding answers two different questions, and they are not equally
+reliable. Keep them apart in the UI.
+
+| | verify | identify |
+|---|---|---|
+| question | "is this the word I chose?" | "which word was that?" |
+| learner supplies | the target word | nothing |
+| compares against | that word's 12 templates | all 3215 words |
+| measured | **EER 0.73%** | top-1 82–89%, top-5 94–98% |
+| output | boolean | five candidates |
+
+Verify is the reliable mode and should carry any practice or assessment
+feature. Identify is a lookup aid: top-1 is wrong roughly one time in eight, so
+it returns a shortlist for the learner to choose from rather than an answer.
+
+### Verify
 
 ```
 distance = 1 - max over i of dot(embedding, template[i])     // i = 0..11
 matched  = distance < tau
 ```
 
-`tau = 0.5294347405433655`, from `models/bank_index.json`.
+`tau = 0.5294347405433655`. **Minimum over templates, not mean** — verification
+asks whether the attempt matches *any* stored example, and averaging lets one
+atypical template drag a good match down.
 
-The templates are unit vectors and so is the embedding, so the dot product is
-cosine similarity directly.
+`tau` is the equal-error point on the Valid split (EER 0.73%, AUC 0.9994),
+fixed there and applied unchanged to every test split. Treat it as a starting
+value: it was measured on green-screen studio footage. See [Limits](#limits).
 
-**Minimum over templates, not mean.** Verification asks whether the attempt
-matches *any* stored example of the word; averaging lets one atypical template
-drag a good match down.
+### Identify
 
-### Threshold provenance
+Distance to every word by the same rule, then the five smallest.
 
-`tau` is the equal-error-rate point measured on the Valid split: **EER 0.73%,
-AUC 0.9994**. It was fixed on Valid and applied unchanged to the test splits —
-never re-tuned per split.
+Confidence is the **margin** between the best and second-best word, not the
+absolute distance:
 
-**Treat it as a starting value, not a constant.** It was measured on
-studio-recorded, green-screen, Kinect footage. Real webcam captures in real
-rooms will differ. Expose it as configuration and re-calibrate once real user
-data exists. See [Limits](#limits).
+```
+margin    = distance[2nd] - distance[1st]
+confident = margin >= 0.04
+```
+
+Absolute distance is a poor confidence signal here — it predicts a correct
+top-1 at AUC 0.70, while the margin reaches 0.88. Distances vary too much
+between words for one global cut to mean anything.
+
+**`confident` is advisory. Never use it to hide the candidate list.** Among
+low-margin captures the correct word is still in the top five 91–95% of the
+time — suppressing those would throw away mostly-good answers. Use it to soften
+how the first candidate is presented, nothing more.
+
+At the 0.04 threshold, measured per split:
+
+| split | top-1 | top-5 | flagged confident | top-1 within those |
+|---|---|---|---|---|
+| Valid | 85.9% | 97.4% | 82.0% | 93.9% |
+| Test_STU | 89.5% | 98.2% | 83.7% | 96.4% |
+| Test_ITW | 88.5% | 98.0% | 83.6% | 95.4% |
+| Test_TED | 81.9% | 95.7% | 77.6% | 91.6% |
+| Test_SYN | 81.8% | 93.9% | 79.2% | 91.8% |
 
 ---
 
-## 6. Template API
+## 6. HTTP API
 
-The client needs only the selected word's templates — 12 KB, not the whole
-39.5 MB bank.
+Base path `/api/recognize`. Every capture body is the same shape:
 
-### `GET /api/recognition/template?word=<GLOSS>`
+```ts
+interface Capture {
+  width: number;            // video element videoWidth
+  height: number;           // videoHeight
+  fps: number;              // measured, see §3.2
+  pose: number[][][];       // [frame][11 landmarks][x, y]
+  left_hand: number[][][];  // [frame][21][x, y]
+  right_hand: number[][][]; // [frame][21][x, y]
+}
+```
+
+A missing landmark is `[-999, -999]`; a missing hand is 21 such entries. Never
+send zeros for a missing hand — `(0,0)` is the top-left corner, a legal
+position the model reads as a real one.
+
+`pose` carries the 11-point subset `[0, 2, 5, 7, 8, 11, 12, 13, 14, 15, 16]` of
+MediaPipe's 33; only entries 5..10 (shoulders, elbows, wrists) are read, so the
+other five may be filled with `[-999, -999]` if that is easier to produce.
+
+### `POST /api/recognize/verify`
+
+```json
+{ "word": "WHALE", "capture": { ... } }
+```
 
 ```json
 {
   "word": "WHALE",
-  "dim": 256,
-  "n": 12,
-  "tau": 0.5294347405433655,
-  "vectors": [[0.031, -0.118, ...], ...]
+  "distance": 0.2289,
+  "threshold": 0.5294347405433655,
+  "matched": true,
+  "frames": 83
 }
 ```
 
-`404` if the gloss is not in the 3215-word vocabulary.
+`frames` is the count that survived trimming (§3.5) — useful for telling a
+learner their capture was mostly still.
 
-**Server implementation.** `models/bank.f32` is a flat float32 array of shape
-`(3215, 12, 256)` in C order. `models/bank_index.json` gives the word list; a
-word's offset is `wordIndex * 12288` bytes, length `12288`.
+`404 unknown_word` if the gloss is outside the 3215-word vocabulary.
 
-```js
-const idx = index.words.indexOf(word);          // build a Map at startup
-const off = idx * index.bytes_per_word;
-const buf = bank.subarray(off, off + index.bytes_per_word);
+### `POST /api/recognize/identify`
+
+```json
+{ "capture": { ... } }
 ```
 
-Loading `bank.f32` once into memory at startup (39.5 MB) is the simplest option
-and well within a Railway dyno.
+```json
+{
+  "candidates": [
+    { "word": "QUEER",  "distance": 0.2289 },
+    { "word": "BALLET", "distance": 0.4504 },
+    { "word": "INTERVIEW", "distance": 0.4859 },
+    { "word": "DECLARE (CRICKET)", "distance": 0.4915 },
+    { "word": "STRAY",  "distance": 0.4950 }
+  ],
+  "margin": 0.2215,
+  "confident": true,
+  "marginThreshold": 0.04,
+  "frames": 83
+}
+```
 
-### Optional: `GET /api/recognition/vocabulary`
+Always five candidates, ordered nearest first.
 
-Returns the 3215 glosses, so the UI can show which library signs are
-verifiable.
+### `GET /api/recognize/vocabulary`
+
+`{ "count": 3215, "words": [...] }` — which glosses can be recognised at all.
+
+### Errors
+
+| status | body | meaning |
+|---|---|---|
+| 400 | `{ error: "unusable_capture", detail }` | too few frames, no motion, no shoulders, fps out of range |
+| 404 | `{ error: "unknown_word", word }` | verify only |
+| 503 | `{ error: "model_unavailable" }` | `bank.f32` not deployed — see `ASSETS.md` |
+
+`unusable_capture` is a retake prompt, not an error to log — it fires when the
+learner barely moved, or the camera lost them.
+
+### Server implementation
+
+`src/recognition/features.js` (§3), `src/recognition/model.js` (encoder +
+bank), `src/routes/recognize.js` (the routes above). The bank loads once at
+first request: 39.5 MB resident, scoring all 3215 words is one pass over it,
+about 1 ms. Encoder inference is 1.6 ms. No vector index is needed at this
+size.
+
+`RECOGNITION_MODELS` overrides where the assets are read from; it defaults to
+`recognition/models/`.
 
 ---
 
@@ -374,9 +474,10 @@ So the UI should:
 Known, measured, and unresolved. None of these are bugs.
 
 **Closed vocabulary — 3215 words.** There is no "I don't know" output. A sign
-outside the vocabulary returns the nearest of the 3215 with confidence. For
-verification this is harmless (the learner chose the word), but do not reuse the
-same call for open-ended identification without adding a rejection rule.
+outside the vocabulary comes back as the nearest of the 3215. For verify this is
+harmless — the learner chose the word. For identify it means the five candidates
+are always five real glosses, even when the input was not a sign at all, so the
+UI must let the learner reject all five rather than forcing a pick.
 
 **Isolated words only.** Training clips are one word, 2–4 s. A sentence will be
 forced onto a single word.
@@ -422,14 +523,25 @@ instance, which the §3.5 motion threshold would not catch.
 ```
 recognition/
 ├── API.md                      this document
+├── ASSETS.md                   how to obtain the two uncommitted files
 ├── models/
 │   ├── encoder.onnx            3.7 MB   ship to the browser
 │   ├── holistic_landmarker.task 13 MB   ship to the browser
 │   ├── manifest.json                    vocabulary, dims, tau
 │   ├── bank.f32                39.5 MB  server-side only
 │   └── bank_index.json                  word → offset
+├── scripts/
+│   ├── verifyDoc.mjs           independent implementation of §3, passes §7
+│   ├── buildBank.mjs           bank.npy -> bank.f32
+│   └── fetchModel.sh           pinned MediaPipe bundle, hash-checked
 └── test/
     └── golden.json             0.6 MB   conformance fixtures
+
+website/server/
+├── src/recognition/features.js §3, the port under test
+├── src/recognition/model.js    encoder + bank
+├── src/routes/recognize.js     §6
+└── test/recognition.test.js    npm run test:recognition
 ```
 
 Provenance of the encoder: `signtest/runs/final/` — config, training history and

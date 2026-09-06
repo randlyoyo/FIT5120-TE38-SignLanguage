@@ -169,6 +169,19 @@ export async function captureLandmarks(
   let hasMoved = false;
   let lastMotionAt = start;
 
+  // The stop decision below reacts to every frame's raw motion reading, as
+  // it should. But landmark jitter means that raw reading flips back and
+  // forth across MOTION_THRESHOLD within a single real pause (a signer's
+  // hand is never perfectly still), which used to feed straight into
+  // `onFrame`'s phase and made the on-screen "Recording…"/"Got it…" text
+  // flicker every couple of frames. Only forward a phase change to the
+  // caller once the raw reading has held steady for PHASE_DISPLAY_DEBOUNCE_MS
+  // -- display-only smoothing, the stop timing above is untouched.
+  const PHASE_DISPLAY_DEBOUNCE_MS = 200;
+  let displayPhase: CapturePhase = "waiting";
+  let pendingPhase: CapturePhase | null = null;
+  let pendingSince = start;
+
   for (;;) {
     const now = performance.now();
     const elapsed = now - start;
@@ -193,8 +206,17 @@ export async function captureLandmarks(
     prevPoseFrame = poseFrame;
 
     const stillFor = now - lastMotionAt;
-    const phase: CapturePhase = !hasMoved ? "waiting" : stillFor > 150 ? "settling" : "active";
-    onFrame?.(elapsed, maxDurationMs, phase);
+    const rawPhase: CapturePhase = !hasMoved ? "waiting" : stillFor > 150 ? "settling" : "active";
+    if (rawPhase === displayPhase) {
+      pendingPhase = null;
+    } else if (rawPhase !== pendingPhase) {
+      pendingPhase = rawPhase;
+      pendingSince = now;
+    } else if (now - pendingSince >= PHASE_DISPLAY_DEBOUNCE_MS) {
+      displayPhase = rawPhase;
+      pendingPhase = null;
+    }
+    onFrame?.(elapsed, maxDurationMs, displayPhase);
 
     if (hasMoved && elapsed >= MIN_CAPTURE_MS && stillFor >= SILENCE_HANGOVER_MS) break;
 

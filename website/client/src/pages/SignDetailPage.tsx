@@ -22,12 +22,17 @@ export function SignDetailPage() {
   // resolves to an empty set rather than rejecting in that case, so both
   // "not supported" and "not ready" read the same way here: no button.
   const [canPractice, setCanPractice] = useState(false);
+  // Learn is the entry point for every sign; Practice only exists once
+  // canPractice is known, so it never opens on a sign this resets back to
+  // Learn for below.
+  const [mode, setMode] = useState<"learn" | "practice">("learn");
 
   useEffect(() => {
     if (!Number.isInteger(signId)) return;
     const controller = new AbortController();
     setSign(null);
     setIsError(false);
+    setMode("learn");
     fetchSignById(signId, controller.signal)
       .then((s) => {
         setSign(s);
@@ -42,7 +47,11 @@ export function SignDetailPage() {
   useEffect(() => {
     let active = true;
     fetchRecognitionVocabulary().then((vocabulary) => {
-      if (active) setCanPractice(vocabulary.has(sign?.gloss ?? ""));
+      if (active) {
+        const supported = vocabulary.has(sign?.gloss ?? "");
+        setCanPractice(supported);
+        if (!supported) setMode("learn");
+      }
     });
     return () => {
       active = false;
@@ -70,13 +79,36 @@ export function SignDetailPage() {
 
   return (
     <div className="page-container">
-      <div className="detail-layout">
+      <div className={`detail-layout ${canPractice ? "has-mode-toggle" : ""}`}>
         <div className="detail-back">
           <button type="button" className="back-link" onClick={() => navigate(-1)}>
             &larr; Back to library
           </button>
           <span className="catalog-number-inline">No. {sign.id}</span>
         </div>
+
+        {canPractice && (
+          <div className="detail-mode-toggle" role="tablist" aria-label="Learn or practice this sign">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "learn"}
+              className={`detail-mode-tab ${mode === "learn" ? "active" : ""}`}
+              onClick={() => setMode("learn")}
+            >
+              Learn
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "practice"}
+              className={`detail-mode-tab ${mode === "practice" ? "active" : ""}`}
+              onClick={() => setMode("practice")}
+            >
+              Practice
+            </button>
+          </div>
+        )}
 
         <div className="detail-media">
           <SignDemonstration gloss={sign.gloss} videos={sign.videos ?? []} />
@@ -110,40 +142,47 @@ export function SignDetailPage() {
         </div>
 
         <div className="detail-definitions-area">
-          <h2 className="sign-detail-heading">Sign Definition</h2>
-          <div className="definitions">
-            {sign.definitions.map((group) => (
-              <div key={group.partOfSpeech} className="definition-group">
-                <h3 className="definition-pos">{group.partOfSpeech}</h3>
-                <ol className="definition-senses">
-                  {group.senses.map((sense, i) => (
-                    <li key={i}>{sense}</li>
+          {/* Keyed by mode so switching Learn <-> Practice remounts this
+              panel and replays its entrance animation, instead of the two
+              modes' content silently swapping in place. */}
+          <div key={mode} className="detail-mode-panel">
+            {mode === "learn" ? (
+              <>
+                <h2 className="sign-detail-heading">Sign Definition</h2>
+                <div className="definitions">
+                  {sign.definitions.map((group) => (
+                    <div key={group.partOfSpeech} className="definition-group">
+                      <h3 className="definition-pos">{group.partOfSpeech}</h3>
+                      <ol className="definition-senses">
+                        {group.senses.map((sense, i) => (
+                          <li key={i}>{sense}</li>
+                        ))}
+                      </ol>
+                    </div>
                   ))}
-                </ol>
+                </div>
+
+                {sign.usageNotes.length > 0 && (
+                  <>
+                    <h2 className="sign-detail-heading">How It's Formed</h2>
+                    <ol className="usage-steps">
+                      {sign.usageNotes.map((note, i) => (
+                        <li key={i}>{note}</li>
+                      ))}
+                    </ol>
+                  </>
+                )}
+              </>
+            ) : (
+              <div className="detail-practice-panel">
+                <h2 className="sign-detail-heading">Practice</h2>
+                <p className="practice-intro">
+                  Sign {sign.gloss} at your camera and we'll check it against this entry.
+                </p>
+                <PracticeVerify gloss={sign.gloss} />
               </div>
-            ))}
+            )}
           </div>
-
-          {sign.usageNotes.length > 0 && (
-            <>
-              <h2 className="sign-detail-heading">How It's Formed</h2>
-              <ol className="usage-steps">
-                {sign.usageNotes.map((note, i) => (
-                  <li key={i}>{note}</li>
-                ))}
-              </ol>
-            </>
-          )}
-
-          {canPractice && (
-            <>
-              <h2 className="sign-detail-heading">Try It Yourself</h2>
-              <p className="practice-intro">
-                Sign {sign.gloss} at your camera and we'll check it against this entry.
-              </p>
-              <PracticeVerify gloss={sign.gloss} />
-            </>
-          )}
         </div>
       </div>
     </div>

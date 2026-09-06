@@ -255,12 +255,15 @@ reliable. Keep them apart in the UI.
 | question | "is this the word I chose?" | "which word was that?" |
 | learner supplies | the target word | nothing |
 | compares against | that word's 12 templates | all 3215 words |
-| measured | **EER 0.73%** | top-1 82–89%, top-5 94–98% |
-| output | boolean | five candidates |
+| measured | **EER 0.73%** | top-1 82–89%, top-4 93–98% |
+| output | boolean | four candidates |
 
 Verify is the reliable mode and should carry any practice or assessment
 feature. Identify is a lookup aid: top-1 is wrong roughly one time in eight, so
 it returns a shortlist for the learner to choose from rather than an answer.
+
+Four candidates rather than five costs 0.5–1.0 points of coverage (Valid 97.4%
+to 96.9%, the worst split 93.9% to 92.9%) and was chosen for the UI.
 
 ### Verify
 
@@ -294,19 +297,22 @@ top-1 at AUC 0.70, while the margin reaches 0.88. Distances vary too much
 between words for one global cut to mean anything.
 
 **`confident` is advisory. Never use it to hide the candidate list.** Among
-low-margin captures the correct word is still in the top five 91–95% of the
+low-margin captures the correct word is still in the top four 79–91% of the
 time — suppressing those would throw away mostly-good answers. Use it to soften
 how the first candidate is presented, nothing more.
 
 At the 0.04 threshold, measured per split:
 
-| split | top-1 | top-5 | flagged confident | top-1 within those |
-|---|---|---|---|---|
-| Valid | 85.9% | 97.4% | 82.0% | 93.9% |
-| Test_STU | 89.5% | 98.2% | 83.7% | 96.4% |
-| Test_ITW | 88.5% | 98.0% | 83.6% | 95.4% |
-| Test_TED | 81.9% | 95.7% | 77.6% | 91.6% |
-| Test_SYN | 81.8% | 93.9% | 79.2% | 91.8% |
+| split | top-1 | top-4 | flagged confident | top-1 within those | top-4 among the rest |
+|---|---|---|---|---|---|
+| Valid | 85.9% | 96.9% | 82.0% | 93.9% | 89.8% |
+| Test_STU | 89.5% | 97.8% | 83.7% | 96.4% | 90.9% |
+| Test_ITW | 88.5% | 97.5% | 83.6% | 95.4% | 90.6% |
+| Test_TED | 81.9% | 94.8% | 77.6% | 91.6% | 86.2% |
+| Test_SYN | 81.8% | 92.9% | 79.2% | 91.8% | 79.2% |
+
+The last column is why the list is never hidden: even when the margin says the
+model is unsure, the answer is usually still in front of the learner.
 
 ---
 
@@ -366,8 +372,7 @@ learner their capture was mostly still.
     { "word": "QUEER",  "distance": 0.2289 },
     { "word": "BALLET", "distance": 0.4504 },
     { "word": "INTERVIEW", "distance": 0.4859 },
-    { "word": "DECLARE (CRICKET)", "distance": 0.4915 },
-    { "word": "STRAY",  "distance": 0.4950 }
+    { "word": "DECLARE (CRICKET)", "distance": 0.4915 }
   ],
   "margin": 0.2215,
   "confident": true,
@@ -376,7 +381,7 @@ learner their capture was mostly still.
 }
 ```
 
-Always five candidates, ordered nearest first.
+Always four candidates, ordered nearest first.
 
 ### `GET /api/recognize/vocabulary`
 
@@ -476,8 +481,8 @@ Known, measured, and unresolved. None of these are bugs.
 **Closed vocabulary — 3215 words.** There is no "I don't know" output. A sign
 outside the vocabulary comes back as the nearest of the 3215. For verify this is
 harmless — the learner chose the word. For identify it means the five candidates
-are always five real glosses, even when the input was not a sign at all, so the
-UI must let the learner reject all five rather than forcing a pick.
+are always four real glosses, even when the input was not a sign at all, so the
+UI must let the learner reject all four rather than forcing a pick.
 
 **Isolated words only.** Training clips are one word, 2–4 s. A sentence will be
 forced onto a single word.

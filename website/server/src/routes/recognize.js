@@ -5,7 +5,7 @@ const { load, embed, distanceToWord, distanceToAll } = require("../recognition/m
 
 const router = express.Router();
 
-const TOP_K = 5;
+const TOP_K = 4;
 
 /**
  * Landmarks are extracted in the browser by MediaPipe and posted here as
@@ -71,9 +71,9 @@ router.post("/verify", async (req, res, next) => {
   }
 });
 
-// POST /api/recognize/identify  { capture } -> top-5 candidates
-// No target word. Always returns five candidates rather than one answer:
-// measured top-1 is 82-89% but top-5 is 94-98%, so letting the learner pick
+// POST /api/recognize/identify  { capture } -> top-4 candidates
+// No target word. Always returns four candidates rather than one answer:
+// measured top-1 is 82-89% but top-4 is 93-98%, so letting the learner pick
 // from a short list is far more useful than asserting a single guess.
 router.post("/identify", async (req, res, next) => {
   try {
@@ -90,7 +90,7 @@ router.post("/identify", async (req, res, next) => {
       candidates: top.map((i) => ({ word: s.words[i], distance: dist[i] })),
       margin,
       // Advisory only. Low margin does NOT mean the list is wrong: among
-      // low-margin captures the correct word is still in the top five 91-95%
+      // low-margin captures the correct word is still in the top four 79-91%
       // of the time, so never hide the candidates -- only soften how the first
       // one is presented.
       confident: margin >= s.marginConfident,

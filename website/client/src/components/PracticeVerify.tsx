@@ -115,7 +115,7 @@ export function PracticeVerify({ gloss }: Props) {
     <div className="practice-verify">
       {(phase === "idle" || phase === "error" || phase === "result") && (
         <button type="button" className="practice-start-button" onClick={start}>
-          {phase === "idle" ? "Try it yourself" : "Try again"}
+          {phase === "idle" ? "Start practice" : "Try again"}
         </button>
       )}
 

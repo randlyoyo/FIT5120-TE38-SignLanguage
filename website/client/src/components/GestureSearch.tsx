@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { identifySign, RecognizeApiError, type IdentifyResult } from "../api/recognize";
+import { identifySign, RecognizeApiError, type IdentifyCandidate } from "../api/recognize";
 import { captureLandmarks, type CapturePhase } from "../lib/landmarks";
 
 // Same safety net as PracticeVerify -- capture normally ends on its own once
@@ -7,15 +7,17 @@ import { captureLandmarks, type CapturePhase } from "../lib/landmarks";
 const MAX_CAPTURE_MS = 8000;
 const COUNTDOWN_S = 3;
 
-type Phase = "requesting-camera" | "countdown" | "capturing" | "checking" | "result" | "error";
+type Phase = "requesting-camera" | "countdown" | "capturing" | "checking" | "error";
 
 const CAMERA_ACTIVE_PHASES: Phase[] = ["requesting-camera", "countdown", "capturing", "checking"];
 
 interface Props {
-  /** Called when the signer picks one of the returned candidate words. The
-   *  popover closes itself right after -- the caller decides what "picking a
-   *  word" means (here: drop it into the search query). */
-  onPick: (word: string) => void;
+  /** Called the moment the model returns its top-4 candidates -- there's no
+   *  intermediate "pick one" step here, the caller jumps straight to showing
+   *  all four (recognition/API.md's identify is a guess across the whole
+   *  vocabulary, so handing back four real sign videos to compare against is
+   *  more useful than committing to a single, roughly 1-in-8-wrong pick). */
+  onResults: (candidates: IdentifyCandidate[]) => void;
   onClose: () => void;
 }
 
@@ -39,15 +41,15 @@ function messageFor(err: unknown): string {
 
 /**
  * "Identify" search flow (recognition/API.md §5): the signer hasn't chosen a
- * word yet, so this guesses one from the whole vocabulary and hands back its
- * top-4 candidates for the signer to pick from, rather than committing to a
- * single (roughly 1-in-8 wrong, per API.md) guess on its own.
+ * word yet, so this guesses one from the whole vocabulary. Rather than
+ * committing to a single (roughly 1-in-8 wrong, per API.md) guess, it hands
+ * the top-4 candidates straight to the caller, which jumps to a results view
+ * showing all four real sign videos side by side.
  */
-export function GestureSearch({ onPick, onClose }: Props) {
+export function GestureSearch({ onResults, onClose }: Props) {
   const [phase, setPhase] = useState<Phase>("requesting-camera");
   const [countdown, setCountdown] = useState(COUNTDOWN_S);
   const [capturePhase, setCapturePhase] = useState<CapturePhase>("waiting");
-  const [result, setResult] = useState<IdentifyResult | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -61,7 +63,6 @@ export function GestureSearch({ onPick, onClose }: Props) {
   useEffect(() => stopCamera, []);
 
   async function start() {
-    setResult(null);
     setErrorMessage("");
     setPhase("requesting-camera");
     try {
@@ -90,8 +91,8 @@ export function GestureSearch({ onPick, onClose }: Props) {
       });
 
       setPhase("checking");
-      setResult(await identifySign(capture));
-      setPhase("result");
+      const result = await identifySign(capture);
+      onResults(result.candidates);
     } catch (err) {
       setErrorMessage(messageFor(err));
       setPhase("error");
@@ -128,26 +129,6 @@ export function GestureSearch({ onPick, onClose }: Props) {
             </div>
           )}
           {phase === "checking" && <div className="practice-overlay">Checking…</div>}
-        </div>
-      )}
-
-      {phase === "result" && result && (
-        <div className="gesture-search-results">
-          <p className="gesture-search-hint">
-            {result.confident ? "Best matches:" : "Not sure — closest matches:"}
-          </p>
-          <ul className="gesture-search-candidates">
-            {result.candidates.map((c) => (
-              <li key={c.word}>
-                <button type="button" onClick={() => onPick(c.word)}>
-                  {c.word}
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button type="button" className="practice-start-button gesture-search-retry" onClick={start}>
-            Try again
-          </button>
         </div>
       )}
 

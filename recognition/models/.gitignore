@@ -1,0 +1,5 @@
+# Deployment assets, not source. See ../ASSETS.md for how to obtain them.
+# bank.f32 is 39.5 MB and holistic_landmarker.task is 13 MB; committing them
+# would grow a 2.3 MB repo to ~57 MB for every clone, permanently.
+bank.f32
+holistic_landmarker.task

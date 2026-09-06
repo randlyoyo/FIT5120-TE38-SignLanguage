@@ -1,0 +1,6 @@
+# Intermediate, not shipped: bank.i8 is the deployed artefact and IS committed.
+bank.f32
+
+# The MediaPipe bundle is loaded by the browser straight from Google's CDN at
+# the pinned URL in API.md section 2; there is no reason to host a copy.
+holistic_landmarker.task

@@ -89,6 +89,21 @@ function wristDisplacement(a: [number, number], b: [number, number]): number {
 
 let landmarkerPromise: Promise<HolisticLandmarker> | null = null;
 
+// detectForVideo's timestamps must be strictly increasing for the *whole
+// lifetime of one landmarker instance*, not just within one capture -- the
+// landmarker is a module-level singleton reused across every attempt, so
+// this counter has to be too. Resetting it to ~0 at the start of each
+// captureLandmarks() call (as if the landmarker were fresh each time) is
+// exactly what produced "Packet timestamp mismatch ... expected 7967001 but
+// received 0" on a second attempt: real bug, not an environment issue.
+let lastFedTimestamp = -1;
+
+function nextFedTimestamp(): number {
+  const t = Math.max(Math.round(performance.now()), lastFedTimestamp + 1);
+  lastFedTimestamp = t;
+  return t;
+}
+
 /** Lazily creates the one shared landmarker (VIDEO mode, per API.md §2 --
  *  IMAGE mode gives jumpier coordinates and breaks train/inference
  *  consistency). Can reject if the CDN model fetch fails (offline, CDN
@@ -150,26 +165,16 @@ export async function captureLandmarks(
   const rightHand: number[][][] = [];
 
   const start = performance.now();
-  let lastTimestamp = -1;
   let prevPoseFrame: [number, number][] | null = null;
   let hasMoved = false;
   let lastMotionAt = start;
-
-  // detectForVideo requires strictly increasing integer millisecond
-  // timestamps (API.md §2); performance.now() is a float and two calls in
-  // the same animation frame can tie, so this forces monotonic increase.
-  const nextTimestamp = () => {
-    const t = Math.max(Math.round(performance.now() - start), lastTimestamp + 1);
-    lastTimestamp = t;
-    return t;
-  };
 
   for (;;) {
     const now = performance.now();
     const elapsed = now - start;
     if (elapsed >= maxDurationMs || shouldStop?.()) break;
 
-    const result = landmarker.detectForVideo(video, nextTimestamp());
+    const result = landmarker.detectForVideo(video, nextFedTimestamp());
     const poseFrame = posePoints(result.poseLandmarks);
     pose.push(poseFrame);
     leftHand.push(handPoints(result.leftHandLandmarks));

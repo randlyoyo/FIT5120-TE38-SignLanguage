@@ -1,5 +1,6 @@
-# Deployment assets, not source. See ../ASSETS.md for how to obtain them.
-# bank.f32 is 39.5 MB and holistic_landmarker.task is 13 MB; committing them
-# would grow a 2.3 MB repo to ~57 MB for every clone, permanently.
+# Intermediate, not shipped: bank.i8 is the deployed artefact and IS committed.
 bank.f32
+
+# The MediaPipe bundle is loaded by the browser straight from Google's CDN at
+# the pinned URL in API.md section 2; there is no reason to host a copy.
 holistic_landmarker.task

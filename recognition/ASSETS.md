@@ -1,71 +1,62 @@
 # Deployment assets
 
-Two files the recognition module needs are deliberately **not** in git. They are
-build outputs, not source, and together they would grow a 2.3 MB repository to
-roughly 57 MB for every clone, forever — git keeps blobs even after a later
-delete.
+**Nothing needs fetching to deploy.** Everything the server requires is in the
+repository, and the browser loads the MediaPipe bundle from Google's CDN.
 
-| file | size | where it goes | how to get it |
-|---|---|---|---|
-| `models/bank.f32` | 39.5 MB | server only | `scripts/buildBank.mjs` (below) |
-| `models/holistic_landmarker.task` | 13 MB | shipped to the browser | `scripts/fetchModel.sh` (below) |
+This page records why, and what to do after retraining.
 
-`models/encoder.onnx` (3.7 MB) **is** committed — it is small enough, and it is
-the one artefact with no reproducible download.
+## What is committed
 
----
+| file | size | used by |
+|---|---|---|
+| `models/encoder.onnx` | 3.7 MB | server |
+| `models/bank.i8` | 9.9 MB | server |
+| `models/manifest.json`, `models/bank_index.json` | 80 KB | server |
 
-## `holistic_landmarker.task`
+Vercel and Railway both deploy from git. An asset that is not committed is not
+in the deployment, so a build-time fetch would be one more step to fail on two
+platforms — worth avoiding for 14 MB.
 
-```sh
-recognition/scripts/fetchModel.sh
+The bank is stored int8 rather than the float32 the encoder emits: 9.9 MB
+instead of 39.5 MB. The templates are unit vectors, so 127 levels per axis is
+ample. Measured across three splits, quantising moved AUC by 0.0000, EER by at
+most 0.01 points, and top-4 not at all. Zero values clipped.
+
+## What is not committed, and why it does not matter
+
+**`holistic_landmarker.task` (13 MB)** — the browser loads it directly from
+Google:
+
+```
+https://storage.googleapis.com/mediapipe-models/holistic_landmarker/holistic_landmarker/float16/1/holistic_landmarker.task
 ```
 
-Pinned to `float16/1`. Do **not** substitute a different bundle: the training
-keypoints were extracted with this exact one, and a different version shifts the
-landmark distribution in a way that shows up as unexplained accuracy loss rather
-than an error. See `API.md` §2.
-
-The script verifies the hash itself. The bundle used to extract the training
-keypoints is:
+Keep `/1/` in the path. `latest` would move the bundle under you, and a
+different bundle shifts the landmark distribution in a way that costs accuracy
+without raising an error. The expected hash is
 
 ```
 sha256  e2dab61191e2dcd0a15f943d8e3ed1dce13c82dfa597b9dd39f562975a50c3f8
 ```
 
-For the client build, copy it into `website/client/public/models/` — Vite serves
-`public/` verbatim, so it lands at `/models/holistic_landmarker.task`.
+`scripts/fetchModel.sh` downloads and hash-checks a local copy if you want one
+for offline work. It is not needed for deployment.
 
----
+**`bank.f32` (39.5 MB)** — the float32 intermediate. Only `bank.i8` ships.
 
-## `bank.f32` — the template bank
+## After retraining
 
-3215 words × 12 templates × 256 dims, float32, C order. A word's slice is at
-byte offset `wordIndex * 12288`, length `12288`. `models/bank_index.json` holds
-the word list and confirms those numbers.
-
-It is produced from the training project, not from this repository:
+Regenerate the bank from the training export and commit the result:
 
 ```sh
 node recognition/scripts/buildBank.mjs /path/to/signtest/export/bank.npy
+cd website/server && npm run test:recognition   # must still match Python
 ```
 
-The source `bank.npy` comes from `signtest/` — it is the embedding of all 38,580
-training clips through `runs/final/encoder.pt`, grouped by word. Regenerating it
-from scratch needs the keypoint dataset and the trained encoder, so in practice
-you copy the exported file rather than rebuild it.
+`bank.npy` comes from the training project: every clip in the Train split
+embedded through `runs/final/encoder.pt` and grouped by word. It cannot be
+rebuilt from this repository alone.
 
-### Serving it
-
-The API contract is `GET /api/recognition/template?word=<GLOSS>` returning 12 KB
-(see `API.md` §6). Two workable shapes:
-
-**Read the file at startup.** Simplest. 39.5 MB resident is fine on a Railway
-dyno, and slicing is a `subarray` with no copy.
-
-**Or seed it into MySQL** alongside the existing sign data, one row per gloss
-with a 12 KB `BLOB`. This fits the project's existing `npm run seed` flow and
-means the server holds no local state — worth it if the API is ever scaled to
-more than one instance.
-
-Either way the file belongs in deployment, not in the repo.
+If the encoder itself changed, re-export `encoder.onnx` and regenerate
+`test/golden.json` too — the conformance fixtures encode the model's outputs,
+not just the feature pipeline.

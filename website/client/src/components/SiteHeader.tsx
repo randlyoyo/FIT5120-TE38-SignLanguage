@@ -6,7 +6,7 @@ export function SiteHeader() {
     <header className="site-header">
       <div className="site-header-inner">
         <Link to="/" className="site-brand">
-          <MirrorMark />
+          <MirrorMark size={30} />
           <span>HandMirror</span>
         </Link>
         <nav className="site-nav">

@@ -89,6 +89,21 @@ function wristDisplacement(a: [number, number], b: [number, number]): number {
 
 let landmarkerPromise: Promise<HolisticLandmarker> | null = null;
 
+// detectForVideo's timestamps must be strictly increasing for the *whole
+// lifetime of one landmarker instance*, not just within one capture -- the
+// landmarker is a module-level singleton reused across every attempt, so
+// this counter has to be too. Resetting it to ~0 at the start of each
+// captureLandmarks() call (as if the landmarker were fresh each time) is
+// exactly what produced "Packet timestamp mismatch ... expected 7967001 but
+// received 0" on a second attempt: real bug, not an environment issue.
+let lastFedTimestamp = -1;
+
+function nextFedTimestamp(): number {
+  const t = Math.max(Math.round(performance.now()), lastFedTimestamp + 1);
+  lastFedTimestamp = t;
+  return t;
+}
+
 /** Lazily creates the one shared landmarker (VIDEO mode, per API.md §2 --
  *  IMAGE mode gives jumpier coordinates and breaks train/inference
  *  consistency). Can reject if the CDN model fetch fails (offline, CDN
@@ -150,26 +165,29 @@ export async function captureLandmarks(
   const rightHand: number[][][] = [];
 
   const start = performance.now();
-  let lastTimestamp = -1;
   let prevPoseFrame: [number, number][] | null = null;
   let hasMoved = false;
   let lastMotionAt = start;
 
-  // detectForVideo requires strictly increasing integer millisecond
-  // timestamps (API.md §2); performance.now() is a float and two calls in
-  // the same animation frame can tie, so this forces monotonic increase.
-  const nextTimestamp = () => {
-    const t = Math.max(Math.round(performance.now() - start), lastTimestamp + 1);
-    lastTimestamp = t;
-    return t;
-  };
+  // The stop decision below reacts to every frame's raw motion reading, as
+  // it should. But landmark jitter means that raw reading flips back and
+  // forth across MOTION_THRESHOLD within a single real pause (a signer's
+  // hand is never perfectly still), which used to feed straight into
+  // `onFrame`'s phase and made the on-screen "Recording…"/"Got it…" text
+  // flicker every couple of frames. Only forward a phase change to the
+  // caller once the raw reading has held steady for PHASE_DISPLAY_DEBOUNCE_MS
+  // -- display-only smoothing, the stop timing above is untouched.
+  const PHASE_DISPLAY_DEBOUNCE_MS = 200;
+  let displayPhase: CapturePhase = "waiting";
+  let pendingPhase: CapturePhase | null = null;
+  let pendingSince = start;
 
   for (;;) {
     const now = performance.now();
     const elapsed = now - start;
     if (elapsed >= maxDurationMs || shouldStop?.()) break;
 
-    const result = landmarker.detectForVideo(video, nextTimestamp());
+    const result = landmarker.detectForVideo(video, nextFedTimestamp());
     const poseFrame = posePoints(result.poseLandmarks);
     pose.push(poseFrame);
     leftHand.push(handPoints(result.leftHandLandmarks));
@@ -188,8 +206,17 @@ export async function captureLandmarks(
     prevPoseFrame = poseFrame;
 
     const stillFor = now - lastMotionAt;
-    const phase: CapturePhase = !hasMoved ? "waiting" : stillFor > 150 ? "settling" : "active";
-    onFrame?.(elapsed, maxDurationMs, phase);
+    const rawPhase: CapturePhase = !hasMoved ? "waiting" : stillFor > 150 ? "settling" : "active";
+    if (rawPhase === displayPhase) {
+      pendingPhase = null;
+    } else if (rawPhase !== pendingPhase) {
+      pendingPhase = rawPhase;
+      pendingSince = now;
+    } else if (now - pendingSince >= PHASE_DISPLAY_DEBOUNCE_MS) {
+      displayPhase = rawPhase;
+      pendingPhase = null;
+    }
+    onFrame?.(elapsed, maxDurationMs, displayPhase);
 
     if (hasMoved && elapsed >= MIN_CAPTURE_MS && stillFor >= SILENCE_HANGOVER_MS) break;
 

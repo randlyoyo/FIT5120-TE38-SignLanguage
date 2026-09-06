@@ -203,6 +203,21 @@ the outer 40%.
 
 Reject if fewer than 8 frames survive.
 
+**This trims the two ends only, and only what is still.** It is not a sliding
+window and it does not search for the sign inside a longer recording. Two
+consequences the client has to handle, because the server cannot:
+
+- **A pause in the middle survives.** Everything between the first and last
+  moving frame is kept, however much of it is the learner hesitating.
+- **Anything that moves survives.** Lowering the hands, reaching for the mouse,
+  scratching, adjusting hair — none of that is still, so none of it is trimmed.
+
+What the trim does absorb is dead time at the ends: the moment between pressing
+a button and starting to sign, and the stillness after finishing. That part is
+genuinely free.
+
+§8 has the measured cost of both cases and what the UI must do about them.
+
 ### 3.6 Assemble the 98-dim frame vector
 
 ```
@@ -461,24 +476,75 @@ not throw — it degrades.
 
 ## 8. Capture guidance for the UI
 
-Derived from measured failure modes, not guesswork.
+Derived from measured failure modes, not guesswork. The single most important
+requirement is at the end of this section: **the recording must stop by itself
+when the learner finishes.**
 
-**Uniform speed does not matter.** A learner signing 3× slower than the
-reference scores identically (85.9% → 86.0% top-1). Do not rush them.
+### Speed is free
 
-**Pauses mid-sign do matter.** Inserting still frames equal to 150% of the
-original duration drops top-1 from 85.9% to 46.2%. Restarting mid-capture
-(a false start followed by the real attempt) drops it to 76.9%.
+A learner signing 3× slower than the reference scores identically — top-1
+85.9% against 86.0%. Resampling to a common frame rate (§3.2) makes uniform
+tempo irrelevant. Do not rush anyone, and do not add a "sign faster" hint.
 
-So the UI should:
+### Extra content is not free
 
-- give a clear "go" cue and a short countdown, so the attempt starts cleanly
-- keep the capture window tight (roughly 2–5 s) rather than open-ended
-- offer an obvious retry rather than letting a learner correct mid-capture
-- reject and ask for a retake when fewer than 8 frames survive trimming, or
-  when neither hand was detected in over 60% of frames
+Everything measured against the same baseline of 85.9% top-1:
 
-**Frontal camera.** Accuracy falls off steeply with camera angle — see below.
+| what the capture contains | top-1 |
+|---|---|
+| the sign, nothing else | **85.9%** |
+| + 30% more unrelated movement | 82.3% |
+| + 50% | 67.2% |
+| + 100% | **33.1%** |
+| + 150% | 28.6% |
+| a still pause worth 150% of the sign | 46.2% |
+| a false start, then the real attempt | 76.9% |
+
+A learner who finishes in 1.5 s inside a fixed 5-second window has recorded
+230% extra. That lands in the worst row of this table, and §3.5 cannot remove
+it: lowering the hands is movement, not stillness.
+
+### So the recording must stop itself
+
+Fixed-length capture is not acceptable. Stop as soon as the hands come to rest.
+The client already has the landmarks live, so this is a few lines:
+
+```js
+// in the §3 normalised frame (shoulder midpoint at origin, shoulder width = 1)
+const resting = wristY > shoulderY + 0.3 && wristSpeed < 0.01;
+restFrames = resting ? restFrames + 1 : 0;
+if (restFrames > 10) stop();     // ~0.4 s at 25 fps
+```
+
+Keep a hard ceiling — 5 seconds — as a fallback for when rest detection fails,
+not as the normal path.
+
+```
+countdown 3-2-1
+   │
+   ├── hands at rest for 0.4 s ──▶ stop        (the normal case)
+   └── 5 s elapsed ─────────────▶ stop        (fallback only)
+```
+
+Stopping early also halves the upload: about 95 KB for a 2-second capture
+against 240 KB for five.
+
+### The rest of the UI
+
+- Give a clear "go" cue and a countdown, so the attempt starts cleanly rather
+  than the learner thinking and signing at the same time — hesitation costs
+  more than slowness.
+- Make **retry** prominent. A learner who notices a mistake should start over,
+  not correct themselves mid-capture: a false start costs 9 points of top-1,
+  and correcting mid-capture costs far more.
+- Treat `400 unusable_capture` as a retake prompt, not an error. It fires when
+  the learner barely moved or the camera lost them.
+- Use the `frames` field in the response: a small number means the capture was
+  mostly still, which is worth saying out loud before showing a poor result.
+
+### Frontal camera
+
+Accuracy falls off steeply with camera angle — see [Limits](#limits).
 
 ---
 

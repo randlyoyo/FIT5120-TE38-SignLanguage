@@ -72,8 +72,8 @@ score a correct sign as wrong.
 
 ### Landmarks actually consumed
 
-Only 48 of the landmarks the model produces are used. Face is **not** used at
-all — it may be requested or not, it makes no difference.
+Only 48 of the landmarks the model produces are used for recognition. Face is
+**not** among them.
 
 | group | source | count | order |
 |---|---|---|---|
@@ -84,6 +84,41 @@ all — it may be requested or not, it makes no difference.
 Only `x` and `y` are read. `z` is discarded — it is a relative estimate on three
 different origins (pose to the hips, hands to the wrist) and is not comparable
 across groups.
+
+### Face: collected, not used
+
+The client also sends a 32-point face subset, and the server accepts and
+ignores it. That is deliberate, not an oversight.
+
+Sign language marks questions, negation and topics with non-manual markers —
+raised brows for a polar question, furrowed for a wh-question, squinting,
+head tilt — rather than with the hands. This model does none of that: it was
+trained on isolated words, where the meaning is manual. Adding face to the
+input now would cost payload for a signal nothing consumes.
+
+But captures cannot be re-recorded after the fact. Every real user capture
+logged without face is one that the eventual non-manual-marker work cannot
+learn from, so the cheap moment to start collecting is before there is
+anything to use it for.
+
+The subset is chosen for those markers, not for appearance:
+
+| group | points | why |
+|---|---|---|
+| outer lip contour | 12 | mouth shape |
+| eyebrows | 6 | raised / furrowed |
+| eyelids | 4 | aperture, squinting |
+| eye corners | 4 | brow height is only meaningful relative to the eye |
+| nose tip and bridge | 2 | head-pose anchor for nods and tilts |
+| inner lips | 4 | mouth opening, distinct from the outer contour |
+
+Sending all 478 mesh points would take the request body from 221 KB to about
+660 KB for landmarks that carry no linguistic signal. With the subset the cost
+is 17% over sending no face at all.
+
+Note the eye corners in particular: brow height means nothing in absolute
+terms, only relative to the eye, and the single coarse eye point in the body
+pose is not a precise enough reference for a few pixels of brow movement.
 
 A group that was not detected in a frame is **missing as a whole** — MediaPipe
 returns all 21 hand points or none. Represent a missing group as `null`, and
@@ -372,6 +407,7 @@ interface Capture {
   pose: number[][][];       // [frame][11 landmarks][x, y]
   left_hand: number[][][];  // [frame][21][x, y]
   right_hand: number[][][]; // [frame][21][x, y]
+  face?: number[][][];      // [frame][32][x, y] -- accepted, ignored
 }
 ```
 

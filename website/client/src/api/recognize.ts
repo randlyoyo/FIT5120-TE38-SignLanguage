@@ -15,6 +15,11 @@ export interface Capture {
   pose: number[][][];
   left_hand: number[][][];
   right_hand: number[][][];
+  /** 32-point face subset. Collected but not used for recognition -- the
+   *  server accepts and ignores it. It is here so that captures gathered now
+   *  are usable for the non-manual-marker work later, which needs facial
+   *  data that cannot be recovered from recordings that never included it. */
+  face?: number[][][];
 }
 
 export interface VerifyResult {

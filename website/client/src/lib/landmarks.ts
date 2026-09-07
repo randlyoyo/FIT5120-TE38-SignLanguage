@@ -58,6 +58,43 @@ function handPoints(handLandmarks: NormalizedLandmark[][]): [number, number][] {
   return hand.map((lm) => [lm.x, lm.y]);
 }
 
+// Face landmarks are collected but NOT used for recognition -- the model reads
+// arms and hands only (API.md §2). They are here because sign language marks
+// questions, negation and topics with non-manual markers rather than with the
+// hands, and that work needs real user captures to train on. Captures cannot be
+// re-recorded after the fact, so the cheap moment to start collecting is
+// before there is anything to use them for.
+//
+// A 32-point subset of the 478-point mesh, chosen for those markers rather than
+// for appearance. Sending the full mesh would roughly triple the request body
+// for points that carry no linguistic signal.
+const FACE_INDICES = [
+  // outer lip contour -- mouth shape (12)
+  61, 40, 37, 0, 267, 270, 291, 321, 314, 17, 84, 91,
+  // eyebrows, inner/mid/outer each side -- raised for polar questions,
+  // furrowed for wh-questions (6)
+  107, 105, 70, 336, 334, 300,
+  // eyelids, upper and lower each side -- aperture, squinting (4)
+  159, 145, 386, 374,
+  // eye corners (4). Brow height is only meaningful relative to the eye, and
+  // the coarse single eye point in the body pose is not a precise enough
+  // reference for a few pixels of brow movement.
+  33, 133, 362, 263,
+  // nose tip and bridge -- head pose anchor for nods and tilts (2)
+  1, 4,
+  // inner lips -- mouth opening, distinct from the outer contour (4)
+  13, 14, 78, 308,
+] as const;
+
+function facePoints(faceLandmarks: NormalizedLandmark[][]): [number, number][] {
+  const face = faceLandmarks[0];
+  if (!face || face.length === 0) return filled(FACE_INDICES.length);
+  return FACE_INDICES.map((i) => {
+    const lm = face[i];
+    return lm ? ([lm.x, lm.y] as [number, number]) : MISSING;
+  });
+}
+
 // Indices of the left/right wrist within the 11-point pose array assembled
 // above (positions 5..10 are the six arm points in the order §2 lists:
 // shoulders, elbows, wrists -- so wrists are the last two).
@@ -163,6 +200,7 @@ export async function captureLandmarks(
   const pose: number[][][] = [];
   const leftHand: number[][][] = [];
   const rightHand: number[][][] = [];
+  const face: number[][][] = [];
 
   const start = performance.now();
   let prevPoseFrame: [number, number][] | null = null;
@@ -192,6 +230,7 @@ export async function captureLandmarks(
     pose.push(poseFrame);
     leftHand.push(handPoints(result.leftHandLandmarks));
     rightHand.push(handPoints(result.rightHandLandmarks));
+    face.push(facePoints(result.faceLandmarks));
 
     if (prevPoseFrame) {
       const speed = Math.max(
@@ -234,5 +273,6 @@ export async function captureLandmarks(
     pose,
     left_hand: leftHand,
     right_hand: rightHand,
+    face,
   };
 }

@@ -1797,6 +1797,30 @@ input:focus-visible {
   background: #000;
 }
 
+.movement-description {
+  max-width: 640px;
+  margin: 0 auto 1rem;
+  padding: 1rem;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.movement-description h3 {
+  margin: 0 0 0.6rem;
+  color: var(--color-accent);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+.movement-description p {
+  margin: 0;
+  color: var(--color-text);
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
 .video-variants {
   display: flex;
   justify-content: center;

@@ -79,7 +79,7 @@ router.get("/", async (req, res, next) => {
     const previewBySignId = new Map();
     if (signIds.length) {
       const [videoRows] = await pool.query(
-        `SELECT sign_id, source_id, file_name, video_url
+        `SELECT sign_id, source_id, file_name, video_url, movement_description
          FROM sign_videos
          WHERE sign_id IN (?)
          ORDER BY sign_id ASC, source_id ASC`,
@@ -144,7 +144,7 @@ if (rows.length === 0) {
 }
 
 const [videoRows] = await pool.query(
-  `SELECT source_id, file_name, video_url
+  `SELECT source_id, file_name, video_url, movement_description
    FROM sign_videos
    WHERE sign_id = ?
    ORDER BY source_id ASC`,

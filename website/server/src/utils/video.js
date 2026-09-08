@@ -10,6 +10,8 @@ function formatVideo(row) {
       (VIDEO_BASE_URL
         ? `${VIDEO_BASE_URL}/${encodeURIComponent(row.file_name)}`
         : null),
+
+    movementDescription: row.movement_description ?? null,
   };
 }
 

@@ -7,6 +7,7 @@ export interface SignVideo {
   sourceId: string;
   fileName: string;
   videoUrl: string | null;
+  movementDescription: string | null;
 }
 
 export interface Sign {

@@ -59,6 +59,13 @@ export function SignDemonstration({ gloss, videos }: Props) {
         </video>
       </div>
 
+      {currentVideo.movementDescription && (
+        <div className="movement-description">
+          <h3>How to perform this sign</h3>
+          <p>{currentVideo.movementDescription}</p>
+        </div>
+      )}
+
       {availableVideos.length > 1 && (
         <div
           className="video-variants"

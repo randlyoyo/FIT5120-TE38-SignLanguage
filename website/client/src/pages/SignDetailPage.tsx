@@ -10,6 +10,18 @@ import { tagChipStyle } from "../lib/tagColors";
 import { isToLearn, removeFromToLearn, toggleToLearn } from "../lib/toLearnSigns";
 import type { Sign } from "../api/types";
 
+// Movement descriptions are written as one prose paragraph, but each
+// sentence is already one distinct step in practice (verified against real
+// data: "Prepare by... Then... Repeat... Finally, return..."), so splitting
+// on sentence boundaries turns it into a step list without touching the
+// data itself.
+function splitIntoSteps(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export function SignDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -248,9 +260,11 @@ export function SignDetailPage() {
               {sign.videos?.[0]?.movementDescription ? (
                 <>
                   <h2 className="sign-detail-heading">How It's Formed</h2>
-                  <div className="movement-description">
-                    <p>{sign.videos[0].movementDescription}</p>
-                  </div>
+                  <ol className="usage-steps">
+                    {splitIntoSteps(sign.videos[0].movementDescription).map((step, i) => (
+                      <li key={i}>{step}</li>
+                    ))}
+                  </ol>
                 </>
               ) : (
                 sign.usageNotes.length > 0 && (

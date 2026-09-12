@@ -34,6 +34,24 @@ export async function fetchSignById(id: number, signal?: AbortSignal): Promise<S
   return res.json();
 }
 
+/** `count` random signs from `tag`, excluding `excludeIds` (personalised
+ *  session builder: a category quota that skips signs already learned or
+ *  already queued). */
+export async function fetchRandomSignsByTag(
+  tag: string,
+  count: number,
+  excludeIds: number[],
+  signal?: AbortSignal
+): Promise<Sign[]> {
+  const params = new URLSearchParams({ tag, count: String(count) });
+  if (excludeIds.length) params.set("exclude", excludeIds.join(","));
+
+  const res = await fetch(`${API_BASE}/signs/sample?${params.toString()}`, { signal });
+  if (!res.ok) throw new Error(`Failed to fetch sample signs for ${tag} (${res.status})`);
+  const data = await res.json();
+  return data.results;
+}
+
 export async function fetchTags(signal?: AbortSignal): Promise<TagCount[]> {
   const res = await fetch(`${API_BASE}/signs/tags`, { signal });
   if (!res.ok) throw new Error(`Failed to fetch tags (${res.status})`);

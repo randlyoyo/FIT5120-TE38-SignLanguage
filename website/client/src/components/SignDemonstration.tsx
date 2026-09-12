@@ -46,6 +46,7 @@ export function SignDemonstration({ gloss, videos }: Props) {
           ref={videoRef}
           key={currentVideo.videoUrl ?? currentVideo.fileName}
           controls
+          loop
           playsInline
           preload="metadata"
           className="sign-demo-video"
@@ -58,13 +59,6 @@ export function SignDemonstration({ gloss, videos }: Props) {
           Your browser does not support video playback.
         </video>
       </div>
-
-      {currentVideo.movementDescription && (
-        <div className="movement-description">
-          <h3>How to perform this sign</h3>
-          <p>{currentVideo.movementDescription}</p>
-        </div>
-      )}
 
       {availableVideos.length > 1 && (
         <div

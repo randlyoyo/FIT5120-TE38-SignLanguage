@@ -1937,22 +1937,6 @@ input:focus-visible {
   background: #000;
 }
 
-.movement-description {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-accent);
-  border-radius: var(--radius-md);
-  padding: 0.9rem 1.1rem;
-}
-
-.movement-description p {
-  margin: 0;
-  font-size: 1.05rem;
-  color: var(--color-text);
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
-
 .video-variants {
   display: flex;
   justify-content: center;

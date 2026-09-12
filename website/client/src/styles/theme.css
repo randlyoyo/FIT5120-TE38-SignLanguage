@@ -683,6 +683,11 @@ input:focus-visible {
   grid-area: definitions;
 }
 
+.detail-related {
+  max-width: 1320px;
+  margin: 3rem auto 0;
+}
+
 /* Learn/Practice toggle -- to the left of the catalog number, in the same
    row as the back link. Only ever swaps the title/definitions content
    beside and below it; the demo video in .detail-media is untouched by
@@ -1614,6 +1619,18 @@ input:focus-visible {
   justify-content: center;
 }
 
+.detail-list-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1.25rem 0 1.75rem;
+}
+
+.detail-list-actions .learned-toggle {
+  margin: 0;
+}
+
 .learned-toggle {
   display: block;
   margin: 1.25rem auto 1.75rem;
@@ -1646,6 +1663,129 @@ input:focus-visible {
 .learned-toggle.learned:hover {
   border-color: var(--color-stamp);
   color: var(--color-stamp);
+}
+
+/* The stamp red is reserved for "Learned" alone (see this file's header
+   comment) -- queued-to-learn uses the site's other accent, signal-blue,
+   and skips the stamp's rotate/tilt so the two states read as distinct. */
+.to-learn-toggle.active {
+  border: 2px solid var(--color-accent);
+  color: var(--color-accent);
+  background: rgba(var(--color-accent-rgb), 0.06);
+}
+
+.to-learn-toggle.active:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.personalize-panel {
+  margin-bottom: 1.5rem;
+}
+
+.personalize-panel-toggle {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 1rem;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.personalize-panel-toggle:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.personalize-panel-body {
+  border: 1px solid var(--color-border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.personalize-target {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.personalize-target input {
+  width: 4.5rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.personalize-tag-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.personalize-tag-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.personalize-tag-row:last-child {
+  border-bottom: none;
+}
+
+.personalize-tag-name {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.personalize-tag-available {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.personalize-tag-row input {
+  width: 3.5rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.personalize-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.personalize-total {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.personalize-panel-footer .practice-start-button {
+  margin: 0;
+}
+
+.personalize-result {
+  margin-top: 0.75rem;
+  color: var(--color-accent);
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .learned-back-header {
@@ -1798,24 +1938,16 @@ input:focus-visible {
 }
 
 .movement-description {
-  max-width: 640px;
-  margin: 0 auto 1rem;
-  padding: 1rem;
-  background: var(--color-surface-raised);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-accent);
   border-radius: var(--radius-md);
-}
-
-.movement-description h3 {
-  margin: 0 0 0.6rem;
-  color: var(--color-accent);
-  font-family: var(--font-display);
-  font-size: 0.85rem;
-  text-transform: uppercase;
+  padding: 0.9rem 1.1rem;
 }
 
 .movement-description p {
   margin: 0;
+  font-size: 1.05rem;
   color: var(--color-text);
   line-height: 1.7;
   white-space: pre-wrap;

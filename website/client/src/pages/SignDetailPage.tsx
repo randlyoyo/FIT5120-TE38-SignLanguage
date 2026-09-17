@@ -33,7 +33,13 @@ export function SignDetailPage() {
   // sequence, which rarely matches the library's display order (gloss
   // order, or search relevance). Falls back to id +/- 1 when it's missing
   // (a direct link, a bookmark, a page reload that lost history state).
-  const siblingIds = (location.state as { siblingIds?: number[] } | null)?.siblingIds;
+  const navState = location.state as { siblingIds?: number[]; returnTo?: string } | null;
+  const siblingIds = navState?.siblingIds;
+  // The list's own URL, carried alongside siblingIds so "Back to library"
+  // still lands there after stepping through several signs with prev/next
+  // -- each arrow click is its own history entry, so a plain back-one-step
+  // would undo the last arrow instead of leaving the list.
+  const returnTo = navState?.returnTo;
   const siblingIndex = siblingIds?.indexOf(signId) ?? -1;
   const prevId = siblingIds
     ? (siblingIndex > 0 ? siblingIds[siblingIndex - 1] : null)
@@ -106,11 +112,21 @@ export function SignDetailPage() {
     };
   }, [sign?.gloss]);
 
+  // navigate(-1) alone undoes only the last prev/next click (each is its
+  // own history entry), not a real "leave this list" -- go straight to the
+  // list's own URL when we know it, falling back to one-step-back when we
+  // don't (arrived here without going through a ResultCard, e.g. a direct
+  // link).
+  function backToLibrary() {
+    if (returnTo) navigate(returnTo);
+    else navigate(-1);
+  }
+
   if (isError) {
     return (
       <div className="page-container">
         <p role="alert">Couldn't load this sign.</p>
-        <button type="button" className="back-link" onClick={() => navigate(-1)}>
+        <button type="button" className="back-link" onClick={backToLibrary}>
           &larr; Back to library
         </button>
       </div>
@@ -138,7 +154,7 @@ export function SignDetailPage() {
       <button
         type="button"
         className="detail-nav-arrow prev"
-        onClick={() => prevId !== null && navigate(`/signs/${prevId}`, { state: siblingIds ? { siblingIds } : undefined })}
+        onClick={() => prevId !== null && navigate(`/signs/${prevId}`, { state: siblingIds || returnTo ? { siblingIds, returnTo } : undefined })}
         disabled={prevId === null}
         aria-label="Previous sign"
       >
@@ -149,7 +165,7 @@ export function SignDetailPage() {
       <button
         type="button"
         className="detail-nav-arrow next"
-        onClick={() => nextId !== null && navigate(`/signs/${nextId}`, { state: siblingIds ? { siblingIds } : undefined })}
+        onClick={() => nextId !== null && navigate(`/signs/${nextId}`, { state: siblingIds || returnTo ? { siblingIds, returnTo } : undefined })}
         disabled={nextId === null}
         aria-label="Next sign"
       >
@@ -160,7 +176,7 @@ export function SignDetailPage() {
 
       <div className="detail-layout">
         <div className="detail-back">
-          <button type="button" className="back-link" onClick={() => navigate(-1)}>
+          <button type="button" className="back-link" onClick={backToLibrary}>
             &larr; Back to library
           </button>
           <div className="detail-back-right">

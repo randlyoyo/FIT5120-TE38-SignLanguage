@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { fetchRecognitionVocabulary } from "../api/recognize";
 import { fetchSignById, fetchSigns } from "../api/signs";
 import { PracticeVerify } from "../components/PracticeVerify";
@@ -25,7 +25,22 @@ function splitIntoSteps(text: string): string[] {
 export function SignDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const signId = Number(id);
+  // The list a learner actually browsed (search results, a tag page, a
+  // related-signs list, ...), handed off by ResultCard's Link state --
+  // lets prev/next step through what's on screen instead of the raw id
+  // sequence, which rarely matches the library's display order (gloss
+  // order, or search relevance). Falls back to id +/- 1 when it's missing
+  // (a direct link, a bookmark, a page reload that lost history state).
+  const siblingIds = (location.state as { siblingIds?: number[] } | null)?.siblingIds;
+  const siblingIndex = siblingIds?.indexOf(signId) ?? -1;
+  const prevId = siblingIds
+    ? (siblingIndex > 0 ? siblingIds[siblingIndex - 1] : null)
+    : signId - 1;
+  const nextId = siblingIds
+    ? (siblingIndex >= 0 && siblingIndex < siblingIds.length - 1 ? siblingIds[siblingIndex + 1] : null)
+    : signId + 1;
 
   const [sign, setSign] = useState<Sign | null>(null);
   const [isError, setIsError] = useState(false);
@@ -115,14 +130,16 @@ export function SignDetailPage() {
       {/* Fixed to the viewport edges rather than the layout, so they stay
           reachable at a glance regardless of scroll position -- a gallery-
           style "next/previous entry" control, not part of the card itself.
-          Previous clamps at the first catalogue entry; next has no known
-          upper bound here, so it relies on the existing not-found handling
-          if it ever runs past the last one. */}
+          Steps through the list the learner actually browsed (siblingIds,
+          handed off by whichever ResultCard was clicked), not the raw id
+          sequence -- the library's own order is gloss order or search
+          relevance, essentially never consecutive ids. Falls back to id
+          +/- 1 without that context (a direct link or a reload). */}
       <button
         type="button"
         className="detail-nav-arrow prev"
-        onClick={() => navigate(`/signs/${sign.id - 1}`)}
-        disabled={sign.id <= 1}
+        onClick={() => prevId !== null && navigate(`/signs/${prevId}`, { state: siblingIds ? { siblingIds } : undefined })}
+        disabled={prevId === null}
         aria-label="Previous sign"
       >
         <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -132,7 +149,8 @@ export function SignDetailPage() {
       <button
         type="button"
         className="detail-nav-arrow next"
-        onClick={() => navigate(`/signs/${sign.id + 1}`)}
+        onClick={() => nextId !== null && navigate(`/signs/${nextId}`, { state: siblingIds ? { siblingIds } : undefined })}
+        disabled={nextId === null}
         aria-label="Next sign"
       >
         <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -298,7 +316,7 @@ export function SignDetailPage() {
           <h2 className="sign-detail-heading">Related Signs</h2>
           <ul className="result-list">
             {related.map((s) => (
-              <ResultCard key={s.id} sign={s} />
+              <ResultCard key={s.id} sign={s} siblingIds={related.map((r) => r.id)} />
             ))}
           </ul>
         </div>

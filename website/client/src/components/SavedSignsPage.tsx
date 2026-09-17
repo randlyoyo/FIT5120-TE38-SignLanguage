@@ -126,7 +126,7 @@ export function SavedSignsPage({
         ) : (
           <ul className="result-list">
             {signs.map((sign) => (
-              <ResultCard key={sign.id} sign={sign} />
+              <ResultCard key={sign.id} sign={sign} siblingIds={signs.map((s) => s.id)} />
             ))}
           </ul>
         )}

@@ -169,7 +169,12 @@ export function SignLibraryPage() {
             ) : (
               <ul className="result-list">
                 {gestureResults!.map((sign) => (
-                  <ResultCard key={sign.id} sign={sign} />
+                  <ResultCard
+                    key={sign.id}
+                    sign={sign}
+                    siblingIds={gestureResults!.map((s) => s.id)}
+                    returnTo="/library"
+                  />
                 ))}
               </ul>
             )}
@@ -204,7 +209,12 @@ export function SignLibraryPage() {
                 ) : (
                   <ul className="result-list">
                     {results.map((sign) => (
-                      <ResultCard key={sign.id} sign={sign} />
+                      <ResultCard
+                        key={sign.id}
+                        sign={sign}
+                        siblingIds={results.map((s) => s.id)}
+                        returnTo={`${window.location.pathname}${window.location.search}`}
+                      />
                     ))}
                   </ul>
                 )}

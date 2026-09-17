@@ -431,9 +431,28 @@ other five may be filled with `[-999, -999]` if that is easier to produce.
   "distance": 0.2289,
   "threshold": 0.5294347405433655,
   "matched": true,
+  "score": 83,
   "frames": 83
 }
 ```
+
+`score` is a 0–100 number for showing the learner. It is a piecewise linear
+rescaling of `distance`, anchored on `threshold`:
+
+```
+d = clamp(distance, 0, 1)
+score = d <= tau ? 100 - 40 * d / tau        // 0 -> 100, tau -> 60
+                 : 60 * (1 - d) / (1 - tau)   // tau -> 60, 1 -> 0
+```
+
+The pass line is always 60, and rounding is clamped at the boundary, so
+`score >= 60` exactly when `matched` is true. Raw cosine similarity `1 - distance` is not shown
+because `tau` puts its pass line at 47%, which a learner reads as a fail.
+
+**It is not a probability**, and `matched` remains the decision — do not
+threshold on `score` in client code. Correct attempts rarely approach distance
+0, so expect real passes to cluster around 70–85 rather than near 100. If `tau`
+is re-derived from real captures (§9) the mapping follows it unchanged.
 
 `frames` is the count that survived trimming (§3.5) — useful for telling a
 learner their capture was mostly still.

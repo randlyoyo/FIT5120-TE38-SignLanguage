@@ -1740,6 +1740,24 @@ input:focus-visible {
   margin-top: 1.25rem;
 }
 
+.practice-result-score {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  margin: 0 0 0.35rem;
+}
+
+.practice-result-score-unit {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.practice-result.matched .practice-result-score {
+  color: var(--color-accent);
+}
+
 .practice-result-verdict {
   font-family: var(--font-display);
   font-size: 1.1rem;

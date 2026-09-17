@@ -27,6 +27,8 @@ export interface VerifyResult {
   distance: number;
   threshold: number;
   matched: boolean;
+  /** 0-100 display score; 60 is the pass line. Not a probability -- decide on `matched`. */
+  score: number;
   frames: number;
 }
 

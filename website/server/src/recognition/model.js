@@ -135,4 +135,33 @@ function confidenceFromMargin(s, margin) {
   return ys[i - 1] + t * (ys[i] - ys[i - 1]);
 }
 
-module.exports = { load, embed, distanceToWord, distanceToAll, confidenceFromMargin, ROOT };
+/**
+ * Verify distance -> 0-100 display score for the learner.
+ *
+ * Piecewise linear, anchored so the decision threshold always lands on
+ * PASS_SCORE: distance 0 -> 100, tau -> 60, 1 -> 0. That keeps the number and
+ * `matched` from ever disagreeing. Raw cosine similarity (1 - distance) was
+ * not used because tau = 0.53 puts the pass line at 47% "similar", which reads
+ * as a failure.
+ *
+ * This is a monotone rescaling of distance, NOT a probability -- there is no
+ * genuine/impostor distance distribution in the repo to calibrate one against.
+ * `matched` stays the decision; never threshold on the score.
+ */
+const PASS_SCORE = 60;
+
+function similarityScore(distance, tau) {
+  const d = Math.min(Math.max(distance, 0), 1);
+  const score = d <= tau
+    ? 100 - (100 - PASS_SCORE) * (d / tau)
+    : PASS_SCORE * (1 - d) / (1 - tau);
+  // Rounding alone would show a just-failed attempt as 60; keep the sides apart.
+  return distance < tau
+    ? Math.max(PASS_SCORE, Math.round(score))
+    : Math.min(PASS_SCORE - 1, Math.round(score));
+}
+
+module.exports = {
+  load, embed, distanceToWord, distanceToAll, confidenceFromMargin,
+  similarityScore, PASS_SCORE, ROOT,
+};

@@ -2,7 +2,7 @@ const express = require("express");
 
 const { UnusableCapture } = require("../recognition/features");
 const {
-  load, embed, distanceToWord, distanceToAll, confidenceFromMargin,
+  load, embed, distanceToWord, distanceToAll, confidenceFromMargin, similarityScore,
 } = require("../recognition/model");
 
 const router = express.Router();
@@ -66,6 +66,8 @@ router.post("/verify", async (req, res, next) => {
       distance,
       threshold: s.tauVerify,
       matched: distance < s.tauVerify,
+      // 0-100 for display only; the pass line maps to 60. See similarityScore.
+      score: similarityScore(distance, s.tauVerify),
       frames,
     });
   } catch (err) {

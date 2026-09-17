@@ -1937,6 +1937,15 @@ input:focus-visible {
   background: #000;
 }
 
+.mirror-view-hint {
+  max-width: 640px;
+  margin: 0.6rem auto 0;
+  padding: 0 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
 .video-variants {
   display: flex;
   justify-content: center;

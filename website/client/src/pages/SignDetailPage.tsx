@@ -5,7 +5,7 @@ import { fetchSignById, fetchSigns } from "../api/signs";
 import { PracticeVerify } from "../components/PracticeVerify";
 import { ResultCard } from "../components/ResultCard";
 import { SignDemonstration } from "../components/SignDemonstration";
-import { isLearned, toggleLearned } from "../lib/learnedSigns";
+import { isLearned, removeLearned, toggleLearned } from "../lib/learnedSigns";
 import { tagChipStyle } from "../lib/tagColors";
 import { isToLearn, removeFromToLearn, toggleToLearn } from "../lib/toLearnSigns";
 import type { Sign } from "../api/types";
@@ -206,7 +206,17 @@ export function SignDetailPage() {
                   <button
                     type="button"
                     className={`learned-toggle to-learn-toggle ${queuedToLearn ? "active" : ""}`}
-                    onClick={() => setQueuedToLearn(toggleToLearn(sign.id))}
+                    onClick={() => {
+                      const next = toggleToLearn(sign.id);
+                      setQueuedToLearn(next);
+                      // Mutually exclusive with "Learned" in both
+                      // directions -- queuing a sign to learn again means
+                      // it isn't learned yet.
+                      if (next && learned) {
+                        removeLearned(sign.id);
+                        setLearned(false);
+                      }
+                    }}
                   >
                     {queuedToLearn ? "✓ In to-learn list" : "Add to to-learn list"}
                   </button>

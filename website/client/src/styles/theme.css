@@ -1880,24 +1880,38 @@ input:focus-visible {
   margin-top: 1.25rem;
 }
 
-.practice-result-score {
+.practice-result-tier {
   font-family: var(--font-display);
-  font-size: 2rem;
+  font-size: 1.4rem;
   font-weight: 700;
-  margin: 0 0 0.3rem;
+  margin: 0 0 0.4rem;
 }
 
-.practice-result.matched .practice-result-score {
+/* Deliberately no red/alarm color anywhere here, including the lowest
+   tier -- a learner who just tried on camera and came up short shouldn't
+   be greeted with the same color the rest of the site reserves for
+   errors. Warmth comes from tone (see MESSAGES server-side) and from
+   never treating "needs practice" as a failure state visually. */
+.practice-result.tier-excellent .practice-result-tier {
   color: var(--color-accent);
 }
 
-.practice-result.not-matched .practice-result-score {
-  color: var(--color-text-muted);
+.practice-result.tier-close .practice-result-tier,
+.practice-result.tier-needs_practice .practice-result-tier {
+  color: var(--color-text);
 }
 
 .practice-result-feedback {
   color: var(--color-text-muted);
   font-size: 0.95rem;
+  margin: 0 0 0.6rem;
+}
+
+.practice-result-score {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   margin: 0;
 }
 

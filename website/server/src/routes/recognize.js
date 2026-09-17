@@ -45,13 +45,46 @@ function fail(err, res, next) {
   return next(err);
 }
 
-// Short, plain-language line to go with the score -- matched/not-matched
-// alone doesn't tell a learner whether to move on or keep drilling this sign.
-function feedbackFor(matched, score) {
-  if (matched && score >= 0.8) return "Great job — that's a strong, accurate match.";
-  if (matched) return "That's a match — keep practicing for more consistency.";
-  if (score >= 0.4) return "Close, but not quite — review your hand shape and movement.";
-  return "Not quite — keep practicing this sign.";
+// A bare number or a binary matched/not-matched doesn't tell a learner what
+// to do next, and reads as cold coming right after they've put themselves
+// on camera to try a sign. Three tiers instead of a score in isolation:
+// solidly there, on the right track, or needs another go -- each with a
+// few warmer, more encouraging phrasings so repeat attempts (the common
+// case in a practice loop) don't all land on the exact same sentence.
+// Bucketing still leans on the calibrated score, with `matched` (the
+// reliable EER-tuned threshold) overriding a borderline score downward --
+// a real match is never reported as "needs practice" just because the
+// margin-based score happened to land a little soft.
+const TIER_EXCELLENT = "excellent";
+const TIER_CLOSE = "close";
+const TIER_NEEDS_PRACTICE = "needs_practice";
+
+const MESSAGES = {
+  [TIER_EXCELLENT]: [
+    "Beautiful work! That was clear, confident, and right on the mark — you've got this one.",
+    "Excellent! That sign came through loud and clear. Well done.",
+    "Wonderful signing — accurate and confident. This one's looking solid.",
+  ],
+  [TIER_CLOSE]: [
+    "Nice effort — that's recognisable, but a little more practice will make it really solid.",
+    "You're on the right track! A few more repetitions and this one will click into place.",
+    "Good attempt — you're close. Keep drilling this one so it starts to feel natural.",
+  ],
+  [TIER_NEEDS_PRACTICE]: [
+    "Not quite there yet, and that's completely okay — this one takes practice. Watch the demo once more and give it another try.",
+    "That didn't quite land this time. No worries at all — take a breath, review the movement, and try again.",
+    "Still finding your way with this one, which is totally normal early on. Another look at the demonstration should help.",
+  ],
+};
+
+function pick(list) {
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+function tierFor(matched, score) {
+  if (matched && score >= 0.8) return TIER_EXCELLENT;
+  if (matched || score >= 0.4) return TIER_CLOSE;
+  return TIER_NEEDS_PRACTICE;
 }
 
 // POST /api/recognize/verify  { word, capture } -> did this attempt match?
@@ -70,6 +103,7 @@ router.post("/verify", async (req, res, next) => {
     const { embedding, frames } = await embed(capture);
     const { distance, confidence } = verifyScore(s, embedding, idx);
     const matched = distance < s.tauVerify;
+    const tier = tierFor(matched, confidence);
 
     res.json({
       word,
@@ -79,7 +113,11 @@ router.post("/verify", async (req, res, next) => {
       // 0-100, calibrated (see recognition/model.js verifyScore): "how
       // accurate was this attempt", not just the binary matched/not-matched.
       score: Math.round(confidence * 100),
-      feedback: feedbackFor(matched, confidence),
+      // Three plain-language tiers a learner can act on -- see MESSAGES
+      // above. `tier` is the stable machine-readable bucket; `feedback` is
+      // one warm, randomly-varied sentence for that bucket.
+      tier,
+      feedback: pick(MESSAGES[tier]),
       frames,
     });
   } catch (err) {

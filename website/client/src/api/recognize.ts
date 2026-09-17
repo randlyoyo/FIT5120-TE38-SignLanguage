@@ -17,6 +17,8 @@ export interface Capture {
   right_hand: number[][][];
 }
 
+export type VerifyTier = "excellent" | "close" | "needs_practice";
+
 export interface VerifyResult {
   word: string;
   distance: number;
@@ -24,7 +26,9 @@ export interface VerifyResult {
   matched: boolean;
   /** 0-100, calibrated accuracy score for this attempt (recognition/API.md). */
   score: number;
-  /** Short, plain-language line to show alongside the score. */
+  /** Which of three plain-language buckets this attempt landed in. */
+  tier: VerifyTier;
+  /** Warm, encouraging line for that tier (varies between attempts). */
   feedback: string;
   frames: number;
 }

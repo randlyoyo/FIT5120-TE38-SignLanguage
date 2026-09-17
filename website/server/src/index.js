@@ -7,7 +7,11 @@ const recognizeRouter = require("./routes/recognize");
 const app = express();
 
 app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
-app.use(express.json());
+// Default 100kb is well under a real capture: per-frame pose + both hands is
+// ~106 numbers, and a several-second capture at 20-30fps runs several
+// hundred frames -- comfortably over 100kb, which is exactly what was
+// hitting PayloadTooLargeError in production.
+app.use(express.json({ limit: "5mb" }));
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 app.use("/api/signs", signsRouter);

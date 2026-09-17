@@ -129,7 +129,16 @@ export function SavedSignsPage({
         ) : (
           <ul className="result-list">
             {signs.map((sign) => (
+<<<<<<< HEAD
               <ResultCard key={sign.id} sign={sign} from={from} />
+=======
+              <ResultCard
+                key={sign.id}
+                sign={sign}
+                siblingIds={signs.map((s) => s.id)}
+                returnTo={window.location.pathname}
+              />
+>>>>>>> d26eb7dc3bb8173edd3054fcfc89fe23848ae130
             ))}
           </ul>
         )}

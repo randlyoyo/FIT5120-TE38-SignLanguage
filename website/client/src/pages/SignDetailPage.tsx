@@ -26,6 +26,7 @@ export function SignDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const location = useLocation();
   const signId = Number(id);
 
   // Determine which page to return to based on referrer
@@ -107,6 +108,16 @@ export function SignDetailPage() {
     };
   }, [sign?.gloss]);
 
+  // navigate(-1) alone undoes only the last prev/next click (each is its
+  // own history entry), not a real "leave this list" -- go straight to the
+  // list's own URL when we know it, falling back to one-step-back when we
+  // don't (arrived here without going through a ResultCard, e.g. a direct
+  // link).
+  function backToLibrary() {
+    if (returnTo) navigate(returnTo);
+    else navigate(-1);
+  }
+
   if (isError) {
     return (
       <div className="page-container">
@@ -131,14 +142,16 @@ export function SignDetailPage() {
       {/* Fixed to the viewport edges rather than the layout, so they stay
           reachable at a glance regardless of scroll position -- a gallery-
           style "next/previous entry" control, not part of the card itself.
-          Previous clamps at the first catalogue entry; next has no known
-          upper bound here, so it relies on the existing not-found handling
-          if it ever runs past the last one. */}
+          Steps through the list the learner actually browsed (siblingIds,
+          handed off by whichever ResultCard was clicked), not the raw id
+          sequence -- the library's own order is gloss order or search
+          relevance, essentially never consecutive ids. Falls back to id
+          +/- 1 without that context (a direct link or a reload). */}
       <button
         type="button"
         className="detail-nav-arrow prev"
-        onClick={() => navigate(`/signs/${sign.id - 1}`)}
-        disabled={sign.id <= 1}
+        onClick={() => prevId !== null && navigate(`/signs/${prevId}`, { state: siblingIds || returnTo ? { siblingIds, returnTo } : undefined })}
+        disabled={prevId === null}
         aria-label="Previous sign"
       >
         <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -148,7 +161,8 @@ export function SignDetailPage() {
       <button
         type="button"
         className="detail-nav-arrow next"
-        onClick={() => navigate(`/signs/${sign.id + 1}`)}
+        onClick={() => nextId !== null && navigate(`/signs/${nextId}`, { state: siblingIds || returnTo ? { siblingIds, returnTo } : undefined })}
+        disabled={nextId === null}
         aria-label="Next sign"
       >
         <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -314,7 +328,7 @@ export function SignDetailPage() {
           <h2 className="sign-detail-heading">Related Signs</h2>
           <ul className="result-list">
             {related.map((s) => (
-              <ResultCard key={s.id} sign={s} />
+              <ResultCard key={s.id} sign={s} siblingIds={related.map((r) => r.id)} />
             ))}
           </ul>
         </div>

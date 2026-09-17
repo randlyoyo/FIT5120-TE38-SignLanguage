@@ -8,7 +8,7 @@ export function useTags() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchTags(controller.signal)
+    fetchTags(undefined, controller.signal)
       .then(setTags)
       .catch((err) => {
         if (err.name !== "AbortError") console.error(err);

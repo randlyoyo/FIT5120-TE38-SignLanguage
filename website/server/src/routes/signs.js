@@ -105,14 +105,25 @@ router.get("/", async (req, res, next) => {
   }
 });
 
-// GET /api/signs/tags -- distinct tag categories with counts, for the
-// library page's category rail (browse-by-topic navigation). Registered
-// before /:id so "tags" doesn't get swallowed as an id param.
+// GET /api/signs/tags?exclude= -- distinct tag categories with counts, for
+// the library page's category rail (browse-by-topic navigation) and the
+// personalised session builder (US5.3: counts must reflect what's actually
+// left to pick, so a learner isn't told "12 available" for a category
+// where 12 are already learned). `exclude` is optional and unused by the
+// category rail. Registered before /:id so "tags" doesn't get swallowed as
+// an id param.
 router.get("/tags", async (req, res, next) => {
   try {
-    const [rows] = await pool.query("SELECT tags FROM signs");
+    const excludeIds = new Set(
+      String(req.query.exclude ?? "")
+        .split(",")
+        .map((s) => Number(s.trim()))
+        .filter((n) => Number.isInteger(n) && n > 0)
+    );
+    const [rows] = await pool.query("SELECT id, tags FROM signs");
     const counts = new Map();
     for (const row of rows) {
+      if (excludeIds.has(row.id)) continue;
       for (const tag of row.tags ?? []) {
         counts.set(tag, (counts.get(tag) ?? 0) + 1);
       }

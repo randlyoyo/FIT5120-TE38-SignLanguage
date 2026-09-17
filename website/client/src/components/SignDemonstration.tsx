@@ -60,6 +60,34 @@ export function SignDemonstration({ gloss, videos }: Props) {
         </video>
       </div>
 
+      {/* Mirror view, not flipped footage -- the camera faces the signer, so
+          on screen it works exactly like a bathroom mirror: whichever hand
+          appears on the video's right side is the signer's actual left
+          hand. Worth spelling out because it's the opposite of how a
+          "selfie" video usually gets described, and getting it backwards
+          means copying the sign with the wrong hand. Styled to stand out
+          (not a quiet footnote) since missing it means practicing every
+          sign with the wrong hand. */}
+      <p className="mirror-view-hint">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          width={18}
+          height={18}
+          aria-hidden="true"
+        >
+          <path d="M12 3.5 21.5 20H2.5z" />
+          <path d="M12 9.5v5" />
+          <circle cx="12" cy="17.25" r="0.75" fill="currentColor" stroke="none" />
+        </svg>
+        Mirrored view: the hand shown on the right is the signer's left
+        hand.
+      </p>
+
       {availableVideos.length > 1 && (
         <div
           className="video-variants"

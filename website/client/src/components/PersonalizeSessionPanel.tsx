@@ -44,16 +44,59 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
   }, [open, tags.length]);
 
   const selectedTotal = Object.values(counts).reduce((sum, n) => sum + n, 0);
+  const maxPossible = tags.reduce((sum, t) => sum + t.count, 0);
+  // "Exactly n" (US5.2) is the goal, but a target bigger than every
+  // category combined can never be hit -- once the learner has claimed
+  // everything there is, that's as close as physically possible, so treat
+  // it as satisfied rather than locking the button forever.
+  const matchesTarget = selectedTotal === targetSize || (selectedTotal === maxPossible && maxPossible < targetSize);
 
   function setCount(tag: string, value: number, available: number) {
     const clamped = Math.max(0, Math.min(value, available));
     setCounts((prev) => ({ ...prev, [tag]: clamped }));
+    setError(null);
+  }
+
+  // US5.2: distribute the target size across categories automatically
+  // instead of requiring the learner to hand-tune every row to make the
+  // numbers add up. Spreads across whichever tags already have a count
+  // (the learner's expressed interest), or every tag if none do yet, one
+  // sign at a time round-robin so the split stays even and never exceeds a
+  // category's remaining pool.
+  function autoDistribute() {
+    const chosen = tags.filter((t) => (counts[t.tag] ?? 0) > 0);
+    const pool = chosen.length > 0 ? chosen : tags;
+    const next: Record<string, number> = {};
+    let remaining = targetSize;
+    let addedThisRound = true;
+    while (remaining > 0 && addedThisRound) {
+      addedThisRound = false;
+      for (const { tag, count: cap } of pool) {
+        if (remaining <= 0) break;
+        const cur = next[tag] ?? 0;
+        if (cur < cap) {
+          next[tag] = cur + 1;
+          remaining--;
+          addedThisRound = true;
+        }
+      }
+    }
+    setCounts(next);
+    setError(null);
   }
 
   async function build() {
-    setBuilding(true);
     setError(null);
     setResult(null);
+    if (selectedTotal === 0) {
+      setError("Pick at least one sign from a category first.");
+      return;
+    }
+    if (!matchesTarget) {
+      setError(`Selections add up to ${selectedTotal}, not your target of ${targetSize} -- adjust a category or use Auto-fill.`);
+      return;
+    }
+    setBuilding(true);
     try {
       // Accumulated as we go, not just read once -- a sign filed under two
       // categories must not be drawn twice for two different quotas. Also
@@ -73,10 +116,6 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
         if (signs.length < count) {
           shortfalls.push(`${tag} (wanted ${count}, only ${signs.length} left to learn)`);
         }
-      }
-      if (picked.length === 0) {
-        setError("Pick at least one sign from a category first.");
-        return;
       }
       addAllToLearn(picked);
       const addedLine = `Added ${picked.length} sign${picked.length === 1 ? "" : "s"} to your To Learn list.`;
@@ -108,16 +147,27 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
 
       {open && (
         <div className="personalize-panel-body">
-          <label className="personalize-target">
-            Target session size
-            <input
-              type="number"
-              min={1}
-              max={50}
-              value={targetSize}
-              onChange={(e) => setTargetSize(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
-            />
-          </label>
+          <div className="personalize-target-row">
+            <label className="personalize-target">
+              Target session size
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={targetSize}
+                onChange={(e) => setTargetSize(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
+              />
+            </label>
+            <button
+              type="button"
+              className="personalize-autofill"
+              onClick={autoDistribute}
+              disabled={tags.length === 0}
+              title="Spread the target size evenly across categories"
+            >
+              Auto-fill
+            </button>
+          </div>
 
           <ul className="personalize-tag-list">
             {tags.map(({ tag, count: available }) => (
@@ -136,7 +186,8 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
           </ul>
 
           <div className="personalize-panel-footer">
-            <p className="personalize-total">
+            <p className={`personalize-total ${matchesTarget ? "on-target" : ""}`}>
+              <span className="personalize-total-dot" aria-hidden="true" />
               {selectedTotal} of {targetSize} selected
             </p>
             <button

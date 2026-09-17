@@ -1684,28 +1684,43 @@ input:focus-visible {
 }
 
 .personalize-panel-toggle {
-  background: transparent;
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: 0.6rem 1rem;
+  padding: 0.7rem 1.1rem;
   font-family: var(--font-display);
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   cursor: pointer;
   width: 100%;
   text-align: left;
+  transition: color 0.15s ease, border-color 0.15s ease, transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .personalize-panel-toggle:hover {
   border-color: var(--color-accent);
   color: var(--color-accent);
+  transform: translateY(-1px);
+  box-shadow: 3px 3px 0 var(--color-border);
 }
 
 .personalize-panel-body {
   border: 1px solid var(--color-border);
   border-top: none;
   border-radius: 0 0 var(--radius-md) var(--radius-md);
-  padding: 1rem 1.25rem 1.25rem;
+  background: var(--color-surface);
+  padding: 1.1rem 1.25rem 1.35rem;
+}
+
+.personalize-target-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.1rem;
 }
 
 .personalize-target {
@@ -1714,14 +1729,41 @@ input:focus-visible {
   gap: 0.6rem;
   font-size: 0.9rem;
   font-weight: 600;
-  margin-bottom: 1rem;
 }
 
 .personalize-target input {
   width: 4.5rem;
-  padding: 0.3rem 0.5rem;
+  padding: 0.35rem 0.5rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  font-size: 0.95rem;
+}
+
+.personalize-autofill {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+  border-radius: var(--radius-md);
+  padding: 0.4rem 0.8rem;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.personalize-autofill:hover:not(:disabled) {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  transform: translateY(-1px);
+  box-shadow: 2px 2px 0 var(--color-border);
+}
+
+.personalize-autofill:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .personalize-tag-list {
@@ -1738,8 +1780,13 @@ input:focus-visible {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.55rem 0.75rem;
   border-bottom: 1px solid var(--color-border);
+  transition: background-color 0.12s ease;
+}
+
+.personalize-tag-row:hover {
+  background: var(--color-surface-raised);
 }
 
 .personalize-tag-row:last-child {
@@ -1753,12 +1800,12 @@ input:focus-visible {
 
 .personalize-tag-available {
   color: var(--color-text-muted);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
 }
 
 .personalize-tag-row input {
   width: 3.5rem;
-  padding: 0.3rem 0.5rem;
+  padding: 0.35rem 0.5rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
 }
@@ -1768,13 +1815,36 @@ input:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-top: 1rem;
+  margin-top: 1.1rem;
 }
 
 .personalize-total {
-  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
   font-weight: 600;
+  color: var(--color-text-muted);
   margin: 0;
+}
+
+/* Neutral (grey dot) until the selections add up to the target, matching
+   US5.2's "exactly n signs" -- the accent color is the site's one signal
+   for "this is correct/ready", so it's earned, not default. */
+.personalize-total-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.personalize-total.on-target {
+  color: var(--color-accent);
+}
+
+.personalize-total.on-target .personalize-total-dot {
+  background: var(--color-accent);
 }
 
 .personalize-panel-footer .practice-start-button {

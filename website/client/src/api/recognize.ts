@@ -22,6 +22,10 @@ export interface VerifyResult {
   distance: number;
   threshold: number;
   matched: boolean;
+  /** 0-100, calibrated accuracy score for this attempt (recognition/API.md). */
+  score: number;
+  /** Short, plain-language line to show alongside the score. */
+  feedback: string;
   frames: number;
 }
 

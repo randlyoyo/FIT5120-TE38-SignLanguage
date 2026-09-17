@@ -2,7 +2,7 @@ const express = require("express");
 
 const { UnusableCapture } = require("../recognition/features");
 const {
-  load, embed, distanceToWord, distanceToAll, confidenceFromMargin,
+  load, embed, distanceToAll, confidenceFromMargin, verifyScore,
 } = require("../recognition/model");
 
 const router = express.Router();
@@ -45,6 +45,15 @@ function fail(err, res, next) {
   return next(err);
 }
 
+// Short, plain-language line to go with the score -- matched/not-matched
+// alone doesn't tell a learner whether to move on or keep drilling this sign.
+function feedbackFor(matched, score) {
+  if (matched && score >= 0.8) return "Great job — that's a strong, accurate match.";
+  if (matched) return "That's a match — keep practicing for more consistency.";
+  if (score >= 0.4) return "Close, but not quite — review your hand shape and movement.";
+  return "Not quite — keep practicing this sign.";
+}
+
 // POST /api/recognize/verify  { word, capture } -> did this attempt match?
 // The learner already chose the word, so this compares against that word only.
 // This is the reliable mode: EER 0.73% on the validation split.
@@ -59,13 +68,18 @@ router.post("/verify", async (req, res, next) => {
     }
 
     const { embedding, frames } = await embed(capture);
-    const distance = distanceToWord(s, embedding, idx);
+    const { distance, confidence } = verifyScore(s, embedding, idx);
+    const matched = distance < s.tauVerify;
 
     res.json({
       word,
       distance,
       threshold: s.tauVerify,
-      matched: distance < s.tauVerify,
+      matched,
+      // 0-100, calibrated (see recognition/model.js verifyScore): "how
+      // accurate was this attempt", not just the binary matched/not-matched.
+      score: Math.round(confidence * 100),
+      feedback: feedbackFor(matched, confidence),
       frames,
     });
   } catch (err) {

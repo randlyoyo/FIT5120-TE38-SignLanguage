@@ -139,13 +139,8 @@ export function PracticeVerify({ gloss }: Props) {
 
       {phase === "result" && result && (
         <div className={`practice-result ${result.matched ? "matched" : "not-matched"}`}>
-          <p className="practice-result-verdict">
-            {result.matched ? "That's a match." : "Not quite — give it another go."}
-          </p>
-          <p className="practice-result-detail">
-            distance {result.distance.toFixed(3)} (threshold {result.threshold.toFixed(3)}) ·{" "}
-            {result.frames} frames used
-          </p>
+          <p className="practice-result-score">{result.score}%</p>
+          <p className="practice-result-feedback">{result.feedback}</p>
         </div>
       )}
 

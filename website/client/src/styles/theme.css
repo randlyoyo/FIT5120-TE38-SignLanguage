@@ -1880,24 +1880,24 @@ input:focus-visible {
   margin-top: 1.25rem;
 }
 
-.practice-result-verdict {
+.practice-result-score {
   font-family: var(--font-display);
-  font-size: 1.1rem;
+  font-size: 2rem;
   font-weight: 700;
   margin: 0 0 0.3rem;
 }
 
-.practice-result.matched .practice-result-verdict {
+.practice-result.matched .practice-result-score {
   color: var(--color-accent);
 }
 
-.practice-result.not-matched .practice-result-verdict {
+.practice-result.not-matched .practice-result-score {
   color: var(--color-text-muted);
 }
 
-.practice-result-detail {
+.practice-result-feedback {
   color: var(--color-text-muted);
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   margin: 0;
 }
 

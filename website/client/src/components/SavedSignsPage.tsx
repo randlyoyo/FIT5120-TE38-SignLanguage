@@ -42,6 +42,9 @@ export function SavedSignsPage({
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 
+  // Determine the from parameter based on the title
+  const from = title.includes("To Learn") ? "to-learn" : title.includes("Learned") ? "learned" : undefined;
+
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
@@ -99,7 +102,7 @@ export function SavedSignsPage({
 
       <div className="page-container">
         <div className="detail-back learned-back-header">
-          <button type="button" className="back-link" onClick={() => navigate(-1)}>
+          <button type="button" className="back-link" onClick={() => navigate("/library")}>
             &larr; Back to library
           </button>
         </div>
@@ -126,7 +129,7 @@ export function SavedSignsPage({
         ) : (
           <ul className="result-list">
             {signs.map((sign) => (
-              <ResultCard key={sign.id} sign={sign} />
+              <ResultCard key={sign.id} sign={sign} from={from} />
             ))}
           </ul>
         )}

@@ -6,6 +6,7 @@ import { PlaceholderMedia } from "./PlaceholderMedia";
 
 interface Props {
   sign: Sign;
+  from?: "to-learn" | "learned";
 }
 
 /** First sense of the first definition group, for a compact card preview. */
@@ -13,7 +14,7 @@ function primarySense(sign: Sign): string | null {
   return sign.definitions[0]?.senses[0] ?? null;
 }
 
-export function ResultCard({ sign }: Props) {
+export function ResultCard({ sign, from }: Props) {
   const preview = primarySense(sign);
   // The list endpoint sets `previewVideo`; the single-sign endpoint (used by
   // e.g. the Learned page, which fetches signs by id) sets `videos` instead --
@@ -22,7 +23,11 @@ export function ResultCard({ sign }: Props) {
 
   return (
     <li className="result-card">
-      <Link to={`/signs/${sign.id}`} className="result-card-link">
+      <Link 
+        to={`/signs/${sign.id}`} 
+        {...(from && { state: { from } })}
+        className="result-card-link"
+      >
         <div className="result-card-media">
           {previewVideoUrl ? (
             <video

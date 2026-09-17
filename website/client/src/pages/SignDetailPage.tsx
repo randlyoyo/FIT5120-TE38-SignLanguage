@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { fetchRecognitionVocabulary } from "../api/recognize";
 import { fetchSignById, fetchSigns } from "../api/signs";
 import { PracticeVerify } from "../components/PracticeVerify";
@@ -25,7 +25,23 @@ function splitIntoSteps(text: string): string[] {
 export function SignDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const signId = Number(id);
+
+  // Determine which page to return to based on referrer
+  const getBackPath = () => {
+    if (location.state?.from === "to-learn") return "/to-learn";
+    if (location.state?.from === "learned") return "/learned";
+    return "/library";
+  };
+  const backPath = getBackPath();
+
+  const getBackLabel = () => {
+    if (location.state?.from === "to-learn") return '↤ Back to "To Learn" Page';
+    if (location.state?.from === "learned") return '↤ Back to "Learned" Page';
+    return "↤ Back to library";
+  };
+  const backLabel = getBackLabel();
 
   const [sign, setSign] = useState<Sign | null>(null);
   const [isError, setIsError] = useState(false);
@@ -95,8 +111,8 @@ export function SignDetailPage() {
     return (
       <div className="page-container">
         <p role="alert">Couldn't load this sign.</p>
-        <button type="button" className="back-link" onClick={() => navigate(-1)}>
-          &larr; Back to library
+        <button type="button" className="back-link" onClick={() => navigate(backPath)}>
+          {backLabel}
         </button>
       </div>
     );
@@ -142,8 +158,8 @@ export function SignDetailPage() {
 
       <div className="detail-layout">
         <div className="detail-back">
-          <button type="button" className="back-link" onClick={() => navigate(-1)}>
-            &larr; Back to library
+          <button type="button" className="back-link" onClick={() => navigate(backPath)}>
+            {backLabel}
           </button>
           <div className="detail-back-right">
             {canPractice && (

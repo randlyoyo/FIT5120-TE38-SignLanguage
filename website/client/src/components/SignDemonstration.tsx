@@ -84,7 +84,7 @@ export function SignDemonstration({ gloss, videos }: Props) {
           <path d="M12 9.5v5" />
           <circle cx="12" cy="17.25" r="0.75" fill="currentColor" stroke="none" />
         </svg>
-        <span className="mirror-view-hint-title">Before learning or practicing:</span>
+        <span className="mirror-view-hint-title">Before learning or practising:</span>
         <span className="mirror-view-hint-text">Auslan can be performed by both left- and right-handed users, but our learning and recognition system requires users to follow the hand orientation demonstrated in the instructional video.</span>
       </p>
 

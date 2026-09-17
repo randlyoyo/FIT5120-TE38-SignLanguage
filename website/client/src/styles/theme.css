@@ -779,11 +779,11 @@ input:focus-visible {
    at >=1680px, but this offset reads fine without it too) so the arrow
    sits to the spine's inner side instead of overlapping its border/text. */
 .detail-nav-arrow.prev {
-  left: 3.25rem;
+  left: 0.1rem;
 }
 
 .detail-nav-arrow.next {
-  right: 3.25rem;
+  right: 0.1rem;
 }
 
 @media (max-width: 1400px) {

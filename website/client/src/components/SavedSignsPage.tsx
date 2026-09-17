@@ -99,7 +99,7 @@ export function SavedSignsPage({
 
       <div className="page-container">
         <div className="detail-back learned-back-header">
-          <button type="button" className="back-link" onClick={() => navigate(-1)}>
+          <button type="button" className="back-link" onClick={() => navigate("/library")}>
             &larr; Back to library
           </button>
         </div>

@@ -1952,12 +1952,24 @@ input:focus-visible {
 }
 
 .mirror-view-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
   max-width: 640px;
-  margin: 0.6rem auto 0;
-  padding: 0 0.25rem;
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
+  margin: 0.75rem auto 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-accent);
+  font-weight: 600;
+  font-size: 0.82rem;
   text-align: center;
+}
+
+.mirror-view-hint svg {
+  flex-shrink: 0;
 }
 
 .video-variants {

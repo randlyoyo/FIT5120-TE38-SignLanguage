@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { fetchRecognitionVocabulary } from "../api/recognize";
 import { fetchSignById, fetchSigns } from "../api/signs";
 import { PracticeVerify } from "../components/PracticeVerify";
@@ -27,26 +27,19 @@ export function SignDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const signId = Number(id);
-  // The list a learner actually browsed (search results, a tag page, a
-  // related-signs list, ...), handed off by ResultCard's Link state --
-  // lets prev/next step through what's on screen instead of the raw id
-  // sequence, which rarely matches the library's display order (gloss
-  // order, or search relevance). Falls back to id +/- 1 when it's missing
-  // (a direct link, a bookmark, a page reload that lost history state).
-  const navState = location.state as { siblingIds?: number[]; returnTo?: string } | null;
-  const siblingIds = navState?.siblingIds;
-  // The list's own URL, carried alongside siblingIds so "Back to library"
-  // still lands there after stepping through several signs with prev/next
-  // -- each arrow click is its own history entry, so a plain back-one-step
-  // would undo the last arrow instead of leaving the list.
-  const returnTo = navState?.returnTo;
-  const siblingIndex = siblingIds?.indexOf(signId) ?? -1;
-  const prevId = siblingIds
-    ? (siblingIndex > 0 ? siblingIds[siblingIndex - 1] : null)
-    : signId - 1;
-  const nextId = siblingIds
-    ? (siblingIndex >= 0 && siblingIndex < siblingIds.length - 1 ? siblingIds[siblingIndex + 1] : null)
-    : signId + 1;
+
+  // Extract navigation context from ResultCard
+  const siblingIds = (location.state as { siblingIds?: number[]; returnTo?: string } | null)?.siblingIds;
+  const returnTo = (location.state as { siblingIds?: number[]; returnTo?: string } | null)?.returnTo;
+  
+  // Calculate prev/next ids based on siblingIds
+  const currentIndex = siblingIds ? siblingIds.indexOf(signId) : -1;
+  const prevId = currentIndex > 0 ? siblingIds![currentIndex - 1] : null;
+  const nextId = currentIndex >= 0 && currentIndex < siblingIds!.length - 1 ? siblingIds![currentIndex + 1] : null;
+
+  // Determine which page to return to
+  const backPath = returnTo || "/library";
+  const backLabel = returnTo ? "↤ Back" : "↤ Back to library";
 
   const [sign, setSign] = useState<Sign | null>(null);
   const [isError, setIsError] = useState(false);
@@ -112,22 +105,12 @@ export function SignDetailPage() {
     };
   }, [sign?.gloss]);
 
-  // navigate(-1) alone undoes only the last prev/next click (each is its
-  // own history entry), not a real "leave this list" -- go straight to the
-  // list's own URL when we know it, falling back to one-step-back when we
-  // don't (arrived here without going through a ResultCard, e.g. a direct
-  // link).
-  function backToLibrary() {
-    if (returnTo) navigate(returnTo);
-    else navigate(-1);
-  }
-
   if (isError) {
     return (
       <div className="page-container">
         <p role="alert">Couldn't load this sign.</p>
-        <button type="button" className="back-link" onClick={backToLibrary}>
-          &larr; Back to library
+        <button type="button" className="back-link" onClick={() => navigate(backPath)}>
+          {backLabel}
         </button>
       </div>
     );
@@ -176,8 +159,8 @@ export function SignDetailPage() {
 
       <div className="detail-layout">
         <div className="detail-back">
-          <button type="button" className="back-link" onClick={backToLibrary}>
-            &larr; Back to library
+          <button type="button" className="back-link" onClick={() => navigate(backPath)}>
+            {backLabel}
           </button>
           <div className="detail-back-right">
             {canPractice && (

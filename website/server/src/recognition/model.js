@@ -122,4 +122,27 @@ function confidenceFromMargin(s, margin) {
   return ys[i - 1] + t * (ys[i] - ys[i - 1]);
 }
 
-module.exports = { load, embed, distanceToWord, distanceToAll, confidenceFromMargin, ROOT };
+/**
+ * Calibrated 0-1 score for one verify attempt, for user-facing feedback
+ * ("how accurate was that", not just matched/not-matched). Reuses the same
+ * margin -> P(top-1 correct) calibration identify already relies on: the
+ * margin here is symmetric with identify's (best word's distance minus
+ * second-best's) -- distance to every *other* word minus distance to the
+ * target word, which is exactly that quantity when the target is in fact
+ * the closest word, and correctly runs negative (calibrating to a low
+ * score) when it is not.
+ */
+function verifyScore(s, embedding, wordIdx) {
+  const dist = distanceToAll(s, embedding);
+  const targetDistance = dist[wordIdx];
+  let bestOther = Infinity;
+  for (let w = 0; w < dist.length; w++) {
+    if (w !== wordIdx && dist[w] < bestOther) bestOther = dist[w];
+  }
+  const margin = bestOther - targetDistance;
+  return { distance: targetDistance, margin, confidence: confidenceFromMargin(s, margin) };
+}
+
+module.exports = {
+  load, embed, distanceToWord, distanceToAll, confidenceFromMargin, verifyScore, ROOT,
+};

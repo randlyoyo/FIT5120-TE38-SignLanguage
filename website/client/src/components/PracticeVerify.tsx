@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { RecognizeApiError, verifySign, type VerifyResult } from "../api/recognize";
+import { RecognizeApiError, verifySign, type VerifyResult, type VerifyTier } from "../api/recognize";
 import { captureLandmarks, type CapturePhase } from "../lib/landmarks";
 
 // A safety net, not a target duration: capture normally ends on its own a
@@ -42,6 +42,16 @@ function messageFor(err: unknown): string {
   // "try again" instead.
   console.error("PracticeVerify failed:", err);
   return "Practice mode couldn't start. Please try again in a moment.";
+}
+
+const TIER_LABELS: Record<VerifyTier, string> = {
+  excellent: "Excellent! ✓",
+  close: "Almost there",
+  needs_practice: "Keep practicing",
+};
+
+function tierLabel(tier: VerifyTier): string {
+  return TIER_LABELS[tier];
 }
 
 /**
@@ -138,14 +148,10 @@ export function PracticeVerify({ gloss }: Props) {
       )}
 
       {phase === "result" && result && (
-        <div className={`practice-result ${result.matched ? "matched" : "not-matched"}`}>
-          <p className="practice-result-verdict">
-            {result.matched ? "That's a match." : "Not quite — give it another go."}
-          </p>
-          <p className="practice-result-detail">
-            distance {result.distance.toFixed(3)} (threshold {result.threshold.toFixed(3)}) ·{" "}
-            {result.frames} frames used
-          </p>
+        <div className={`practice-result tier-${result.tier}`}>
+          <p className="practice-result-tier">{tierLabel(result.tier)}</p>
+          <p className="practice-result-feedback">{result.feedback}</p>
+          <p className="practice-result-score">Accuracy: {result.score}%</p>
         </div>
       )}
 

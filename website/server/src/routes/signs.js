@@ -126,6 +126,42 @@ router.get("/tags", async (req, res, next) => {
   }
 });
 
+// GET /api/signs/sample?tag=&count=&exclude= -- `count` random signs from
+// `tag` (US5.1/5.2: personalised session builder picks a count per
+// category), optionally excluding a comma-separated id list (US5.3: already-
+// learned signs, tracked client-side in localStorage, so the exclusion list
+// has to come from the caller rather than a server-side "learned" table).
+// Registered before /:id for the same reason as /tags above.
+router.get("/sample", async (req, res, next) => {
+  try {
+    const tag = String(req.query.tag ?? "").trim();
+    const count = Math.min(Math.max(Number(req.query.count) || 0, 0), 50);
+    if (!tag || count === 0) {
+      return res.json({ results: [] });
+    }
+    const excludeIds = String(req.query.exclude ?? "")
+      .split(",")
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isInteger(n) && n > 0);
+
+    const conditions = ["JSON_CONTAINS(tags, JSON_QUOTE(?))"];
+    const params = [tag];
+    if (excludeIds.length) {
+      conditions.push("id NOT IN (?)");
+      params.push(excludeIds);
+    }
+
+    const [rows] = await pool.query(
+      `SELECT * FROM signs WHERE ${conditions.join(" AND ")} ORDER BY RAND() LIMIT ?`,
+      [...params, count]
+    );
+
+    res.json({ results: rows.map(formatSign) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/signs/:id -- single sign detail (US1.3, clicking a result).
 router.get("/:id", async (req, res, next) => {
   try {

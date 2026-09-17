@@ -4,6 +4,7 @@ import { HomePage } from "./pages/HomePage";
 import { LearnedSignsPage } from "./pages/LearnedSignsPage";
 import { SignDetailPage } from "./pages/SignDetailPage";
 import { SignLibraryPage } from "./pages/SignLibraryPage";
+import { ToLearnPage } from "./pages/ToLearnPage";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/library" element={<SignLibraryPage />} />
+        <Route path="/to-learn" element={<ToLearnPage />} />
         <Route path="/learned" element={<LearnedSignsPage />} />
         <Route path="/signs/:id" element={<SignDetailPage />} />
       </Routes>

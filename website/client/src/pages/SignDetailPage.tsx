@@ -26,23 +26,20 @@ export function SignDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const location = useLocation();
   const signId = Number(id);
 
-  // Determine which page to return to based on referrer
-  const getBackPath = () => {
-    if (location.state?.from === "to-learn") return "/to-learn";
-    if (location.state?.from === "learned") return "/learned";
-    return "/library";
-  };
-  const backPath = getBackPath();
+  // Extract navigation context from ResultCard
+  const siblingIds = (location.state as { siblingIds?: number[]; returnTo?: string } | null)?.siblingIds;
+  const returnTo = (location.state as { siblingIds?: number[]; returnTo?: string } | null)?.returnTo;
+  
+  // Calculate prev/next ids based on siblingIds
+  const currentIndex = siblingIds ? siblingIds.indexOf(signId) : -1;
+  const prevId = currentIndex > 0 ? siblingIds![currentIndex - 1] : null;
+  const nextId = currentIndex >= 0 && currentIndex < siblingIds!.length - 1 ? siblingIds![currentIndex + 1] : null;
 
-  const getBackLabel = () => {
-    if (location.state?.from === "to-learn") return '↤ Back to "To Learn" Page';
-    if (location.state?.from === "learned") return '↤ Back to "Learned" Page';
-    return "↤ Back to library";
-  };
-  const backLabel = getBackLabel();
+  // Determine which page to return to
+  const backPath = returnTo || "/library";
+  const backLabel = returnTo ? "↤ Back" : "↤ Back to library";
 
   const [sign, setSign] = useState<Sign | null>(null);
   const [isError, setIsError] = useState(false);
@@ -107,16 +104,6 @@ export function SignDetailPage() {
       active = false;
     };
   }, [sign?.gloss]);
-
-  // navigate(-1) alone undoes only the last prev/next click (each is its
-  // own history entry), not a real "leave this list" -- go straight to the
-  // list's own URL when we know it, falling back to one-step-back when we
-  // don't (arrived here without going through a ResultCard, e.g. a direct
-  // link).
-  function backToLibrary() {
-    if (returnTo) navigate(returnTo);
-    else navigate(-1);
-  }
 
   if (isError) {
     return (

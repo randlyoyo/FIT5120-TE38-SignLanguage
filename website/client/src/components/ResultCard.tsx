@@ -6,9 +6,6 @@ import { PlaceholderMedia } from "./PlaceholderMedia";
 
 interface Props {
   sign: Sign;
-<<<<<<< HEAD
-  from?: "to-learn" | "learned";
-=======
   /** The ordered ids of the list this card is part of (search results,
    *  a tag page, related signs, ...), so the detail page's prev/next
    *  arrows can step through what the learner actually browsed instead
@@ -20,7 +17,6 @@ interface Props {
    *  signs with prev/next -- otherwise it's one history entry per click,
    *  and "back" just undoes the last arrow instead of leaving the list. */
   returnTo?: string;
->>>>>>> d26eb7dc3bb8173edd3054fcfc89fe23848ae130
 }
 
 /** First sense of the first definition group, for a compact card preview. */
@@ -28,11 +24,7 @@ function primarySense(sign: Sign): string | null {
   return sign.definitions[0]?.senses[0] ?? null;
 }
 
-<<<<<<< HEAD
-export function ResultCard({ sign, from }: Props) {
-=======
 export function ResultCard({ sign, siblingIds, returnTo }: Props) {
->>>>>>> d26eb7dc3bb8173edd3054fcfc89fe23848ae130
   const preview = primarySense(sign);
   // The list endpoint sets `previewVideo`; the single-sign endpoint (used by
   // e.g. the Learned page, which fetches signs by id) sets `videos` instead --
@@ -41,17 +33,10 @@ export function ResultCard({ sign, siblingIds, returnTo }: Props) {
 
   return (
     <li className="result-card">
-<<<<<<< HEAD
-      <Link 
-        to={`/signs/${sign.id}`} 
-        {...(from && { state: { from } })}
-        className="result-card-link"
-=======
       <Link
         to={`/signs/${sign.id}`}
         className="result-card-link"
         state={siblingIds || returnTo ? { siblingIds, returnTo } : undefined}
->>>>>>> d26eb7dc3bb8173edd3054fcfc89fe23848ae130
       >
         <div className="result-card-media">
           {previewVideoUrl ? (

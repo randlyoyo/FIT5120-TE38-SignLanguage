@@ -84,8 +84,9 @@ export function SignDemonstration({ gloss, videos }: Props) {
           <path d="M12 9.5v5" />
           <circle cx="12" cy="17.25" r="0.75" fill="currentColor" stroke="none" />
         </svg>
-        This is a mirror view, not a flipped one — the hand on the video's
-        right is the signer's left hand.
+        Tip: this video is like looking in a mirror, not a flipped
+        recording — so the hand you see on the right is actually the
+        signer's left hand.
       </p>
 
       {availableVideos.length > 1 && (

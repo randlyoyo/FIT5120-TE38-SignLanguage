@@ -46,6 +46,7 @@ export function SignDemonstration({ gloss, videos }: Props) {
           ref={videoRef}
           key={currentVideo.videoUrl ?? currentVideo.fileName}
           controls
+          loop
           playsInline
           preload="metadata"
           className="sign-demo-video"

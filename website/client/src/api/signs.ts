@@ -52,8 +52,13 @@ export async function fetchRandomSignsByTag(
   return data.results;
 }
 
-export async function fetchTags(signal?: AbortSignal): Promise<TagCount[]> {
-  const res = await fetch(`${API_BASE}/signs/tags`, { signal });
+/** Tag categories with counts. `excludeIds` (personalised session builder:
+ *  already-learned/queued signs) makes each count reflect what's actually
+ *  still available to pick, not the category's raw size. */
+export async function fetchTags(excludeIds?: number[], signal?: AbortSignal): Promise<TagCount[]> {
+  const params = new URLSearchParams();
+  if (excludeIds?.length) params.set("exclude", excludeIds.join(","));
+  const res = await fetch(`${API_BASE}/signs/tags?${params.toString()}`, { signal });
   if (!res.ok) throw new Error(`Failed to fetch tags (${res.status})`);
   const data = await res.json();
   return data.tags;

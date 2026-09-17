@@ -30,7 +30,12 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
   useEffect(() => {
     if (!open || tags.length > 0) return;
     const controller = new AbortController();
-    fetchTags(controller.signal)
+    // Counts must reflect what's actually left to pick (US5.3), not the
+    // category's raw size -- otherwise "42 available" invites a learner to
+    // ask for more than remains once already-learned/queued signs are
+    // excluded.
+    const excludeIds = [...getLearnedIds(), ...getToLearnIds()];
+    fetchTags(excludeIds, controller.signal)
       .then(setTags)
       .catch((err) => {
         if (err.name !== "AbortError") console.error("Failed to load tags:", err);
@@ -51,9 +56,13 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
     setResult(null);
     try {
       // Accumulated as we go, not just read once -- a sign filed under two
-      // categories must not be drawn twice for two different quotas.
+      // categories must not be drawn twice for two different quotas. Also
+      // catches a category running short mid-build (e.g. two overlapping
+      // tags competing for the same signs), not just a stale "available"
+      // count from before the panel was opened.
       const excludeIds = [...getLearnedIds(), ...getToLearnIds()];
       const picked: number[] = [];
+      const shortfalls: string[] = [];
       for (const [tag, count] of Object.entries(counts)) {
         if (count <= 0) continue;
         const signs = await fetchRandomSignsByTag(tag, count, excludeIds);
@@ -61,13 +70,21 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
           picked.push(sign.id);
           excludeIds.push(sign.id);
         }
+        if (signs.length < count) {
+          shortfalls.push(`${tag} (wanted ${count}, only ${signs.length} left to learn)`);
+        }
       }
       if (picked.length === 0) {
         setError("Pick at least one sign from a category first.");
         return;
       }
       addAllToLearn(picked);
-      setResult(`Added ${picked.length} sign${picked.length === 1 ? "" : "s"} to your To Learn list.`);
+      const addedLine = `Added ${picked.length} sign${picked.length === 1 ? "" : "s"} to your To Learn list.`;
+      setResult(
+        shortfalls.length > 0
+          ? `${addedLine} Ran short in: ${shortfalls.join("; ")}.`
+          : addedLine
+      );
       setCounts({});
       onBuilt();
     } catch (err) {

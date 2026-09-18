@@ -372,6 +372,7 @@ interface Capture {
   pose: number[][][];       // [frame][11 landmarks][x, y]
   left_hand: number[][][];  // [frame][21][x, y]
   right_hand: number[][][]; // [frame][21][x, y]
+  face?: number[][][];      // [frame][32][x, y] -- accepted, ignored (see below)
 }
 ```
 
@@ -395,9 +396,38 @@ other five may be filled with `[-999, -999]` if that is easier to produce.
   "distance": 0.2289,
   "threshold": 0.5294347405433655,
   "matched": true,
+  "score": 83,
+  "tier": "excellent",
+  "feedback": "Beautiful work! That was clear, confident, and right on the mark — you've got this one.",
   "frames": 83
 }
 ```
+
+`score` is a 0–100 number for showing the learner. It is a piecewise linear
+rescaling of `distance`, anchored on `threshold`:
+
+```
+d = clamp(distance, 0, 1)
+score = d <= tau ? 100 - 40 * d / tau        // 0 -> 100, tau -> 60
+                 : 60 * (1 - d) / (1 - tau)   // tau -> 60, 1 -> 0
+```
+
+The pass line is always 60, and rounding is clamped at the boundary, so
+`score >= 60` exactly when `matched` is true. Raw cosine similarity `1 - distance`
+is not shown because `tau` puts its pass line at 47%, which a learner reads as
+a fail.
+
+**It is not a probability**, and `matched` remains the decision — do not
+threshold on `score` in client code. Correct attempts rarely approach distance
+0, so expect real passes to cluster around 70–85 rather than near 100. If `tau`
+is re-derived from real captures (§9) the mapping follows it unchanged.
+
+`tier` and `feedback` are a UI-layer convenience built on `score`/`matched`,
+not something the model produces: `excellent` (matched, score ≥ 80),
+`close` (matched, score 60–79), `needs_practice` (not matched). `feedback` is
+one of a few warmer phrasings for that tier, picked at random per response so
+a repeat attempt doesn't read the exact same sentence back. See
+`website/server/src/routes/recognize.js`.
 
 `frames` is the count that survived trimming (§3.5) — useful for telling a
 learner their capture was mostly still.
@@ -413,10 +443,10 @@ learner their capture was mostly still.
 ```json
 {
   "candidates": [
-    { "word": "QUEER",  "distance": 0.2289 },
-    { "word": "BALLET", "distance": 0.4504 },
-    { "word": "INTERVIEW", "distance": 0.4859 },
-    { "word": "DECLARE (CRICKET)", "distance": 0.4915 }
+    { "word": "QUEER", "distance": 0.2289, "keywords": ["queer"], "groupIndex": 725 },
+    { "word": "BALLET", "distance": 0.4504, "keywords": ["ballet", "shine", "shiny", "glitter"], "groupIndex": 3160 },
+    { "word": "INTERVIEW", "distance": 0.4859, "keywords": ["interview", "interviewed"], "groupIndex": 724 },
+    { "word": "DECLARE (CRICKET)", "distance": 0.4915, "keywords": ["declare", "cricket"], "groupIndex": 2614 }
   ],
   "confidence": 0.99,
   "margin": 0.2215,
@@ -428,9 +458,42 @@ learner their capture was mostly still.
 
 Always four candidates, ordered nearest first.
 
+`keywords` (up to four) exist because four glosses can look alike in a list —
+`DECLARE (CRICKET)` means little on its own. `groupIndex` is the dataset
+dictionary's `Group_Index`, for citing the Auslan Signbank entry.
+**`groupIndex` is not the model's class index** — it runs to 3220 with six
+gaps, so using it as one would allocate six dead output slots. The model is
+indexed by the order in `bank_index.json`; this field is a cross-reference
+only.
+
 ### `GET /api/recognize/vocabulary`
 
 `{ "count": 3215, "words": [...] }` — which glosses can be recognised at all.
+
+`?detail=1` returns objects instead of bare strings:
+
+```json
+{ "gloss": "TURN ON (START)", "group_index": 1,
+  "state": "AustraliaWide-traditional",
+  "keywords": ["turn on", "start", "switch on", "light", "illuminate"] }
+```
+
+Keywords are merged from the sign library and the dataset dictionary — the
+dictionary contributes 7030 search terms the library did not have.
+
+### Face: collected, not used
+
+The client also sends a 32-point face subset, and the server accepts and
+ignores it. That is deliberate, not an oversight.
+
+Sign language marks questions, negation and topics with non-manual markers —
+raised brows for a polar question, furrowed for a wh-question, squinting,
+head tilt — rather than with the hands. This model does none of that: it was
+trained on isolated words, where the meaning is manual. Adding face to the
+input now would cost payload for a signal nothing consumes. But captures
+cannot be re-recorded after the fact, so the cheap moment to start collecting
+is before there is anything to use it for. See `website/client/src/lib/landmarks.ts`
+for the exact 32-point subset and why each group was chosen.
 
 ### Errors
 
@@ -673,6 +736,7 @@ recognition/
 │   ├── encoder.onnx            3.7 MB   committed
 │   ├── bank.i8                 9.9 MB   committed, server-side
 │   ├── confidence.json                  margin -> P(correct) knots
+│   ├── vocabulary.json                  Signbank index, state, keywords
 │   ├── manifest.json                    vocabulary, dims, tau
 │   └── bank_index.json                  word → offset, dtype
 ├── scripts/

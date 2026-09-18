@@ -15,6 +15,11 @@ export interface Capture {
   pose: number[][][];
   left_hand: number[][][];
   right_hand: number[][][];
+  /** 32-point face subset. Collected but not used for recognition -- the
+   *  server accepts and ignores it. It is here so that captures gathered now
+   *  are usable for the non-manual-marker work later, which needs facial
+   *  data that cannot be recovered from recordings that never included it. */
+  face?: number[][][];
 }
 
 export type VerifyTier = "excellent" | "close" | "needs_practice";
@@ -36,6 +41,12 @@ export interface VerifyResult {
 export interface IdentifyCandidate {
   word: string;
   distance: number;
+  /** Up to four search keywords, so a learner has something to recognise
+   *  when several glosses look alike on their own. */
+  keywords: string[];
+  /** Auslan Signbank's Group_Index for this entry, for citing the
+   *  dictionary -- NOT the model's internal class index. */
+  groupIndex: number | null;
 }
 
 export interface IdentifyResult {

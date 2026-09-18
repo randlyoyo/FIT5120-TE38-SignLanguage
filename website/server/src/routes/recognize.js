@@ -66,8 +66,8 @@ router.post("/verify", async (req, res, next) => {
       distance,
       threshold: s.tauVerify,
       matched: distance < s.tauVerify,
-      // 0-100 for display only; the pass line maps to 60. See similarityScore.
-      score: similarityScore(distance, s.tauVerify),
+      // 0-100 for display only: similarity x 100. See similarityScore.
+      score: similarityScore(distance),
       frames,
     });
   } catch (err) {

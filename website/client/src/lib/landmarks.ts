@@ -97,18 +97,20 @@ function facePoints(faceLandmarks: NormalizedLandmark[][]): [number, number][] {
 
 // Whole-body stillness, not just the wrists: a signer can hold their hands
 // dead still while still mid-sign -- leaning, a shoulder shift, torso sway --
-// and stopping on wrist-only silence cut those signs short. Every tracked
-// point (shoulders, elbows, wrists, and every finger joint on both hands)
-// feeds the same max-displacement check, so any part of the body moving
-// counts as "still signing". A `MISSING` point contributes 0 rather than a
-// false spike -- `pointDisplacement` returns 0 whenever either side is the
-// sentinel, so an undetected hand can't itself look like motion.
+// and stopping on wrist-only silence cut those signs short. But "whole body"
+// stops at the 6 real pose points (shoulders, elbows, wrists) -- it
+// deliberately does NOT include the 42 hand/finger joints. Fingers are the
+// jitteriest, most often partially-occluded landmarks MediaPipe reports; with
+// ~50 points feeding one max() every frame, the odds that *something* reads a
+// one-frame glitch approach 1, and a single glitch resets the whole stillness
+// clock (see SPEED_WINDOW below for the other half of this fix). A `MISSING`
+// point contributes 0 rather than a false spike -- `pointDisplacement`
+// returns 0 whenever either side is the sentinel, so an undetected point
+// can't itself look like motion.
 //
 // This is deliberately broader than the server's own offline trim (API.md
 // §3.5, wrists only) -- trim only has to find where a clip's action already
-// is, this has to decide live whether to keep recording, and the frontend
-// cost of watching a few dozen extra points every frame is negligible next
-// to getting that decision right.
+// is, this has to decide live whether to keep recording.
 function pointDisplacement(a: [number, number], b: [number, number]): number {
   if (a[0] === MISSING[0] || b[0] === MISSING[0]) return 0;
   return Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -121,6 +123,21 @@ function maxDisplacement(current: [number, number][], previous: [number, number]
     if (d > max) max = d;
   }
   return max;
+}
+
+// Standard voice-activity-detection move: smooth the raw per-frame signal
+// before thresholding it, rather than reacting to every single reading.
+// MediaPipe jitter means even a genuinely still body reports the occasional
+// one-frame speed spike; without smoothing, that spike alone resets the
+// stillness clock and the 700ms hangover almost never gets to run
+// uninterrupted. The median of the last 3 raw readings absorbs a lone spike
+// (it takes 2 of 3 recent frames moving to move the median) without adding
+// the lag a longer average would.
+const SPEED_WINDOW = 3;
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
 }
 
 // Values are normalised [0,1] screen-fraction coordinates, so this is a
@@ -218,12 +235,30 @@ export async function captureLandmarks(
   const face: number[][][] = [];
 
   const start = performance.now();
-  // Pose + both hands concatenated into one array per frame, so the stop
-  // decision below is one max-displacement scan over the whole tracked
-  // body rather than a couple of hardcoded wrist indices.
-  let prevBodyFrame: [number, number][] | null = null;
+  // The pose frame alone (shoulders, elbows, wrists -- not the 42 hand/finger
+  // points) drives the stop decision: broad enough to catch a torso sway or
+  // shoulder shift without the wrists themselves moving, but not so many
+  // points that landmark jitter never lets a truly still moment register as
+  // still. See maxDisplacement/SPEED_WINDOW above for the rest of the fix.
+  let prevPoseFrame: [number, number][] | null = null;
+  let recentSpeeds: number[] = [];
   let hasMoved = false;
   let lastMotionAt = start;
+
+  // In most real captures, the sign ends with the signer dropping their
+  // hand(s) out of frame rather than holding a final pose dead still -- the
+  // pose-stillness check above doesn't fire quickly for that case (the
+  // shoulders/elbows genuinely can stay put while a hand is mid-exit). A
+  // hand going from tracked to untracked is a clean, low-noise signal on its
+  // own -- unlike coordinate jitter, MediaPipe doesn't flicker a detection
+  // on and off from one real frame to the next -- so it gets its own,
+  // shorter hangover instead of waiting on the general stillness one.
+  // Armed only after a hand has actually been seen (`everSawHands`), so the
+  // pre-raise moment at the start of a capture can't itself look like "the
+  // hands left".
+  const HANDS_GONE_HANGOVER_MS = 300;
+  let everSawHands = false;
+  let lastHandsSeenAt = start;
 
   // The stop decision below reacts to every frame's raw motion reading, as
   // it should. But landmark jitter means that raw reading flips back and
@@ -252,18 +287,28 @@ export async function captureLandmarks(
     rightHand.push(rightHandFrame);
     face.push(facePoints(result.faceLandmarks));
 
-    const bodyFrame = [...poseFrame, ...leftHandFrame, ...rightHandFrame];
-    if (prevBodyFrame) {
-      const speed = maxDisplacement(bodyFrame, prevBodyFrame);
+    if (prevPoseFrame) {
+      const rawSpeed = maxDisplacement(poseFrame, prevPoseFrame);
+      recentSpeeds.push(rawSpeed);
+      if (recentSpeeds.length > SPEED_WINDOW) recentSpeeds.shift();
+      const speed = median(recentSpeeds);
       if (speed > MOTION_THRESHOLD) {
         hasMoved = true;
         lastMotionAt = now;
       }
     }
-    prevBodyFrame = bodyFrame;
+    prevPoseFrame = poseFrame;
+
+    const handsVisible = leftHandFrame[0][0] !== MISSING[0] || rightHandFrame[0][0] !== MISSING[0];
+    if (handsVisible) {
+      everSawHands = true;
+      lastHandsSeenAt = now;
+    }
+    const handsGoneFor = now - lastHandsSeenAt;
 
     const stillFor = now - lastMotionAt;
-    const rawPhase: CapturePhase = !hasMoved ? "waiting" : stillFor > 150 ? "settling" : "active";
+    const rawPhase: CapturePhase =
+      !hasMoved ? "waiting" : (stillFor > 150 || handsGoneFor > 150) ? "settling" : "active";
     if (rawPhase === displayPhase) {
       pendingPhase = null;
     } else if (rawPhase !== pendingPhase) {
@@ -275,7 +320,11 @@ export async function captureLandmarks(
     }
     onFrame?.(elapsed, maxDurationMs, displayPhase);
 
-    if (hasMoved && elapsed >= MIN_CAPTURE_MS && stillFor >= SILENCE_HANGOVER_MS) break;
+    if (hasMoved && elapsed >= MIN_CAPTURE_MS) {
+      const stoppedByStillness = stillFor >= SILENCE_HANGOVER_MS;
+      const stoppedByHandsGone = everSawHands && handsGoneFor >= HANDS_GONE_HANGOVER_MS;
+      if (stoppedByStillness || stoppedByHandsGone) break;
+    }
 
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   }

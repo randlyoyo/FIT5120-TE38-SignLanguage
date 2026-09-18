@@ -95,19 +95,39 @@ function facePoints(faceLandmarks: NormalizedLandmark[][]): [number, number][] {
   });
 }
 
-// Indices of the left/right wrist within the 11-point pose array assembled
-// above (positions 5..10 are the six arm points in the order §2 lists:
-// shoulders, elbows, wrists -- so wrists are the last two).
-const LEFT_WRIST_IDX = 9;
-const RIGHT_WRIST_IDX = 10;
+// Whole-body stillness, not just the wrists: a signer can hold their hands
+// dead still while still mid-sign -- leaning, a shoulder shift, torso sway --
+// and stopping on wrist-only silence cut those signs short. Every tracked
+// point (shoulders, elbows, wrists, and every finger joint on both hands)
+// feeds the same max-displacement check, so any part of the body moving
+// counts as "still signing". A `MISSING` point contributes 0 rather than a
+// false spike -- `pointDisplacement` returns 0 whenever either side is the
+// sentinel, so an undetected hand can't itself look like motion.
+//
+// This is deliberately broader than the server's own offline trim (API.md
+// §3.5, wrists only) -- trim only has to find where a clip's action already
+// is, this has to decide live whether to keep recording, and the frontend
+// cost of watching a few dozen extra points every frame is negligible next
+// to getting that decision right.
+function pointDisplacement(a: [number, number], b: [number, number]): number {
+  if (a[0] === MISSING[0] || b[0] === MISSING[0]) return 0;
+  return Math.hypot(a[0] - b[0], a[1] - b[1]);
+}
 
-// Same signal the server's own offline trim uses (API.md §3.5: "speed[t] =
-// max over both wrists of |p[t+1] - p[t]|"), just evaluated live frame by
-// frame instead of over a whole recorded clip. Values are normalised [0,1]
-// screen-fraction coordinates, so this is a per-frame displacement of ~1.5%
-// of the frame's width/height -- a starting point, not a tuned constant
-// (API.md §9: real webcam behaviour hasn't been measured yet, so keep
-// thresholds configurable rather than trusting a value picked in a vacuum).
+function maxDisplacement(current: [number, number][], previous: [number, number][]): number {
+  let max = 0;
+  for (let i = 0; i < current.length; i++) {
+    const d = pointDisplacement(current[i], previous[i]);
+    if (d > max) max = d;
+  }
+  return max;
+}
+
+// Values are normalised [0,1] screen-fraction coordinates, so this is a
+// per-frame displacement of ~1.5% of the frame's width/height -- a starting
+// point, not a tuned constant (API.md §9: real webcam behaviour hasn't been
+// measured yet, so keep thresholds configurable rather than trusting a value
+// picked in a vacuum).
 const MOTION_THRESHOLD = 0.015;
 // How long the signer must hold still before capture auto-ends. Modelled on
 // voice-activity-detection "hangover" periods: end-of-speech/end-of-gesture
@@ -118,11 +138,6 @@ const SILENCE_HANGOVER_MS = 700;
 // still -- covers the moment right after the countdown where hands haven't
 // been raised into frame yet, which would otherwise read as "already done".
 const MIN_CAPTURE_MS = 900;
-
-function wristDisplacement(a: [number, number], b: [number, number]): number {
-  if (a[0] === MISSING[0] || b[0] === MISSING[0]) return 0;
-  return Math.hypot(a[0] - b[0], a[1] - b[1]);
-}
 
 let landmarkerPromise: Promise<HolisticLandmarker> | null = null;
 
@@ -181,11 +196,11 @@ export interface CaptureOptions {
 
 /**
  * Records landmarks from `video` and assembles them into the exact Capture
- * shape recognition/API.md §6 expects. Ends automatically once the signer
- * goes still after having moved (the same wrist-speed signal the server's
- * own offline trim uses, §3.5, run live instead of after the fact) rather
- * than a fixed recording length or a manual "done" action -- see the
- * threshold/hangover constants above for the exact rule. `video` must be
+ * shape recognition/API.md §6 expects. Ends automatically once the signer's
+ * whole tracked body (pose, both hands) goes still after having moved,
+ * rather than a fixed recording length or a manual "done" action -- see the
+ * threshold/hangover constants and `maxDisplacement` above for the exact
+ * rule. `video` must be
  * the raw, unmirrored camera feed -- if the on-screen preview is mirrored
  * for the user, that must be a CSS transform on the display only. A
  * mirrored tensor swaps left and right hands and the model scores a
@@ -203,7 +218,10 @@ export async function captureLandmarks(
   const face: number[][][] = [];
 
   const start = performance.now();
-  let prevPoseFrame: [number, number][] | null = null;
+  // Pose + both hands concatenated into one array per frame, so the stop
+  // decision below is one max-displacement scan over the whole tracked
+  // body rather than a couple of hardcoded wrist indices.
+  let prevBodyFrame: [number, number][] | null = null;
   let hasMoved = false;
   let lastMotionAt = start;
 
@@ -227,22 +245,22 @@ export async function captureLandmarks(
 
     const result = landmarker.detectForVideo(video, nextFedTimestamp());
     const poseFrame = posePoints(result.poseLandmarks);
+    const leftHandFrame = handPoints(result.leftHandLandmarks);
+    const rightHandFrame = handPoints(result.rightHandLandmarks);
     pose.push(poseFrame);
-    leftHand.push(handPoints(result.leftHandLandmarks));
-    rightHand.push(handPoints(result.rightHandLandmarks));
+    leftHand.push(leftHandFrame);
+    rightHand.push(rightHandFrame);
     face.push(facePoints(result.faceLandmarks));
 
-    if (prevPoseFrame) {
-      const speed = Math.max(
-        wristDisplacement(poseFrame[LEFT_WRIST_IDX], prevPoseFrame[LEFT_WRIST_IDX]),
-        wristDisplacement(poseFrame[RIGHT_WRIST_IDX], prevPoseFrame[RIGHT_WRIST_IDX])
-      );
+    const bodyFrame = [...poseFrame, ...leftHandFrame, ...rightHandFrame];
+    if (prevBodyFrame) {
+      const speed = maxDisplacement(bodyFrame, prevBodyFrame);
       if (speed > MOTION_THRESHOLD) {
         hasMoved = true;
         lastMotionAt = now;
       }
     }
-    prevPoseFrame = poseFrame;
+    prevBodyFrame = bodyFrame;
 
     const stillFor = now - lastMotionAt;
     const rawPhase: CapturePhase = !hasMoved ? "waiting" : stillFor > 150 ? "settling" : "active";

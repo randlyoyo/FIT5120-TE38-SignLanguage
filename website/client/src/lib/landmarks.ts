@@ -100,29 +100,17 @@ function facePoints(faceLandmarks: NormalizedLandmark[][]): [number, number][] {
 // and stopping on wrist-only silence cut those signs short. Every tracked
 // point (shoulders, elbows, wrists, and every finger joint on both hands)
 // feeds the same max-displacement check, so any part of the body moving
-// counts as "still signing".
+// counts as "still signing". A `MISSING` point contributes 0 rather than a
+// false spike -- `pointDisplacement` returns 0 whenever either side is the
+// sentinel, so an undetected hand can't itself look like motion.
 //
 // This is deliberately broader than the server's own offline trim (API.md
 // §3.5, wrists only) -- trim only has to find where a clip's action already
 // is, this has to decide live whether to keep recording, and the frontend
 // cost of watching a few dozen extra points every frame is negligible next
 // to getting that decision right.
-//
-// A `MISSING` point needs care on both sides of the comparison:
-//   - MISSING on both frames (e.g. the five always-unused pose slots, or a
-//     hand that was never in shot) means there was never anything there to
-//     move -- 0, not a false spike.
-//   - MISSING on exactly one side is a point that just left or entered the
-//     frame -- a hand darting out of shot mid-sign is real motion, arguably
-//     fast motion, and must not silently read as "held still" for however
-//     many frames it stays untracked. Counted as motion (Infinity, so it
-//     always clears MOTION_THRESHOLD) rather than the 0 a naive "either side
-//     missing" check would give it.
 function pointDisplacement(a: [number, number], b: [number, number]): number {
-  const aMissing = a[0] === MISSING[0];
-  const bMissing = b[0] === MISSING[0];
-  if (aMissing && bMissing) return 0;
-  if (aMissing !== bMissing) return Infinity;
+  if (a[0] === MISSING[0] || b[0] === MISSING[0]) return 0;
   return Math.hypot(a[0] - b[0], a[1] - b[1]);
 }
 

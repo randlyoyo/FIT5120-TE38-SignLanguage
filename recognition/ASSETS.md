@@ -12,6 +12,7 @@ This page records why, and what to do after retraining.
 | `models/encoder.onnx` | 3.7 MB | server |
 | `models/bank.i8` | 9.9 MB | server |
 | `models/manifest.json`, `models/bank_index.json` | 80 KB | server |
+| `models/vocabulary.json` | 400 KB | server -- Signbank cross-reference, keywords |
 
 Vercel and Railway both deploy from git. An asset that is not committed is not
 in the deployment, so a build-time fetch would be one more step to fail on two

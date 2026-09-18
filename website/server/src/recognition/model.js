@@ -62,6 +62,18 @@ async function load() {
     fs.readFileSync(path.join(ROOT, "confidence.json"), "utf8")
   );
 
+  // Cross-reference to the dataset's own dictionary: the official Group_Index
+  // for citing Auslan Signbank, the regional State, and search keywords merged
+  // from both the dictionary and the sign library.
+  //
+  // Group_Index is NOT the model's class index and must not be used as one --
+  // it runs to 3220 with six gaps, so it would waste output slots. The model
+  // is indexed by the order in bank_index.json; this is a lookup, not an
+  // ordering.
+  const vocabulary = JSON.parse(
+    fs.readFileSync(path.join(ROOT, "vocabulary.json"), "utf8")
+  );
+
   state = {
     session, bank, words, dim, nTpl,
     T: manifest.T,
@@ -72,6 +84,7 @@ async function load() {
     // 0.70 -- distance varies too much between words to threshold globally.
     marginConfident: manifest.margin_confident ?? 0.04,
     calibration,
+    vocabulary,
     wordIndex: new Map(words.map((w, i) => [w, i])),
   };
   return state;
@@ -123,26 +136,35 @@ function confidenceFromMargin(s, margin) {
 }
 
 /**
- * Calibrated 0-1 score for one verify attempt, for user-facing feedback
- * ("how accurate was that", not just matched/not-matched). Reuses the same
- * margin -> P(top-1 correct) calibration identify already relies on: the
- * margin here is symmetric with identify's (best word's distance minus
- * second-best's) -- distance to every *other* word minus distance to the
- * target word, which is exactly that quantity when the target is in fact
- * the closest word, and correctly runs negative (calibrating to a low
- * score) when it is not.
+ * Verify distance -> 0-100 display score for the learner.
+ *
+ * Piecewise linear, anchored so the decision threshold always lands on
+ * PASS_SCORE: distance 0 -> 100, tau -> 60, 1 -> 0. That keeps the number and
+ * `matched` from ever disagreeing. Raw cosine similarity (1 - distance) was
+ * not used because tau = 0.53 puts the pass line at 47% "similar", which reads
+ * as a failure.
+ *
+ * This is a monotone rescaling of distance, NOT a probability -- there is no
+ * genuine/impostor distance distribution in the repo to calibrate one against.
+ * `matched` stays the decision; never threshold on the score. (An earlier
+ * version of this scored off margin + the identify calibration table instead;
+ * that clamps to one floor value for every negative margin, which is most
+ * failed attempts, so it read as a fixed number no matter how the capture
+ * actually differed. This formula moves continuously with distance instead.)
  */
-function verifyScore(s, embedding, wordIdx) {
-  const dist = distanceToAll(s, embedding);
-  const targetDistance = dist[wordIdx];
-  let bestOther = Infinity;
-  for (let w = 0; w < dist.length; w++) {
-    if (w !== wordIdx && dist[w] < bestOther) bestOther = dist[w];
-  }
-  const margin = bestOther - targetDistance;
-  return { distance: targetDistance, margin, confidence: confidenceFromMargin(s, margin) };
+const PASS_SCORE = 60;
+
+function similarityScore(distance, tau) {
+  const d = Math.min(Math.max(distance, 0), 1);
+  const score = d <= tau
+    ? 100 - (100 - PASS_SCORE) * (d / tau)
+    : PASS_SCORE * (1 - d) / (1 - tau);
+  // Rounding alone would show a just-failed attempt as 60; keep the sides apart.
+  return distance < tau
+    ? Math.max(PASS_SCORE, Math.round(score))
+    : Math.min(PASS_SCORE - 1, Math.round(score));
 }
 
 module.exports = {
-  load, embed, distanceToWord, distanceToAll, confidenceFromMargin, verifyScore, ROOT,
+  load, embed, distanceToWord, distanceToAll, confidenceFromMargin, similarityScore, PASS_SCORE, ROOT,
 };

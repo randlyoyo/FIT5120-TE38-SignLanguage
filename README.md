@@ -6,8 +6,8 @@ FIT5120 TE38 team's formal capstone project — an Inclusive Auslan Learning Ass
 ## `website/` — HandMirror (main app)
 
 **Live:** https://handmirror.vercel.app (client, on Vercel) — talks to
-https://handmirror-server-production.up.railway.app (API, on Railway), backed
-by a shared MySQL database also hosted on Railway.
+https://fit5120-te38-signlanguage-production.up.railway.app (API, on Railway),
+backed by a shared MySQL database also hosted on Railway.
 
 A full-stack Auslan sign-language reference, catalogued like a field
 specimen collection: search or browse signs by keyword, synonym, or
@@ -38,7 +38,7 @@ npm run dev           # runs client (:5173) and server (:4000) together
 **Deploy:**
 - Client → Vercel. Framework preset auto-detects Vite; set the
   `VITE_API_BASE_URL` environment variable to the deployed API's `/api`
-  base (e.g. `https://handmirror-server-production.up.railway.app/api`).
+  base (e.g. `https://fit5120-te38-signlanguage-production.up.railway.app/api`).
 - Server → Railway (`npm start`). Needs `DB_HOST`, `DB_PORT`, `DB_USER`,
   `DB_PASSWORD`, `DB_NAME`, `CORS_ORIGIN` (the deployed client's origin), and
   `VIDEO_BASE_URL` — see `website/server/.env.example`.

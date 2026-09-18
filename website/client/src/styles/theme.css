@@ -1739,6 +1739,12 @@ input:focus-visible {
   font-size: 0.95rem;
 }
 
+.personalize-target-hint {
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
 .personalize-autofill {
   background: var(--color-surface-raised);
   border: 1px solid var(--color-accent);

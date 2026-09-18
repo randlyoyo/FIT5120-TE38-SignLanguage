@@ -2,7 +2,7 @@ const express = require("express");
 
 const { UnusableCapture } = require("../recognition/features");
 const {
-  load, embed, distanceToAll, confidenceFromMargin, verifyScore,
+  load, embed, distanceToWord, distanceToAll, confidenceFromMargin, similarityScore,
 } = require("../recognition/model");
 
 const router = express.Router();
@@ -81,9 +81,14 @@ function pick(list) {
   return list[Math.floor(Math.random() * list.length)];
 }
 
+// score is 0-100 now (similarityScore, model.js), anchored so score >= 60
+// exactly when matched is true -- so unlike the margin-based score this
+// replaced, a failed attempt can no longer land in TIER_CLOSE. matched is
+// still the real decision; score only splits a pass into two levels of "how
+// clean".
 function tierFor(matched, score) {
-  if (matched && score >= 0.8) return TIER_EXCELLENT;
-  if (matched || score >= 0.4) return TIER_CLOSE;
+  if (matched && score >= 80) return TIER_EXCELLENT;
+  if (matched) return TIER_CLOSE;
   return TIER_NEEDS_PRACTICE;
 }
 
@@ -101,18 +106,21 @@ router.post("/verify", async (req, res, next) => {
     }
 
     const { embedding, frames } = await embed(capture);
-    const { distance, confidence } = verifyScore(s, embedding, idx);
+    const distance = distanceToWord(s, embedding, idx);
     const matched = distance < s.tauVerify;
-    const tier = tierFor(matched, confidence);
+    // 0-100 display score, NOT a probability -- a monotone rescaling of
+    // distance anchored so score >= 60 exactly when matched is true (see
+    // recognition/model.js similarityScore). `matched` is still the real
+    // decision; score exists so "how accurate" isn't just binary.
+    const score = similarityScore(distance, s.tauVerify);
+    const tier = tierFor(matched, score);
 
     res.json({
       word,
       distance,
       threshold: s.tauVerify,
       matched,
-      // 0-100, calibrated (see recognition/model.js verifyScore): "how
-      // accurate was this attempt", not just the binary matched/not-matched.
-      score: Math.round(confidence * 100),
+      score,
       // Three plain-language tiers a learner can act on -- see MESSAGES
       // above. `tier` is the stable machine-readable bucket; `feedback` is
       // one warm, randomly-varied sentence for that bucket.
@@ -141,7 +149,19 @@ router.post("/identify", async (req, res, next) => {
     const margin = dist[order[1]] - dist[order[0]];
 
     res.json({
-      candidates: top.map((i) => ({ word: s.words[i], distance: dist[i] })),
+      candidates: top.map((i) => {
+        const v = s.vocabulary[s.words[i]];
+        return {
+          word: s.words[i],
+          distance: dist[i],
+          // Keywords give the learner something to recognise when four
+          // glosses look alike -- "DECLARE (CRICKET)" says little on its
+          // own. groupIndex cites the Auslan Signbank dictionary entry; it
+          // is NOT the model's class index (see recognition/API.md).
+          keywords: v ? v.keywords.slice(0, 4) : [],
+          groupIndex: v ? v.group_index : null,
+        };
+      }),
       // Calibrated: of the captures scored at 0.85, about 85% really do have
       // the right word first. Fitted on the validation split, so it inherits
       // that split's conditions -- see API.md section 9.
@@ -160,10 +180,18 @@ router.post("/identify", async (req, res, next) => {
   }
 });
 
-// GET /api/recognize/vocabulary -- which glosses can be recognised at all
+// GET /api/recognize/vocabulary -- which glosses can be recognised at all.
+// ?detail=1 adds the dictionary cross-reference: Signbank's Group_Index, the
+// regional State, and merged search keywords.
 router.get("/vocabulary", async (req, res, next) => {
   try {
     const s = await load();
+    if (req.query.detail) {
+      return res.json({
+        count: s.words.length,
+        words: s.words.map((w) => ({ gloss: w, ...s.vocabulary[w] })),
+      });
+    }
     res.json({ count: s.words.length, words: s.words });
   } catch (err) {
     fail(err, res, next);

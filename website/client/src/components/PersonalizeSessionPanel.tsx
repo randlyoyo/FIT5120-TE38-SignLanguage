@@ -45,11 +45,14 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
 
   const selectedTotal = Object.values(counts).reduce((sum, n) => sum + n, 0);
   const maxPossible = tags.reduce((sum, t) => sum + t.count, 0);
-  // "Exactly n" (US5.2) is the goal, but a target bigger than every
-  // category combined can never be hit -- once the learner has claimed
-  // everything there is, that's as close as physically possible, so treat
-  // it as satisfied rather than locking the button forever.
-  const matchesTarget = selectedTotal === targetSize || (selectedTotal === maxPossible && maxPossible < targetSize);
+  // 0 means "no target" -- build whatever's picked, any total. "Exactly n"
+  // (US5.2) only applies once the learner actually sets one. A target
+  // bigger than every category combined can also never be hit exactly, so
+  // that's treated as satisfied too rather than locking the button forever.
+  const matchesTarget =
+    targetSize === 0
+    || selectedTotal === targetSize
+    || (selectedTotal === maxPossible && maxPossible < targetSize);
 
   function setCount(tag: string, value: number, available: number) {
     const clamped = Math.max(0, Math.min(value, available));
@@ -64,6 +67,7 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
   // sign at a time round-robin so the split stays even and never exceeds a
   // category's remaining pool.
   function autoDistribute() {
+    if (targetSize === 0) return;
     const chosen = tags.filter((t) => (counts[t.tag] ?? 0) > 0);
     const pool = chosen.length > 0 ? chosen : tags;
     const next: Record<string, number> = {};
@@ -152,18 +156,19 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
               Target session size
               <input
                 type="number"
-                min={1}
+                min={0}
                 max={50}
                 value={targetSize}
-                onChange={(e) => setTargetSize(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
+                onChange={(e) => setTargetSize(Math.max(0, Math.min(50, Number(e.target.value) || 0)))}
               />
+              <span className="personalize-target-hint">0 = no limit</span>
             </label>
             <button
               type="button"
               className="personalize-autofill"
               onClick={autoDistribute}
-              disabled={tags.length === 0}
-              title="Spread the target size evenly across categories"
+              disabled={tags.length === 0 || targetSize === 0}
+              title={targetSize === 0 ? "Set a target size first" : "Spread the target size evenly across categories"}
             >
               Auto-fill
             </button>
@@ -186,9 +191,9 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
           </ul>
 
           <div className="personalize-panel-footer">
-            <p className={`personalize-total ${matchesTarget ? "on-target" : ""}`}>
+            <p className={`personalize-total ${matchesTarget && selectedTotal > 0 ? "on-target" : ""}`}>
               <span className="personalize-total-dot" aria-hidden="true" />
-              {selectedTotal} of {targetSize} selected
+              {targetSize === 0 ? `${selectedTotal} selected` : `${selectedTotal} of ${targetSize} selected`}
             </p>
             <button
               type="button"

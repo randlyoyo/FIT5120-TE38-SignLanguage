@@ -1,0 +1,60 @@
+# Arm C -- one stage, MM-WLAuslan mixed in as a low-weight auxiliary loss.
+#
+# Each step takes a batch of Auslan-Daily and a batch of MM-WLAuslan and
+# optimises  loss_daily + aux_weight * loss_isolated. Nothing to forget, since
+# the continuous data is present the whole way through, which is why this is
+# expected to be the steadier of the two transfer arms.
+#
+# Sweep aux_weight over 0.1 / 0.2 / 0.3:
+#   for w in 0.1 0.2 0.3; do
+#     python train.py --config configs/arm_c.yaml \
+#       --set optim.aux_weight=$w --out runs/arm_c_w$w
+#   done
+arm: arm_c
+seed: 0
+output_dir: runs/arm_c
+log_every: 50
+num_workers: 4
+
+data:
+  manifest: data/manifest.jsonl
+  npz_dir: data/pose
+  max_length: 256
+  gloss_text_mode: strip_paren
+  exclude: null          # uids to leave out, one per line (verify_pose.py --exclude-out)
+
+train:
+  datasets: [auslandaily]
+  splits: [train]
+aux:
+  datasets: [mmwlauslan]
+  subsets: [studio]
+  splits: [train]
+val:
+  datasets: [auslandaily]
+  splits: [val]
+
+backend:
+  name: smoke
+  d: 128
+
+optim:
+  lr: 3.0e-5
+  weight_decay: 0.01
+  batch_size: 8
+  epochs: 20
+  warmup_frac: 0.05
+  grad_clip: 1.0
+  aux_weight: 0.2
+  trainable_groups: null
+
+# Checkpoints, so a run survives Colab reclaiming the runtime. Continue a killed
+# run by re-running the same command with --resume (safe on the first run too).
+# A full checkpoint is the model AND the optimiser state: about 7 GB for Uni-Sign
+# (588M params + AdamW), a few MB for the smoke model. Point output_dir (or
+# checkpoint.dir) at Drive so it outlives the runtime.
+checkpoint:
+  every_minutes: 30     # time-based: long enough that saving 7 GB stays cheap
+  every_steps: null     # or a step interval
+  keep: 2               # newest + one to fall back to (see README)
+  dir: null             # default: <output_dir>/checkpoints

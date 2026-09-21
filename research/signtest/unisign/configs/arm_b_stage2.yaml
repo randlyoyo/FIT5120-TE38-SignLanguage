@@ -1,0 +1,50 @@
+# Arm B stage 2 -- everything unfrozen, Auslan-Daily, starting from stage 1.
+#
+#   python train.py --config configs/arm_b_stage2.yaml \
+#                   --init-from runs/arm_b_stage1/checkpoint.pt
+#
+# The order is not negotiable. Fine-tuning on MM-WLAuslan after Auslan-Daily
+# would leave the model's last impression of "a clip" being a citation form.
+arm: arm_b_stage2
+seed: 0
+output_dir: runs/arm_b_stage2
+log_every: 50
+num_workers: 4
+
+data:
+  manifest: data/manifest.jsonl
+  npz_dir: data/pose
+  max_length: 256
+  gloss_text_mode: strip_paren
+  exclude: null          # uids to leave out, one per line (verify_pose.py --exclude-out)
+
+train:
+  datasets: [auslandaily]
+  splits: [train]
+val:
+  datasets: [auslandaily]
+  splits: [val]
+
+backend:
+  name: smoke
+  d: 128
+
+optim:
+  lr: 3.0e-5               # identical to Arm A, so the delta is the transfer
+  weight_decay: 0.01
+  batch_size: 8
+  epochs: 20
+  warmup_frac: 0.05
+  grad_clip: 1.0
+  trainable_groups: null
+
+# Checkpoints, so a run survives Colab reclaiming the runtime. Continue a killed
+# run by re-running the same command with --resume (safe on the first run too).
+# A full checkpoint is the model AND the optimiser state: about 7 GB for Uni-Sign
+# (588M params + AdamW), a few MB for the smoke model. Point output_dir (or
+# checkpoint.dir) at Drive so it outlives the runtime.
+checkpoint:
+  every_minutes: 30     # time-based: long enough that saving 7 GB stays cheap
+  every_steps: null     # or a step interval
+  keep: 2               # newest + one to fall back to (see README)
+  dir: null             # default: <output_dir>/checkpoints

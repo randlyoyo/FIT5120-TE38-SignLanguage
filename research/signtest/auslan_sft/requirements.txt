@@ -1,0 +1,14 @@
+# Tested locally with torch 2.14 / transformers 4.57.6 (CPU) ; Uni-Sign runs on Colab used
+# torch 2.11 + transformers 5.16.1. MT5Stack is constructed in a way that works on both.
+torch>=2.1
+transformers>=4.40
+sentencepiece>=0.1.99
+numpy>=1.24
+opencv-python>=4.8
+PyYAML>=6.0
+# pose extraction (same estimator as the Uni-Sign checkpoint)
+rtmlib==0.0.16       # install with --no-deps on Colab, then onnxruntime-gpu
+onnxruntime>=1.17    # or onnxruntime-gpu on CUDA machines
+# optional
+sacrebleu>=2.4       # back-translation BLEU / chrF (also needs Uni-Sign requirements: einops, torchvision)
+tensorboard          # training.tensorboard: true

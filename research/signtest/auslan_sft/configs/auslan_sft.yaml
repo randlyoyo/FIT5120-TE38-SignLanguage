@@ -1,0 +1,117 @@
+# English -> Auslan pose SFT. Relative paths are relative to the project root (auslan_sft/).
+seed: 42
+
+data:
+  annotations_csv: data/annotations.csv
+  video_root: data                 # video_path in the CSV is relative to this
+  video_column: video_path
+  text_column: text
+  id_column: null                  # e.g. uid for Auslan-Daily; default = video file stem
+  raw_pose_dir: data/raw_pose      # extract_pose.py output (.npz), one per sample id
+  pose_dir: data/pose              # normalize_pose.py output (.pt)
+  split_dir: data/splits           # train/val/test .csv + .txt
+  max_text_tokens: 64
+
+split:
+  method: random                   # random | column (use an existing split column)
+  split_column: split
+  seed: 42
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  group_column: null               # e.g. "text" to keep repeated sentences in one split, or a signer column
+
+normalization:
+  conf_threshold: 0.3              # Uni-Sign's threshold
+  target_fps: 25.0
+  default_source_fps: 25.0         # used when the video reports no fps
+  max_gap_sec: 0.2                 # interpolate + keep in loss up to this gap
+  min_shoulder_frac: 0.5
+  min_hand_frac: 0.1
+  min_shoulder_px: 8.0
+  out_of_frame_margin: 0.25
+  min_frames: 8
+  max_frames: 400
+
+pretrained:
+  unisign_checkpoint: ../checkpoints/openasl_pose_only_slt.pth   # sha256 f836ea66...2798
+  unisign_repo: ../Uni-Sign                                      # for stgcn_layers (feature loss)
+  mt5_dir: ../Uni-Sign/pretrained_weight/mt5-base                # tokenizer + config (google/mt5-base)
+  encoder_source: unisign          # unisign | mt5_base | none (none needs allow_random_init)
+  decoder_source: unisign          # unisign | mt5_base | none
+  allow_random_init: false         # ablations only; never silently
+  min_loaded_fraction: 0.95        # STOP below this
+
+model:
+  dropout: 0.1                     # T5 dropout_rate
+  text_prompt: ""                  # prepended to every English sentence
+
+training:
+  mode: B                          # A (heads) | B (partial, default) | C (full)
+  mode_a:
+    train_last_decoder_layers: 0
+  mode_b:
+    train_last_decoder_layers: 4
+    train_last_encoder_layers: 2
+  mode_c:
+    lr_scale: 0.1                  # pretrained lr multiplier in full fine-tuning
+    freeze_embeddings: true
+  lr_pretrained: 1.0e-5
+  lr_new: 1.0e-4
+  weight_decay: 0.01
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  batch_size: 16
+  grad_accum_steps: 1
+  epochs: 60
+  scheduler: cosine                # cosine (per step, with warmup) | plateau (per epoch)
+  warmup_frac: 0.05
+  min_lr_ratio: 0.05
+  grad_clip: 1.0
+  decoder_input_noise: 0.05        # std in standardised units (Progressive Transformers' noise augmentation)
+  precision: bf16                  # bf16 | fp16 | fp32 (AMP; fp32 on CPU)
+  device: cuda
+  num_workers: 4
+  gradient_checkpointing: false
+  tensorboard: false
+  log_every: 50
+  output_dir: checkpoints
+
+augmentation:                      # conservative; nothing that changes meaning
+  coord_noise: 0.005               # shoulder widths
+  spatial_scale: 0.05              # global scale U(0.95, 1.05)
+  temporal_scale: 0.1              # duration U(0.9, 1.1)
+  frame_dropout: 0.03
+  hflip: false                     # OFF: swaps handedness, which is linguistic in Auslan
+  hflip_prob: 0.5
+
+loss:
+  pose_loss_type: smooth_l1        # smooth_l1 | l1 | mse (Progressive Transformers used mse)
+  smooth_l1_beta: 0.1
+  hand_weight: 2.0
+  body_weight: 1.0
+  face_weight: 0.5
+  brow_weight: 0.5
+  hand_relative_weight: 1.0
+  lambda_pose: 1.0
+  lambda_vel: 1.0
+  lambda_acc: 0.5
+  lambda_bone: 0.1
+  lambda_counter: 1.0
+  lambda_feat: 0.1                 # frozen Uni-Sign pose-encoder feature loss (0 disables)
+
+validation:
+  batch_size: 16
+  generate_batches: 4              # free-running generation on the first N val batches (fixed order)
+  early_stopping_metric: val_gen_dtw_distance
+  patience: 8
+  min_delta: 0.0
+  max_frames: 300
+  min_frames: 8
+  stop_counter: 0.97
+
+inference:
+  max_frames: 300
+  min_frames: 8
+  stop_counter: 0.97
+  render_size: 720

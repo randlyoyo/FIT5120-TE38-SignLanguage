@@ -1,0 +1,57 @@
+# Arm B stage 1 -- spatial adaptation on isolated Auslan signs.
+#
+# Only the four per-part pose encoders learn. The temporal stack and the mT5
+# decoder are held at a tenth of the base rate so the citation-form timing of
+# isolated clips -- rest, sign, rest, no coarticulation -- cannot rewrite the
+# sentence-level sequence modelling that came from pre-training.
+#
+# Set lr_scale.temporal / .decoder to 0.0 for the hard-frozen variant. Both are
+# permitted; run one, record which.
+#
+# There is no val block: this stage is not evaluated on its own. Gloss accuracy
+# here is not the deliverable and optimising for it would defeat the purpose.
+arm: arm_b_stage1
+seed: 0
+output_dir: runs/arm_b_stage1
+log_every: 100
+num_workers: 4
+
+data:
+  manifest: data/manifest.jsonl
+  npz_dir: data/pose
+  max_length: 256
+  gloss_text_mode: strip_paren
+  exclude: null          # uids to leave out, one per line (verify_pose.py --exclude-out)
+
+train:
+  datasets: [mmwlauslan]
+  subsets: [studio]
+  splits: [train]
+
+backend:
+  name: smoke
+  d: 128
+
+optim:
+  lr: 1.0e-4               # higher than stage 2: this group is adapting, not polishing
+  weight_decay: 0.01
+  batch_size: 16
+  epochs: 3
+  warmup_frac: 0.05
+  grad_clip: 1.0
+  trainable_groups: [pose_encoder, temporal, decoder]
+  lr_scale:
+    pose_encoder: 1.0
+    temporal: 0.1
+    decoder: 0.1
+
+# Checkpoints, so a run survives Colab reclaiming the runtime. Continue a killed
+# run by re-running the same command with --resume (safe on the first run too).
+# A full checkpoint is the model AND the optimiser state: about 7 GB for Uni-Sign
+# (588M params + AdamW), a few MB for the smoke model. Point output_dir (or
+# checkpoint.dir) at Drive so it outlives the runtime.
+checkpoint:
+  every_minutes: 30     # time-based: long enough that saving 7 GB stays cheap
+  every_steps: null     # or a step interval
+  keep: 2               # newest + one to fall back to (see README)
+  dir: null             # default: <output_dir>/checkpoints

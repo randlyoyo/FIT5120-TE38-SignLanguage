@@ -1,0 +1,75 @@
+# Arm A -- the baseline. Auslan-Daily only, nothing borrowed from MM-WLAuslan.
+#
+# Run this first and get a number out of it. B and C are only interpretable as
+# a delta against A, and if A does not train the problem is in the pipeline,
+# not in the transfer strategy.
+arm: arm_a
+seed: 0
+output_dir: runs/arm_a
+log_every: 50
+num_workers: 4
+
+data:
+  manifest: data/manifest.jsonl
+  npz_dir: data/pose
+  max_length: 256
+  gloss_text_mode: strip_paren
+  exclude: null          # uids to leave out, one per line (verify_pose.py --exclude-out)
+
+train:
+  datasets: [auslandaily]
+  splits: [train]
+val:
+  datasets: [auslandaily]
+  splits: [val]
+
+backend:
+  # Harness model. Swap the whole block for the real one once you are past
+  # step 3 -- verified to load with missing=0 unexpected=0:
+  #
+  # backend:
+  #   name: unisign
+  #   checkpoint: ../checkpoints/csl_stage1_weight.pth
+  #   repo: ../Uni-Sign
+  #   mt5_path: ../Uni-Sign/pretrained_weight/mt5-base
+  #   num_beams: 5
+  #   max_new_tokens: 100
+  #
+  # Three checkpoints are downloaded, and which one to start from is itself
+  # worth an experiment:
+  #   csl_stage1_weight.pth       pose-only PRE-TRAINED base (CSL-News).
+  #                               The clean transfer starting point.
+  #   how2sign_pose_only_slt.pth  already fine-tuned for English SLT output.
+  #   openasl_pose_only_slt.pth   likewise, different ASL corpus.
+  # The ASL ones have a decoder already producing English sentences from sign
+  # features, which may transfer better to an English-target task than a
+  # Chinese-fine-tuned one. Run Arm A from each and compare.
+  name: smoke
+  d: 128
+
+optim:
+  lr: 3.0e-5
+  weight_decay: 0.01
+  batch_size: 8
+  epochs: 20
+  warmup_frac: 0.05
+  grad_clip: 1.0
+  trainable_groups: null      # null = everything
+
+# Generation options on top of plain beam search (num_beams and max_new_tokens
+# are in backend), e.g. {no_repeat_ngram_size: 3, repetition_penalty: 1.2}.
+# They change how the model is decoded, not what it learns, so they may differ
+# between a run and its --resume. Empty = exactly Uni-Sign's own generate().
+# The smoke backend ignores them.
+decode: {}
+
+# Checkpoints, so a run survives Colab reclaiming the runtime. Continue a killed
+# run by re-running the same command with --resume (safe on the first run too).
+# A full checkpoint is the model AND the optimiser state: about 7 GB for Uni-Sign
+# (588M params + AdamW), a few MB for the smoke model. Point output_dir (or
+# checkpoint.dir) at Drive so it outlives the runtime.
+checkpoint:
+  every_minutes: 30     # time-based: long enough that saving 7 GB stays cheap
+  every_steps: null     # or a step interval
+  keep: 2               # newest + one to fall back to (see README)
+  dir: null             # default: <output_dir>/checkpoints

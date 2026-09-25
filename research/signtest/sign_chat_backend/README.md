@@ -65,6 +65,7 @@ Both chat endpoints return:
     "sign": {
       "pose_url": "/media/20260925-…json",     // drive the avatar with this
       "video_url": "/media/20260925-…mp4",     // skeleton rendering; fallback or debug view
+      "video_status": "rendering",              // drawn after the reply: the URL returns 404 until ready (~1 s)
       "frames": 76, "fps": 25,
       "retrieved": "i am good thank you .",    // training sentence the handshapes came from
       "seen": false                             // true = that exact sentence is in the training data

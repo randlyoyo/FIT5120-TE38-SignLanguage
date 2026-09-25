@@ -1,0 +1,33 @@
+# Copy to config.yaml and fill in the paths. Relative paths are relative to this file.
+# Every key and its default is in signchat/config.py.
+# The values below are the Colab layout that colab_server.ipynb writes (Drive = /content/drive/MyDrive).
+
+device: cuda
+mock: false                    # true = no models, fake outputs, same API (frontend development)
+media_dir: media
+public_base_url: ""            # set to the public tunnel URL so returned media URLs are absolute
+cors_origins: ["*"]
+
+sign2text:
+  enabled: true
+  unisign_repo: /content/Uni-Sign                      # github.com/ZechengLi19/Uni-Sign @ eed438b
+  mt5_path: /content/Uni-Sign/pretrained_weight/mt5-base
+  # best Auslan->English model: Arm A from openasl_pose_only_slt.pth (Communication BLEU-4 18.03)
+  checkpoint: /content/drive/MyDrive/auslan_work/runs/arm_a__openasl_pose_only_slt__official_stage3__single_a100__bf16/checkpoint.pt
+  num_beams: 4
+  pose_device: cuda            # needs onnxruntime-gpu; "cpu" works everywhere (slower)
+
+text2sign:
+  enabled: true
+  signspark_repo: /content/SignSparK                   # github.com/JianHe0628/SignSparK @ 22a0b4e
+  weights_dir: /content/signchat_local/signspark_ft_smooth    # hand.pt body.pt face.pt (round 2), copied from Drive
+  bank_lmdb: /content/signchat_local/bank/AuslanDaily_train.lmdb
+  smplx_npz: /content/signchat_local/SMPLX_NEUTRAL_2020.npz
+  render_video: true
+
+dialogue:
+  backend: hf                  # hf | openai | anthropic | echo
+  model: Qwen/Qwen2.5-1.5B-Instruct
+  max_words: 15
+  # openai-compatible server:  backend: openai, base_url: http://localhost:8001/v1, model: <name>
+  # Claude:                    backend: anthropic, model: claude-opus-5   (export ANTHROPIC_API_KEY=...)

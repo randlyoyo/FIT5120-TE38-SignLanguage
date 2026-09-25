@@ -77,8 +77,8 @@ def test_translate_endpoints(client):
 
 
 def test_clean_reply():
-    assert clean_reply("Hi! I'm fine, thanks. And you? I had a long day at work today with lots.", 8) == "Hi! I'm fine, thanks. And you?"
-    assert clean_reply("**Sure** - let's eat", 15) == "Sure - let's eat."
+    assert clean_reply("Hi! I'm fine, thanks. And you? I had a long day at work today with lots.", 8) == "Hi! I am fine, thanks. And you?"
+    assert clean_reply("**Sure** - let's eat", 15) == "Sure - let us eat."
     assert clean_reply("one two three four five six", 3) == "one two three."
     assert clean_reply("", 5) == "Sorry, can you sign that again?"
 
@@ -107,3 +107,10 @@ def test_config_resolves_relative_paths(tmp_path):
     cfg = load_config(str(p))
     assert cfg["text2sign"]["weights_dir"] == str(tmp_path / "w")
     assert cfg["media_dir"] == str(tmp_path / "m")
+
+
+def test_contractions_expanded():
+    from signchat.dialogue import expand_contractions
+    assert clean_reply("I'm good, thanks. How about you?", 15) == "I am good, thanks. How about you?"
+    assert expand_contractions("Don't worry, it's fine and we'll go. Can't wait! Let's eat.") == \
+        "Do not worry, it is fine and we will go. Cannot wait! Let us eat."

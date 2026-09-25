@@ -20,6 +20,7 @@ the 127 SMPL-X joint positions, and optionally a skeleton mp4.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import threading
@@ -31,6 +32,75 @@ import torch
 STREAMS = ("hand", "body", "face")
 POSE_KEYS = ("global_orient", "body_pose", "left_hand_pose", "right_hand_pose", "jaw_pose",
              "leye_pose", "reye_pose", "expression", "betas", "transl")
+
+
+class _slim_weights_allowed:
+    """While building, let signspark_ft.load_weights accept a slim file (scripts/slim_assets.py):
+    keys listed in <stream>.dropped.json are missing from it because a fresh build already holds
+    exactly those values. Without the sidecar the original strict check runs unchanged."""
+
+    def __init__(self, ft, sidecar):
+        self.ft, self.sidecar = ft, sidecar
+
+    def __enter__(self):
+        if not os.path.exists(self.sidecar):
+            return
+        ft, dropped = self.ft, set(json.load(open(self.sidecar)))
+        self.orig = ft.load_weights
+
+        def load(model, path):
+            sd = torch.load(path, map_location="cpu", weights_only=False)
+            missing, unexpected = model.load_state_dict(sd, strict=False)
+            bad = [k for k in missing if not k.startswith(ft.TEXT_KEY) and k not in dropped]
+            assert not bad and not unexpected, f"{path}: missing {bad[:5]}, unexpected {unexpected[:5]}"
+        ft.load_weights = load
+
+    def __exit__(self, *exc):
+        if hasattr(self, "orig"):
+            self.ft.load_weights = self.orig
+
+
+# --------------------------------------------------------------------------- compact retrieval bank
+def compact_bank(bank: list[dict]) -> dict:
+    """signspark_render.load_bank entries -> arrays holding each clip's keyframe rows only (what
+    keyframe_batch reads). Frame 0 is kept for clips under 2 frames, which warped_keyframes maps to it."""
+    names, texts, T, offsets, frames = [], [], [], [0], []
+    rows = {s: [] for s in STREAMS}
+    for e in bank:
+        kf = sorted(set(e["keyframes"]) | ({0} if e["T"] < 2 else set()))
+        names.append(e["name"]); texts.append(e["text"]); T.append(e["T"])
+        frames += kf
+        offsets.append(offsets[-1] + len(kf))
+        for s in STREAMS:
+            rows[s].append(e[s][kf])
+    return {"names": np.array(names), "texts": np.array(texts), "T": np.array(T, np.int32),
+            "offsets": np.array(offsets, np.int64), "frames": np.array(frames, np.int32),
+            "keyframes_json": np.array(json.dumps([e["keyframes"] for e in bank])),
+            **{s: np.concatenate(rows[s]).astype(np.float32) for s in STREAMS}}
+
+
+def load_compact_bank(path: str) -> list[dict]:
+    z = np.load(path)
+    kfs = json.loads(str(z["keyframes_json"]))
+    out = []
+    for i in range(len(z["texts"])):
+        a, b = int(z["offsets"][i]), int(z["offsets"][i + 1])
+        out.append({"name": str(z["names"][i]), "text": str(z["texts"][i]), "T": int(z["T"][i]), "keyframes": kfs[i],
+                    "kf_frames": z["frames"][a:b], **{s: z[s][a:b] for s in STREAMS}, "compact": True})
+    return out
+
+
+def expand_entry(e: dict) -> dict:
+    """A compact entry -> full-length stream arrays that are right at every keyframe (the only rows
+    keyframe_batch reads) and zero elsewhere. Full LMDB entries pass through unchanged."""
+    if not e.get("compact"):
+        return e
+    full = dict(e)
+    for s in STREAMS:
+        arr = np.zeros((max(e["T"], 1), e[s].shape[1]), np.float32)
+        arr[e["kf_frames"]] = e[s]
+        full[s] = arr
+    return full
 
 
 class SignGenerator:
@@ -52,7 +122,8 @@ class SignGenerator:
         import signspark_render as R
         self.ft, self.R = ft, R
 
-        self.bank = R.load_bank(c["bank_lmdb"])
+        compact = c["bank_lmdb"].endswith(".npz")         # scripts/slim_assets.py output, or the LMDB itself
+        self.bank = load_compact_bank(c["bank_lmdb"]) if compact else R.load_bank(c["bank_lmdb"])
         self.bank_texts = [e["text"] for e in self.bank]
         self.bank_set = set(self.bank_texts)
         self.len_a, self.len_b = R.fit_length([R._untag(t) for t in self.bank_texts], [e["T"] for e in self.bank])
@@ -61,13 +132,25 @@ class SignGenerator:
         self.bank_tfidf = self.tfidf.fit_transform([R._untag(t) for t in self.bank_texts])
         log(f"[text2sign] retrieval bank: {len(self.bank)} clips, length = {self.len_a:.1f} + {self.len_b:.2f} x words")
 
+        stored_emb = None
+        if compact:
+            with np.load(c["bank_lmdb"]) as z:
+                stored_emb = z["emb"] if "emb" in z.files else None
         self.models = {}
         for s in STREAMS:
             cfg_s = ft.load_cfg(c["signspark_repo"], s)
-            prime = sorted(self.bank_set) if s == "hand" else ["<Auslan> hello ."]
-            self.models[s] = ft.build(cfg_s, os.path.join(c["weights_dir"], f"{s}.pt"), device, texts=prime)
-        enc = self.models["hand"][0].encode_text
-        self.bank_emb = torch.nn.functional.normalize(enc(self.bank_texts).float(), dim=-1)
+            prime = sorted(self.bank_set) if s == "hand" and stored_emb is None else ["<Auslan> hello ."]
+            with _slim_weights_allowed(ft, os.path.join(c["weights_dir"], f"{s}.dropped.json")):
+                self.models[s] = ft.build(cfg_s, os.path.join(c["weights_dir"], f"{s}.pt"), device, texts=prime)
+            if c.get("encoder_on_gpu") and device.type == "cuda":
+                # build() parks the frozen 2.2 GB text encoder on the CPU; with GPU memory to spare each
+                # new sentence is then encoded on the GPU instead (tens of ms instead of ~0.5 s)
+                self.models[s][0].text_enc_model.to(device)
+        if stored_emb is not None:                       # computed by slim_assets.py exactly as below
+            self.bank_emb = torch.from_numpy(stored_emb).to(self.models["hand"][0].embed_text.weight.device)
+        else:
+            enc = self.models["hand"][0].encode_text
+            self.bank_emb = torch.nn.functional.normalize(enc(self.bank_texts).float(), dim=-1)
         self.skeleton = R.Skeleton(c["smplx_npz"], c["signspark_repo"], device)
         log(f"[text2sign] SignSparK hand/body/face ready on {device}, bf16 {self.amp} ({time.time() - t0:.0f}s)")
 
@@ -86,7 +169,7 @@ class SignGenerator:
         text = f"<Auslan> {R.normalise(sentence)}"
         T = R.est_length(R._untag(text), self.len_a, self.len_b)
         seen = text in self.bank_set
-        entry = self.bank[self._retrieve(text)]
+        entry = expand_entry(self.bank[self._retrieve(text)])
         out = {}
         for s in STREAMS:
             model, flow = self.models[s]

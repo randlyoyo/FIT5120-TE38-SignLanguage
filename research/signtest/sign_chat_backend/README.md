@@ -128,14 +128,14 @@ colab_server.ipynb    GPU server + public URL on Colab
 - **Memory.** Each SignSparK stream moves its 2.2 GB text encoder to the CPU after priming. The GPU holds the three generators, Uni-Sign (~2.4 GB) and Qwen-1.5B (~3 GB in bf16), which fits on a 16 GB T4. Requests share one lock for generation, so the server handles one sign generation at a time.
 - **Startup cost.** About 13 GB is copied from Drive once per runtime. The three SignSparK generators are 0.83B-parameter UNets stored in fp32 (3.1 GB each), and every tensor is trained: `scripts/slim_assets.py` found nothing redundant in them. Only the 1.2 GB retrieval bank can be compacted, to about 0.15 GB (notebook section 2b, optional). Storing the generators in bf16 would halve them, but outputs would change slightly, so it would need validation first.
 - **Using a big GPU.** On an A100 the notebook keeps the three M-CLIP text encoders on the GPU (`encoder_on_gpu`), runs pose extraction on the GPU in batches of 64, and uses Qwen2.5-7B for replies.
-- **Speed and memory, measured on an A100 (2026-09-25).**
+- **Speed and memory, measured on an A100 (2026-09-25, pose extraction on the GPU).**
 
   | | time |
   |---|---|
-  | text turn (5 turns) | 5.8 s mean, 6.8 s max: dialogue (Qwen-7B) 0.2 s + signing 5.6 s |
-  | recognition (6 test clips) | 2.5–6.3 s per clip: pose extraction 2.4–5.9 s + Uni-Sign 0.3 s |
-  | signed turn (1 turn) | 8.2 s: recognition 3.4 s + dialogue 0.4 s + signing 4.5 s |
+  | text turn (5 turns) | 5.5 s mean, 6.5 s max: dialogue (Qwen-7B) 0.19 s + signing 5.3 s |
+  | recognition (5 test clips, 2.3 s of video on average) | 2.7 s mean: pose extraction 2.4 s (max 3.7) + Uni-Sign 0.27 s |
+  | signed turn | about recognition + 5.5 s |
 
-  GPU memory was 35.3 GB with Qwen-7B and the text encoders on the GPU. Estimated split: signing about 16 GB, Qwen-7B about 15 GB, recognition about 3 GB. System RAM was 8 GB.
-  Pose extraction looked CPU-bound in that run. `/api/health` now reports `pose_providers`, and the notebook installs only `onnxruntime-gpu`, because rtmlib's CPU `onnxruntime` shadows the GPU build when both are installed.
+  GPU memory was 36.4 GB with Qwen-7B and the text encoders on the GPU. Estimated split: signing about 16 GB, Qwen-7B about 15 GB, recognition about 3 GB. System RAM was 9 GB.
+  Pose extraction runs on the GPU only with the CUDA 12 build of onnxruntime-gpu (1.22.0, pinned). With 1.30 (CUDA 13), or with rtmlib's CPU `onnxruntime` shadowing it, the server falls back to the CPU without an error; `/api/health` reports `pose_providers`. On the GPU, pose extraction is still ~40 ms per frame. `scripts/profile_pose.py` splits that time between the detector, the crops and the pose model, and tests cuDNN settings.
   None of this fits a CPU web host such as Railway. Run this service on a GPU machine and have the web server call it over HTTP.

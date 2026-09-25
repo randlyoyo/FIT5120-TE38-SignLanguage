@@ -10,7 +10,8 @@ opencv-python-headless
 # Real models: torch (CUDA build) must already be installed.
 # sign -> text (Uni-Sign, unisign/)
 rtmlib==0.0.16
-onnxruntime-gpu            # or onnxruntime on CPU
+onnxruntime-gpu==1.22.0    # CUDA 12 + cuDNN 9 build, the CUDA torch's cu12x wheels ship. 1.30 needs CUDA 13
+                           # (libcublasLt.so.13) and silently falls back to the CPU. CPU-only machines: onnxruntime
 # text -> sign (SignSparK, auslan_smplx/) - the versions colab_auslan_generate.ipynb pins
 torchdiffeq==0.2.5
 accelerate==1.10.1

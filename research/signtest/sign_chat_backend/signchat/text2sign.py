@@ -189,11 +189,15 @@ class SignGenerator:
         themselves are rounded to bf16 (scripts/check_bf16.py measures the effect)."""
         if not self.amp:
             raise RuntimeError(f"weights_dtype {dtype} needs bf16 autocast (a CUDA GPU with bf16)")
+        # Real floating tensors only. Module.to(dtype) would also cast complex buffers to the real dtype,
+        # dropping their imaginary part (the first bf16 run did that to a complex buffer in the UNet:
+        # "Casting complex values to real discards the imaginary part").
+        cast = lambda t: t.to(dtype) if t.is_floating_point() else t
         for s in STREAMS:
             model = self.models[s][0]
             for name, child in model.named_children():
                 if name != "text_enc_model":
-                    child.to(dtype)
+                    child._apply(cast)
             for name, p in list(model._parameters.items()):
                 if p is not None and p.is_floating_point():
                     p.data = p.data.to(dtype)

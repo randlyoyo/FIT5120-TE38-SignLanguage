@@ -124,6 +124,9 @@ colab_server.ipynb    GPU server + public URL on Colab
 
 ## Notes for whoever runs it
 
+Every deployment experiment, with its numbers, is written up in [EXPERIMENTS.md](EXPERIMENTS.md) (in Chinese). It covers onnxruntime on the GPU, the cuDNN setting, parallel streams, and the memory reductions.
+
+
 - **Preprocessing matches training exactly.** Keypoints come from rtmlib `Wholebody` in lightweight mode with the largest person per frame. Videos are resampled to 25 fps and strided to at most 256 frames. Decoding is plain beam search with 4 beams. Text→sign runs 20 Euler steps, guidance 2.5, TF-IDF keyframe retrieval and σ=1 smoothing, the same as `colab_auslan_generate.ipynb`.
 - **transformers version.** SignSparK needs `transformers==4.56.1`, while Uni-Sign was trained under 5.16.1 in Colab. Both models run in one process, so Uni-Sign runs under 4.56.1 here. mT5 loads the same way on both versions. Beam-search output has not yet been compared between them; re-scoring the val set once through `/api/translate/sign-to-text` would confirm it.
 - **Memory.** Each SignSparK stream moves its 2.2 GB text encoder to the CPU after priming. The GPU holds the three generators, Uni-Sign (~2.4 GB) and Qwen-1.5B (~3 GB in bf16), which fits on a 16 GB T4. Requests share one lock for generation, so the server handles one sign generation at a time.

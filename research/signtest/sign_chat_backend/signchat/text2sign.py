@@ -142,9 +142,15 @@ class SignGenerator:
             prime = sorted(self.bank_set) if s == "hand" and stored_emb is None else ["<Auslan> hello ."]
             with _slim_weights_allowed(ft, os.path.join(c["weights_dir"], f"{s}.dropped.json")):
                 self.models[s] = ft.build(cfg_s, os.path.join(c["weights_dir"], f"{s}.pt"), device, texts=prime)
-            if c.get("encoder_on_gpu") and device.type == "cuda":
-                # build() parks the frozen 2.2 GB text encoder on the CPU; with GPU memory to spare each
-                # new sentence is then encoded on the GPU instead (tens of ms instead of ~0.5 s)
+        if c.get("share_text_encoder", True):
+            self._share_text_encoder()
+        dtype = {"float32": torch.float32, "bfloat16": torch.bfloat16}[c.get("weights_dtype", "float32")]
+        if dtype != torch.float32:
+            self._cast_generators(dtype)
+        if c.get("encoder_on_gpu") and device.type == "cuda":
+            # build() parks the frozen 2.2 GB text encoder on the CPU; with GPU memory to spare each new
+            # sentence is then encoded on the GPU instead (tens of ms instead of ~0.5 s)
+            for s in STREAMS:
                 self.models[s][0].text_enc_model.to(device)
         if stored_emb is not None:                       # computed by slim_assets.py exactly as below
             self.bank_emb = torch.from_numpy(stored_emb).to(self.models["hand"][0].embed_text.weight.device)
@@ -152,7 +158,51 @@ class SignGenerator:
             enc = self.models["hand"][0].encode_text
             self.bank_emb = torch.nn.functional.normalize(enc(self.bank_texts).float(), dim=-1)
         self.skeleton = R.Skeleton(c["smplx_npz"], c["signspark_repo"], device)
-        log(f"[text2sign] SignSparK hand/body/face ready on {device}, bf16 {self.amp} ({time.time() - t0:.0f}s)")
+        log(f"[text2sign] SignSparK hand/body/face ready on {device}, bf16 autocast {self.amp}, "
+            f"weights {getattr(self, 'weights_dtype', 'float32')}, shared text encoder "
+            f"{getattr(self, 'shared_text_encoder', False)} ({time.time() - t0:.0f}s)")
+
+    # ------------------------------------------------------------------ memory
+    def _share_text_encoder(self):
+        """One text encoder for all three streams instead of three copies (2.2 GB each).
+
+        Each stream model loads the same frozen M-CLIP encoder from Hugging Face when it is built and
+        never trains it (our weight files exclude it), so the three copies should be identical. That is
+        checked tensor by tensor before sharing; sharing identical weights cannot change any output."""
+        ref = self.models["hand"][0].text_enc_model
+        ref_sd = ref.state_dict()
+        for s in ("body", "face"):
+            model = self.models[s][0]
+            sd = model.text_enc_model.state_dict()
+            bad = [k for k in ref_sd if k not in sd or not torch.equal(ref_sd[k].cpu(), sd[k].cpu())]
+            if bad or len(sd) != len(ref_sd):
+                raise RuntimeError(f"text encoders differ between hand and {s} ({bad[:3]}); not sharing them")
+            model.text_enc_model = ref
+        self.shared_text_encoder = True
+        import gc
+        gc.collect()
+
+    def _cast_generators(self, dtype):
+        """Store each stream's generator (the UNet and its small embeddings) in `dtype`, halving its
+        memory. The text encoder stays fp32, so sentence embeddings are unchanged. Sampling already runs
+        under bf16 autocast, so the arithmetic is the same kind; what changes is that the weights
+        themselves are rounded to bf16 (scripts/check_bf16.py measures the effect)."""
+        if not self.amp:
+            raise RuntimeError(f"weights_dtype {dtype} needs bf16 autocast (a CUDA GPU with bf16)")
+        for s in STREAMS:
+            model = self.models[s][0]
+            for name, child in model.named_children():
+                if name != "text_enc_model":
+                    child.to(dtype)
+            for name, p in list(model._parameters.items()):
+                if p is not None and p.is_floating_point():
+                    p.data = p.data.to(dtype)
+            for name, b in list(model._buffers.items()):
+                if b is not None and b.is_floating_point():
+                    model._buffers[name] = b.to(dtype)
+        self.weights_dtype = str(dtype).replace("torch.", "")
+        if self.device.type == "cuda":
+            torch.cuda.empty_cache()
 
     # ------------------------------------------------------------------ generation
     def _retrieve(self, text: str) -> int:
@@ -204,6 +254,7 @@ class SignGenerator:
         jobs = {}
         for s in STREAMS:                                   # sequential: device transfer, masks, noise
             x, y = batches[s]
+            self.models[s][0].encode_text(sorted(set(y["text"])))   # cache it: one shared encoder, no thread races
             x = x.to(dev)
             y = dict(y, mask=y["mask"].to(dev))
             if keyed[s]:

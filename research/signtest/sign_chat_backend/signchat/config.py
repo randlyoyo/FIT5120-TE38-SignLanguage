@@ -54,6 +54,8 @@ DEFAULTS: dict = {
         "text_scale": 2.5,
         "sigma": 1.0,
         "seed": 0,
+        "share_text_encoder": True,     # one M-CLIP text encoder for hand / body / face (identical copies, -4.4 GB)
+        "weights_dtype": "float32",     # "bfloat16" halves the three generators (9.3 -> 4.7 GB); scripts/check_bf16.py
         "encoder_on_gpu": False,        # keep the three M-CLIP text encoders on the GPU (+6.6 GB, faster per sentence)
         "parallel_streams": True,       # sample hand / body / face at the same time (same result, less wait)
         "render_video": "async",        # skeleton mp4: "async" = after the reply, True = before it, False = never

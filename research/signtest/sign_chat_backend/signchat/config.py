@@ -35,6 +35,7 @@ DEFAULTS: dict = {
         "max_length": 256,              # frames fed to the model; longer clips are strided down
         "pose_device": "cpu",           # rtmlib/onnxruntime: "cuda" needs onnxruntime-gpu
         "pose_batch": 32,
+        "pose_cudnn_algo": "HEURISTIC",  # onnxruntime cudnn_conv_algo_search; EXHAUSTIVE (its default) was 2.5x slower
         "target_fps": 25,               # Auslan-Daily is 25 fps; faster webcams are resampled
         "max_seconds": 20,
         "min_person_frames": 0.5,       # fraction of frames with a visible signer, else rejected

@@ -44,13 +44,16 @@ DEFAULTS: dict = {
         "enabled": True,
         "code_dir": str(ROOT / "auslan_smplx"),         # signspark_ft.py / signspark_render.py
         "signspark_repo": "SignSparK",                  # clone of github.com/JianHe0628/SignSparK @ 22a0b4e
-        "weights_dir": "checkpoints/signspark_ft_smooth",   # hand.pt / body.pt / face.pt (round 2)
-        "bank_lmdb": "data/lmdb_smooth/train/AuslanDaily_train.lmdb",   # retrieval bank = round 2's training set
+        # hand.pt / body.pt / face.pt (round 2), or the slim copies from scripts/slim_assets.py
+        "weights_dir": "checkpoints/signspark_ft_smooth",
+        # retrieval bank = round 2's training set: the LMDB, or bank_compact.npz from scripts/slim_assets.py
+        "bank_lmdb": "data/lmdb_smooth/train/AuslanDaily_train.lmdb",
         "smplx_npz": "models/SMPLX_NEUTRAL_2020.npz",
         "steps": 20,
         "text_scale": 2.5,
         "sigma": 1.0,
         "seed": 0,
+        "encoder_on_gpu": False,        # keep the three M-CLIP text encoders on the GPU (+6.6 GB, faster per sentence)
         "render_video": True,           # skeleton mp4 for quick display; the avatar uses the pose JSON
         "video_size": 480,
     },

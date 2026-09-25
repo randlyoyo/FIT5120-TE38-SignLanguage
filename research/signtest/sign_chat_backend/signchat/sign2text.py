@@ -38,14 +38,24 @@ class SignRecognizer:
             import model_adapter
             import spec
             self.spec, self.dataset, self.extract_pose = spec, dataset, extract_pose
+            if c["pose_device"] == "cuda":
+                try:        # onnxruntime-gpu >= 1.21: load the CUDA / cuDNN libraries torch's wheels ship
+                    import onnxruntime
+                    onnxruntime.preload_dlls()
+                except Exception:
+                    pass
             self.extractor = extract_pose.PoseExtractor(device=c["pose_device"], pose_batch=c["pose_batch"])
             self.model = model_adapter.load_unisign(c["checkpoint"], c["unisign_repo"], c["mt5_path"],
                                                     device=str(device)).eval()
             # One pass through the whole model while the repo is still importable, so any import it
             # does on first use happens now (see _imports.py).
             self._decode(self._batch(np.zeros((8, 133, 2), np.float32), np.ones((8, 133), np.float32)))
+        # onnxruntime silently falls back to the CPU when CUDA cannot be loaded; say what actually runs
+        wb = self.extractor._wholebody
+        self.pose_providers = sorted({p for m in (wb.det_model, wb.pose_model)
+                                      for p in (getattr(getattr(m, "session", None), "get_providers", lambda: [])()[:1])})
         log(f"[sign2text] Uni-Sign ready on {device} ({time.time() - t0:.0f}s), "
-            f"pose model {self.extractor.model_tag} on {c['pose_device']}")
+            f"pose model {self.extractor.model_tag} requested {c['pose_device']}, running on {self.pose_providers}")
 
     # ------------------------------------------------------------------ steps
     def read_video(self, path: str, mirrored: bool = False):

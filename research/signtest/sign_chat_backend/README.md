@@ -126,6 +126,16 @@ colab_server.ipynb    GPU server + public URL on Colab
 - **Preprocessing matches training exactly.** Keypoints come from rtmlib `Wholebody` in lightweight mode with the largest person per frame. Videos are resampled to 25 fps and strided to at most 256 frames. Decoding is plain beam search with 4 beams. Text→sign runs 20 Euler steps, guidance 2.5, TF-IDF keyframe retrieval and σ=1 smoothing, the same as `colab_auslan_generate.ipynb`.
 - **transformers version.** SignSparK needs `transformers==4.56.1`, while Uni-Sign was trained under 5.16.1 in Colab. Both models run in one process, so Uni-Sign runs under 4.56.1 here. mT5 loads the same way on both versions. Beam-search output has not yet been compared between them; re-scoring the val set once through `/api/translate/sign-to-text` would confirm it.
 - **Memory.** Each SignSparK stream moves its 2.2 GB text encoder to the CPU after priming. The GPU holds the three generators, Uni-Sign (~2.4 GB) and Qwen-1.5B (~3 GB in bf16), which fits on a 16 GB T4. Requests share one lock for generation, so the server handles one sign generation at a time.
-- **Startup cost.** The original SignSparK weights are 3.1 GB per stream and the retrieval bank is 1.2 GB. `scripts/slim_assets.py` (section 2b of the notebook, run once) writes slim copies to Drive: tensors that building the model already reproduces bit for bit are dropped, and the bank keeps only keyframe rows plus stored sentence embeddings. It checks that loading gives identical tensors and identical keyframe batches. The server reads either form.
+- **Startup cost.** About 13 GB is copied from Drive once per runtime. The three SignSparK generators are 0.83B-parameter UNets stored in fp32 (3.1 GB each), and every tensor is trained: `scripts/slim_assets.py` found nothing redundant in them. Only the 1.2 GB retrieval bank can be compacted, to about 0.15 GB (notebook section 2b, optional). Storing the generators in bf16 would halve them, but outputs would change slightly, so it would need validation first.
 - **Using a big GPU.** On an A100 the notebook keeps the three M-CLIP text encoders on the GPU (`encoder_on_gpu`), runs pose extraction on the GPU in batches of 64, and uses Qwen2.5-7B for replies.
-- **Speed.** On a Mac CPU, pose extraction took ~10 s for a 3 s clip. Set `pose_device: cuda` (needs onnxruntime-gpu) on the server.
+- **Speed and memory, measured on an A100 (2026-09-25).**
+
+  | | time |
+  |---|---|
+  | text turn (5 turns) | 5.8 s mean, 6.8 s max: dialogue (Qwen-7B) 0.2 s + signing 5.6 s |
+  | recognition (6 test clips) | 2.5–6.3 s per clip: pose extraction 2.4–5.9 s + Uni-Sign 0.3 s |
+  | signed turn (1 turn) | 8.2 s: recognition 3.4 s + dialogue 0.4 s + signing 4.5 s |
+
+  GPU memory was 35.3 GB with Qwen-7B and the text encoders on the GPU. Estimated split: signing about 16 GB, Qwen-7B about 15 GB, recognition about 3 GB. System RAM was 8 GB.
+  Pose extraction looked CPU-bound in that run. `/api/health` now reports `pose_providers`, and the notebook installs only `onnxruntime-gpu`, because rtmlib's CPU `onnxruntime` shadows the GPU build when both are installed.
+  None of this fits a CPU web host such as Railway. Run this service on a GPU machine and have the web server call it over HTTP.

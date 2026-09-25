@@ -101,7 +101,8 @@ class ChatPipeline:
         return {"mock": bool(self.cfg["mock"]), "device": str(self.device),
                 "components": {n: {"ready": getattr(self, a) is not None, "error": self.errors.get(n)}
                                for n, a in (("sign2text", "recognizer"), ("text2sign", "generator"), ("dialogue", "dialogue"))},
-                "dialogue_backend": getattr(self.dialogue, "name", None)}
+                "dialogue_backend": getattr(self.dialogue, "name", None),
+                "pose_providers": getattr(self.recognizer, "pose_providers", None)}
 
     def _need(self, attr: str, name: str):
         obj = getattr(self, attr)

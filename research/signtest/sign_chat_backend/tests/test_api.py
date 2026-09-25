@@ -44,6 +44,7 @@ def test_chat_text_keeps_session_and_serves_pose(client):
     assert body["reply"]["text"] == "Hello, how are you?"                 # echo backend
     sign = body["reply"]["sign"]
     assert sign["pose_url"].startswith("/media/") and sign["frames"] >= 20
+    assert sign["video_status"] in ("ready", "off")
     pose = client.get(sign["pose_url"]).json()
     assert pose["format"] == "smplx-v1" and len(pose["smplx"]["body_pose"]) == sign["frames"]
     assert len(pose["smplx"]["body_pose"][0]) == 63 and len(pose["joints"][0]) == 127

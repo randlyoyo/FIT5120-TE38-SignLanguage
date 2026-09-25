@@ -52,8 +52,9 @@ class MockGenerator:
         with open(os.path.join(out_dir, f"{name}.json"), "w") as fh:
             json.dump(pose, fh, separators=(",", ":"))
         video = self._video(os.path.join(out_dir, f"{name}.mp4"), sentence, T) if self.cfg["render_video"] else None
-        return {"pose_file": f"{name}.json", "video_file": video, "frames": T, "fps": FPS, "retrieved": "", "seen": False,
-                "timings": {"generate": round(time.time() - t0, 3), "render": 0.0}, "mock": True}
+        return {"pose_file": f"{name}.json", "video_file": video, "video_status": "ready" if video else "off",
+                "frames": T, "fps": FPS, "retrieved": "", "seen": False,
+                "timings": {"generate": round(time.time() - t0, 3), "write": 0.0}, "mock": True}
 
     @staticmethod
     def _video(path, sentence, T):

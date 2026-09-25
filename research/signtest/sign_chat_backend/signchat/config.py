@@ -55,7 +55,8 @@ DEFAULTS: dict = {
         "sigma": 1.0,
         "seed": 0,
         "encoder_on_gpu": False,        # keep the three M-CLIP text encoders on the GPU (+6.6 GB, faster per sentence)
-        "render_video": True,           # skeleton mp4 for quick display; the avatar uses the pose JSON
+        "parallel_streams": True,       # sample hand / body / face at the same time (same result, less wait)
+        "render_video": "async",        # skeleton mp4: "async" = after the reply, True = before it, False = never
         "video_size": 480,
     },
 

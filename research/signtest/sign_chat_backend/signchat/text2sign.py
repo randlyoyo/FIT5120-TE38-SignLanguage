@@ -163,24 +163,84 @@ class SignGenerator:
         score = score + 1e-3 * (emb @ self.bank_emb.T).cpu().numpy()[0]
         return int(score.argmax())
 
-    def features(self, sentence: str) -> dict:
-        """One sentence -> hand (T, 180), body (T, 60), face (T, 56) in the loader's convention."""
+    def features(self, sentence: str, parallel: bool | None = None) -> dict:
+        """One sentence -> hand (T, 180), body (T, 60), face (T, 56) in the loader's convention.
+
+        parallel (config `parallel_streams`): the three streams are independent models, so they are
+        sampled at the same time, each in its own thread and CUDA stream, instead of one after the
+        other. The result is meant to be identical: each stream's noise is drawn up front exactly as
+        signspark_render.sample_* draws it (fork_rng + manual_seed(seed * 1000) + randn_like), because
+        the global RNG must not be seeded from three threads at once; the ODE solve itself is
+        deterministic. parallel=False runs signspark_render's own sample_* functions, the reference
+        that scripts/check_parallel.py compares against."""
         R, c = self.R, self.cfg
+        parallel = c.get("parallel_streams", True) if parallel is None else parallel
         text = f"<Auslan> {R.normalise(sentence)}"
         T = R.est_length(R._untag(text), self.len_a, self.len_b)
         seen = text in self.bank_set
         entry = expand_entry(self.bank[self._retrieve(text)])
-        out = {}
-        for s in STREAMS:
-            model, flow = self.models[s]
-            if s == "hand" or seen:
-                arr, _ = R.sample_keyframed(model, flow, [R.keyframe_batch(s, [text], [T], [entry])],
-                                            self.amp, self.device, c["steps"], c["seed"])
-            else:
-                arr = R.sample_text_only(model, flow, [R.text_batch(s, [text], [T])],
-                                         self.amp, self.device, c["steps"], c["text_scale"], c["seed"])
-            out[s] = R.smooth_stream(s, R.per_clip(s, arr, [T])[0], c["sigma"])
+        keyed = {s: s == "hand" or seen for s in STREAMS}
+        batches = {s: R.keyframe_batch(s, [text], [T], [entry]) if keyed[s] else R.text_batch(s, [text], [T])
+                   for s in STREAMS}
+        if parallel and self.device.type == "cuda":
+            arrays = self._sample_parallel(batches, keyed)
+        else:
+            arrays = {}
+            for s in STREAMS:
+                model, flow = self.models[s]
+                if keyed[s]:
+                    arrays[s], _ = R.sample_keyframed(model, flow, [batches[s]], self.amp, self.device, c["steps"], c["seed"])
+                else:
+                    arrays[s] = R.sample_text_only(model, flow, [batches[s]], self.amp, self.device,
+                                                   c["steps"], c["text_scale"], c["seed"])
+        out = {s: R.smooth_stream(s, R.per_clip(s, arrays[s], [T])[0], c["sigma"]) for s in STREAMS}
         return {"sentence": sentence, "text": text, "retrieved": R._untag(entry["text"]), "seen": seen, "T": T, **out}
+
+    def _sample_parallel(self, batches: dict, keyed: dict) -> dict:
+        """signspark_render.sample_keyframed / sample_text_only for one batch per stream, run concurrently.
+        Same inputs, noise, masks, guidance and solver; only the noise is drawn before the threads start."""
+        from concurrent.futures import ThreadPoolExecutor
+        R, ft, c, dev = self.R, self.ft, self.cfg, self.device
+        jobs = {}
+        for s in STREAMS:                                   # sequential: device transfer, masks, noise
+            x, y = batches[s]
+            x = x.to(dev)
+            y = dict(y, mask=y["mask"].to(dev))
+            if keyed[s]:
+                B, J, T = x.shape
+                obs = ft.kf_mask(y["keyframes"], B, J, T).to(dev).contiguous()
+            else:
+                obs = torch.zeros(x.shape, dtype=torch.bool, device=dev)
+            with torch.random.fork_rng(devices=[dev]):
+                torch.manual_seed(c["seed"] * 1000)         # batch index 0, as in sample_*
+                noise = torch.randn_like(x)
+            jobs[s] = (x, y, obs, noise)
+        if not hasattr(self, "_streams"):
+            self._streams = {s: torch.cuda.Stream(device=dev) for s in STREAMS}
+            self._pool = ThreadPoolExecutor(len(STREAMS), thread_name_prefix="signspark")
+        main = torch.cuda.current_stream(dev)
+
+        def run(s):
+            model, flow = self.models[s]
+            x, y, obs, noise = jobs[s]
+            cs = self._streams[s]
+            cs.wait_stream(main)                            # inputs were made on the main stream
+            with torch.no_grad(), torch.cuda.stream(cs):    # grad mode and the stream are per thread
+                ft.set_mode(model, False)
+                fwd = ft.Amp(model, self.amp)
+                if keyed[s]:
+                    fn = fwd
+                else:
+                    def fn(xx, t, y=None, obs_x0=None, obs_mask=None):
+                        o = fwd(xx, t, y=y, obs_x0=obs_x0, obs_mask=obs_mask)
+                        u = fwd(xx, t, y=dict(y, uncond=True), obs_x0=obs_x0, obs_mask=obs_mask)
+                        return u + c["text_scale"] * (o - u)
+                out, _ = flow.decode(fn, noise=noise, keyframe_mask=obs, x_embed=x,
+                                     model_kwargs={"y": y, "obs_x0": x, "obs_mask": obs},
+                                     ode_package="torchdiffeq", ode_stepnum=c["steps"])
+                return [out.float().cpu().numpy()]         # .cpu() waits for this stream
+
+        return dict(zip(STREAMS, self._pool.map(run, STREAMS)))
 
     @torch.no_grad()
     def smplx(self, f: dict) -> tuple[dict, np.ndarray]:
@@ -194,7 +254,12 @@ class SignGenerator:
         return params, joints
 
     def generate(self, sentence: str, out_dir: str, name: str) -> dict:
-        """Sentence -> files in out_dir: <name>.json (pose for the avatar) and <name>.mp4 (optional)."""
+        """Sentence -> <name>.json in out_dir (pose for the avatar), and <name>.mp4 (skeleton video).
+
+        With render_video "async" (the default) the reply returns as soon as the pose JSON is written
+        and the mp4 is drawn by a background thread (CPU and ffmpeg only, ~0.6-1.6 s); it appears at
+        video_url when done (video_status "rendering"; 404 until then). True renders before replying,
+        False never."""
         import json
         t0 = time.time()
         with self.lock:                     # one generation on the GPU at a time
@@ -214,13 +279,34 @@ class SignGenerator:
             "parents": self.skeleton.parents.tolist(),
         }
         os.makedirs(out_dir, exist_ok=True)
-        with open(os.path.join(out_dir, f"{name}.json"), "w") as fh:
+        tmp = os.path.join(out_dir, f".{name}.json.part")
+        with open(tmp, "w") as fh:
             json.dump(pose, fh, separators=(",", ":"))
-        video = None
-        if self.cfg["render_video"]:
-            video = f"{name}.mp4"
-            self.R.write_video(os.path.join(out_dir, video), [joints], ["Auslan"], self.skeleton.parents,
+        os.replace(tmp, os.path.join(out_dir, f"{name}.json"))
+
+        mode = self.cfg["render_video"]
+        video, status = (f"{name}.mp4", "ready") if mode else (None, "off")
+        if mode == "async":
+            if not hasattr(self, "_render_pool"):
+                from concurrent.futures import ThreadPoolExecutor
+                self._render_pool = ThreadPoolExecutor(2, thread_name_prefix="render")
+            self._render_pool.submit(self._render, out_dir, name, joints, sentence)
+            status = "rendering"
+        elif mode:
+            self._render(out_dir, name, joints, sentence)
+        return {"pose_file": f"{name}.json", "video_file": video, "video_status": status, "frames": int(f["T"]),
+                "fps": self.R.FPS, "retrieved": f["retrieved"], "seen": bool(f["seen"]),
+                "timings": {"generate": round(t1 - t0, 3), "write": round(time.time() - t1, 3)}}
+
+    def _render(self, out_dir, name, joints, sentence):
+        """Draw to a hidden temporary name and rename, so video_url never serves a half-written file."""
+        tmp = os.path.join(out_dir, f".{name}.part.mp4")
+        try:
+            self.R.write_video(tmp, [joints], ["Auslan"], self.skeleton.parents,
                                size=self.cfg["video_size"], caption=sentence)
-        return {"pose_file": f"{name}.json", "video_file": video, "frames": int(f["T"]), "fps": self.R.FPS,
-                "retrieved": f["retrieved"], "seen": bool(f["seen"]),
-                "timings": {"generate": round(t1 - t0, 3), "render": round(time.time() - t1, 3)}}
+            os.replace(tmp, os.path.join(out_dir, f"{name}.mp4"))
+        except Exception as e:              # a failed video must not take the server down
+            print(f"[text2sign] rendering {name}.mp4 failed: {type(e).__name__}: {e}", flush=True)
+            for leftover in (tmp, tmp + ".tmp.mp4"):        # write_video's own intermediate file
+                if os.path.exists(leftover):
+                    os.remove(leftover)

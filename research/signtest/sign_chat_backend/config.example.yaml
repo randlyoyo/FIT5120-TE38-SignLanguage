@@ -23,7 +23,8 @@ text2sign:
   weights_dir: /content/signchat_local/signspark_ft_smooth    # hand.pt body.pt face.pt (round 2), copied from Drive
   bank_lmdb: /content/signchat_local/bank/AuslanDaily_train.lmdb
   smplx_npz: /content/signchat_local/SMPLX_NEUTRAL_2020.npz
-  render_video: true
+  parallel_streams: true       # hand / body / face sampled at the same time
+  render_video: async          # skeleton mp4 drawn after the reply ("async"), before it (true), or never (false)
 
 dialogue:
   backend: hf                  # hf | openai | anthropic | echo

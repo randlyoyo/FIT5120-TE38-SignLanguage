@@ -20,17 +20,36 @@ import re
 DEFAULT_SYSTEM_PROMPT = (
     "You are a friendly avatar in a chat app who talks with Deaf and hard-of-hearing users in Auslan "
     "(Australian Sign Language). Your replies are turned into signing, so reply with ONE short, simple, "
-    "everyday English sentence of at most 12 words. Use common words. No emojis, lists, markdown, "
+    "everyday English sentence of at most 12 words. Use common words and no contractions (say I am, "
+    "do not). No emojis, lists, markdown, "
     "numbers written as digits, or quotation marks. Do not mention that you are an AI unless asked. "
     "The user's message may come from sign recognition and contain mistakes; if it is unclear, "
     "ask them kindly to sign it again."
 )
 
 
+# Contractions are expanded: the signing model's retrieval splits words on apostrophes, so "I'm"
+# became "i" + "m", and a rare lone "m" matched an unrelated training sentence ("m ok .").
+_CONTRACTIONS = [(r"\bcan't\b", "cannot"), (r"\bwon't\b", "will not"), (r"\bshan't\b", "shall not"),
+                 (r"\blet's\b", "let us"), (r"\bi'm\b", "I am"), (r"n't\b", " not"), (r"'re\b", " are"),
+                 (r"'ve\b", " have"), (r"'ll\b", " will"), (r"'d\b", " would"),
+                 (r"\b(it|that|what|there|here|who|where|how|he|she)'s\b", r"\1 is")]
+
+
+def expand_contractions(text: str) -> str:
+    t = text.replace("\u2019", "'")
+    for pat, rep in _CONTRACTIONS:
+        def sub(m, rep=rep):
+            out = m.expand(rep)
+            return out[:1].upper() + out[1:] if m.group(0)[:1].isupper() else out
+        t = re.sub(pat, sub, t, flags=re.IGNORECASE)
+    return t
+
+
 def clean_reply(text: str, max_words: int) -> str:
     """Plain words, whole sentences while they fit in max_words (at least the first, cut to fit),
     ending in punctuation."""
-    t = re.sub(r"[*_`#>\"“”]|\[[^\]]*\]\([^)]*\)", "", text or "").strip()
+    t = re.sub(r"[*_`#>\"“”]|\[[^\]]*\]\([^)]*\)", "", expand_contractions(text or "")).strip()
     t = re.sub(r"\s+", " ", t)
     kept = []
     for s in re.findall(r"[^.!?]+[.!?]*", t):

@@ -45,6 +45,8 @@ class SignRecognizer:
                 except Exception:
                     pass
             self.extractor = extract_pose.PoseExtractor(device=c["pose_device"], pose_batch=c["pose_batch"])
+            if c["pose_device"] == "cuda":
+                self.set_cudnn_algo(c.get("pose_cudnn_algo", "HEURISTIC"))
             self.model = model_adapter.load_unisign(c["checkpoint"], c["unisign_repo"], c["mt5_path"],
                                                     device=str(device)).eval()
             # One pass through the whole model while the repo is still importable, so any import it
@@ -55,7 +57,22 @@ class SignRecognizer:
         self.pose_providers = sorted({p for m in (wb.det_model, wb.pose_model)
                                       for p in (getattr(getattr(m, "session", None), "get_providers", lambda: [])()[:1])})
         log(f"[sign2text] Uni-Sign ready on {device} ({time.time() - t0:.0f}s), "
-            f"pose model {self.extractor.model_tag} requested {c['pose_device']}, running on {self.pose_providers}")
+            f"pose model {self.extractor.model_tag} requested {c['pose_device']}, running on {self.pose_providers}"
+            f"{', cudnn ' + self.cudnn_algo if getattr(self, 'cudnn_algo', None) else ''}")
+
+    def set_cudnn_algo(self, algo: str) -> None:
+        """Rebuild the detector and pose sessions with onnxruntime's cudnn_conv_algo_search = algo.
+        onnxruntime's default, EXHAUSTIVE, benchmarks every convolution algorithm for each new input
+        shape, and in steady state the algorithms it picked for these depthwise models were slow:
+        27 ms/frame for the pose model on an A100 against 3.8 ms with HEURISTIC; 40 vs 16 ms/frame
+        overall (scripts/profile_pose.py). Confident keypoints moved by 0.02 px median (p99 2.5 px),
+        the chosen person never changed; scripts/check_pose_setting.py compares the translations."""
+        import onnxruntime as ort
+        opts = [("CUDAExecutionProvider", {"cudnn_conv_algo_search": algo}), "CPUExecutionProvider"]
+        wb = self.extractor._wholebody
+        for m in (wb.det_model, wb.pose_model):
+            m.session = ort.InferenceSession(m.session._model_path, providers=opts)
+        self.cudnn_algo = algo
 
     # ------------------------------------------------------------------ steps
     def read_video(self, path: str, mirrored: bool = False):

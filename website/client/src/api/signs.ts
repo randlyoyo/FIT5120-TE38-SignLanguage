@@ -1,10 +1,22 @@
-import type { Sign, SignsResponse, TagCount } from "./types";
+import type { Sign, SignLevel, SignsResponse, TagCount } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
+
+export type SignSort =
+  | "gloss_asc"
+  | "gloss_desc"
+  | "id_asc"
+  | "id_desc"
+  | "level_asc"
+  | "level_desc"
+  | "popularity_asc"
+  | "popularity_desc";
 
 export interface FetchSignsParams {
   query?: string;
   tag?: string;
+  level?: SignLevel;
+  sort?: SignSort;
   page?: number;
   pageSize?: number;
   signal?: AbortSignal;
@@ -13,6 +25,8 @@ export interface FetchSignsParams {
 export async function fetchSigns({
   query,
   tag,
+  level,
+  sort,
   page,
   pageSize,
   signal,
@@ -20,6 +34,8 @@ export async function fetchSigns({
   const params = new URLSearchParams();
   if (query) params.set("query", query);
   if (tag) params.set("tag", tag);
+  if (level) params.set("level", level);
+  if (sort) params.set("sort", sort);
   if (page) params.set("page", String(page));
   if (pageSize) params.set("pageSize", String(pageSize));
 

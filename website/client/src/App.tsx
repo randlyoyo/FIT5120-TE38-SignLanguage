@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { SiteHeader } from "./components/SiteHeader";
+import { ConversationPage } from "./pages/ConversationPage";
 import { HomePage } from "./pages/HomePage";
 import { LearnedSignsPage } from "./pages/LearnedSignsPage";
 import { SignDetailPage } from "./pages/SignDetailPage";
@@ -22,6 +23,7 @@ function App() {
         <Route path="/to-learn" element={<ToLearnPage />} />
         <Route path="/learned" element={<LearnedSignsPage />} />
         <Route path="/signs/:id" element={<SignDetailPage />} />
+        <Route path="/conversation" element={<ConversationPage />} />
       </Routes>
     </>
   );

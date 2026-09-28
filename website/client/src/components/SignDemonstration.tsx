@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { SignVideo } from "../api/types";
+import { StickFigureStage } from "./StickFigureStage";
 
 const SPEEDS = [0.5, 1, 2] as const;
 
@@ -11,6 +12,7 @@ interface Props {
 export function SignDemonstration({ gloss, videos }: Props) {
   const [videoIndex, setVideoIndex] = useState(0);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
+  const [view, setView] = useState<"video" | "skeleton">("video");
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const availableVideos = videos.filter((video) => Boolean(video.videoUrl));
@@ -29,18 +31,27 @@ export function SignDemonstration({ gloss, videos }: Props) {
     }
   }, [speed, videoIndex]);
 
-  if (availableVideos.length === 0) {
-    return (
-      <div className="sign-demo">
+  return (
+    <div className="sign-demo">
+      <div className="video-variants sign-demo-view-toggle" role="group" aria-label="Video or AI skeleton preview">
+        <button type="button" className={view === "video" ? "active" : ""} onClick={() => setView("video")}>
+          Video
+        </button>
+        <button type="button" className={view === "skeleton" ? "active" : ""} onClick={() => setView("skeleton")}>
+          Skeleton preview
+        </button>
+      </div>
+
+      {view === "skeleton" ? (
+        <StickFigureStage
+          caption="Replays the sign as a motion-capture skeleton instead of video."
+        />
+      ) : availableVideos.length === 0 ? (
         <p className="demo-empty">
           No demonstration video is available for this sign yet.
         </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="sign-demo">
+      ) : (
+        <>
       <div className="sign-demo-stage">
         <video
           ref={videoRef}
@@ -146,6 +157,8 @@ export function SignDemonstration({ gloss, videos }: Props) {
           </select>
         </label>
       </div>
+        </>
+      )}
     </div>
   );
 }

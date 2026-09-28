@@ -10,6 +10,8 @@ export interface SignVideo {
   movementDescription: string | null;
 }
 
+export type SignLevel = "beginner" | "intermediate" | "advanced";
+
 export interface Sign {
   id: number;
   gloss: string;
@@ -20,6 +22,10 @@ export interface Sign {
   keywords: string[];
   videos?: SignVideo[];
   previewVideo?: SignVideo | null;
+  /** Estimated difficulty (server/src/utils/difficulty.js) -- there's no
+   *  real pedagogical rating in the dataset, so this is a heuristic based
+   *  on gloss length/shape and how many senses and keywords it carries. */
+  level?: SignLevel;
 }
 
 export interface PaginationMeta {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { fetchRecognitionVocabulary, type IdentifyCandidate } from "../api/recognize";
-import { fetchSigns } from "../api/signs";
+import { fetchSigns, type SignSort } from "../api/signs";
 import { CategoryRail } from "../components/CategoryRail";
 import { EmptyState } from "../components/EmptyState";
 import { HandGlyphPagination } from "../components/Pagination/HandGlyphPagination";
@@ -12,13 +12,35 @@ import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useSignSearch } from "../hooks/useSignSearch";
 import { useTags } from "../hooks/useTags";
 import { tagChipStyle } from "../lib/tagColors";
-import type { Sign } from "../api/types";
+import type { Sign, SignLevel } from "../api/types";
+
+const LEVEL_FILTERS: { id: SignLevel; label: string }[] = [
+  { id: "beginner", label: "Beginner" },
+  { id: "intermediate", label: "Intermediate" },
+  { id: "advanced", label: "Advanced" },
+];
+
+// Difficulty and popularity aren't in the dataset -- both are estimated
+// (server/src/utils/difficulty.js, server/src/utils/popularity.js); the
+// rest are plain fields every sign already has.
+const SORT_OPTIONS: { id: SignSort; label: string }[] = [
+  { id: "gloss_asc", label: "A → Z" },
+  { id: "gloss_desc", label: "Z → A" },
+  { id: "id_asc", label: "Catalog no., low to high" },
+  { id: "id_desc", label: "Catalog no., high to low" },
+  { id: "level_asc", label: "Easiest first" },
+  { id: "level_desc", label: "Hardest first" },
+  { id: "popularity_asc", label: "Most common first" },
+  { id: "popularity_desc", label: "Most obscure first" },
+];
 
 export function SignLibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const page = Number(searchParams.get("page")) || 1;
   const tag = searchParams.get("tag") ?? "";
+  const level = (searchParams.get("level") ?? "") as SignLevel | "";
+  const sort = (searchParams.get("sort") ?? "") as SignSort | "";
 
   // The search input keeps its own local state so every keystroke feels
   // instant. Routing every keystroke through useSearchParams (which is
@@ -82,8 +104,28 @@ export function SignLibraryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery]);
 
-  const { data, isLoading, isError } = useSignSearch({ query: debouncedQuery, tag, page });
+  const { data, isLoading, isError } = useSignSearch({ query: debouncedQuery, tag, level, sort, page });
   const tags = useTags();
+
+  function setLevel(next: SignLevel | "") {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (next) params.set("level", next);
+      else params.delete("level");
+      params.delete("page");
+      return params;
+    });
+  }
+
+  function setSort(next: SignSort | "") {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (next) params.set("sort", next);
+      else params.delete("sort");
+      params.delete("page");
+      return params;
+    });
+  }
 
   function updateParams(next: { page?: number }) {
     setSearchParams((prev) => {
@@ -185,6 +227,49 @@ export function SignLibraryPage() {
               <CategoryRail tags={tags} activeTag={tag} />
 
               <div className="library-main">
+                <div className="library-filter-bar">
+                  <div className="detail-mode-toggle library-level-toggle" role="tablist" aria-label="Filter by estimated difficulty">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={level === ""}
+                      className={`detail-mode-tab ${level === "" ? "active" : ""}`}
+                      onClick={() => setLevel("")}
+                    >
+                      All levels
+                    </button>
+                    {LEVEL_FILTERS.map(({ id, label }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        role="tab"
+                        aria-selected={level === id}
+                        className={`detail-mode-tab ${level === id ? "active" : ""}`}
+                        onClick={() => setLevel(id)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <label className="library-sort-select">
+                    Sort
+                    <select
+                      value={sort}
+                      disabled={Boolean(debouncedQuery)}
+                      title={debouncedQuery ? "Sort is ignored while searching -- results are ranked by relevance instead" : undefined}
+                      onChange={(e) => setSort(e.target.value as SignSort | "")}
+                    >
+                      <option value="">Relevance / A to Z</option>
+                      {SORT_OPTIONS.filter((o) => o.id !== "gloss_asc").map(({ id, label }) => (
+                        <option key={id} value={id}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
                 {tag && (
                   <div className="active-tag-filter">
                     <span style={tagChipStyle(tag)} className="tag-chip">

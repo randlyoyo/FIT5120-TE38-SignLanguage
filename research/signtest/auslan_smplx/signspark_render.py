@@ -528,8 +528,8 @@ def _draw(img, P, bone_list, face=True, width=2):
             cv2.circle(img, tuple(P[k]), 1, (40, 40, 40), -1, cv2.LINE_AA)
 
 
-def panel(J, size, bbox, hbox, bone_list, title):
-    """Upper body on top, right hand close-up below, one column of the video."""
+def panel(J, size, bbox, hbox, bone_list, title, hand_closeup=True):
+    """Upper body on top, right hand close-up below (unless hand_closeup=False), one column of the video."""
     import cv2
     top = np.full((size, size, 3), 255, np.uint8)
     (x0, y0), s = bbox
@@ -539,6 +539,8 @@ def panel(J, size, bbox, hbox, bone_list, title):
     while scale > 0.3 and cv2.getTextSize(title, cv2.FONT_HERSHEY_SIMPLEX, scale, 1)[0][0] > size - 12:
         scale -= 0.05
     cv2.putText(top, title, (6, 22), cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0), 1, cv2.LINE_AA)
+    if not hand_closeup:
+        return top
     h = size // 2
     low = np.full((h, size, 3), 248, np.uint8)
     hscale, off = hbox
@@ -551,8 +553,9 @@ def panel(J, size, bbox, hbox, bone_list, title):
     return np.concatenate([top, low], 0)
 
 
-def write_video(path, clips, titles, parents, size=400, caption=''):
-    """clips: list of (T_i, 127, 3); shorter clips hold their last frame."""
+def write_video(path, clips, titles, parents, size=400, caption='', hand_closeup=True):
+    """clips: list of (T_i, 127, 3); shorter clips hold their last frame. hand_closeup=False drops the
+    right-hand panel under each column (the chat video shows the signer only)."""
     import cv2
     bbox = body_box(clips, size)
     hbox = hand_box(clips, size)
@@ -560,7 +563,7 @@ def write_video(path, clips, titles, parents, size=400, caption=''):
     T = max(len(c) for c in clips)
     frames = []
     for t in range(T):
-        row = np.concatenate([panel(c[min(t, len(c) - 1)], size, bbox, hbox, bl, lab) for c, lab in zip(clips, titles)], 1)
+        row = np.concatenate([panel(c[min(t, len(c) - 1)], size, bbox, hbox, bl, lab, hand_closeup) for c, lab in zip(clips, titles)], 1)
         if caption:
             bar = np.full((28, row.shape[1], 3), 255, np.uint8)
             cv2.putText(bar, caption[:110], (8, 19), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)

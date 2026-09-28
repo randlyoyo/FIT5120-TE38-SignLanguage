@@ -358,7 +358,7 @@ class SignGenerator:
         tmp = os.path.join(out_dir, f".{name}.part.mp4")
         try:
             self.R.write_video(tmp, [joints], ["Auslan"], self.skeleton.parents,
-                               size=self.cfg["video_size"], caption=sentence)
+                               size=self.cfg["video_size"], caption=sentence, hand_closeup=False)
             os.replace(tmp, os.path.join(out_dir, f"{name}.mp4"))
         except Exception as e:              # a failed video must not take the server down
             print(f"[text2sign] rendering {name}.mp4 failed: {type(e).__name__}: {e}", flush=True)

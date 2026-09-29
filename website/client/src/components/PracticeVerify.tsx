@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { RecognizeApiError, verifySign, type VerifyResult, type VerifyTier } from "../api/recognize";
 import { captureLandmarks, type CapturePhase } from "../lib/landmarks";
+import { ScoreGauge } from "./ScoreGauge";
 
 // A safety net, not a target duration: capture normally ends on its own a
 // short moment after the signer goes still (captureLandmarks' motion-based
@@ -11,6 +12,11 @@ import { captureLandmarks, type CapturePhase } from "../lib/landmarks";
 // instant it hits zero.
 const MAX_CAPTURE_MS = 8000;
 const COUNTDOWN_S = 3;
+// A floor, not a target -- the "Checking…" spinner reads as a flicker if
+// the server answers in under a blink, so it stays up at least this long
+// even when the real request is faster. A slower real response is never
+// cut short to match it.
+const CHECKING_MIN_MS = 400;
 
 type Phase = "idle" | "requesting-camera" | "countdown" | "capturing" | "checking" | "result" | "error";
 
@@ -109,7 +115,11 @@ export function PracticeVerify({ gloss }: Props) {
       });
 
       setPhase("checking");
-      setResult(await verifySign(gloss, capture));
+      const [result] = await Promise.all([
+        verifySign(gloss, capture),
+        new Promise((resolve) => setTimeout(resolve, CHECKING_MIN_MS)),
+      ]);
+      setResult(result);
       setPhase("result");
     } catch (err) {
       setErrorMessage(messageFor(err));
@@ -143,15 +153,20 @@ export function PracticeVerify({ gloss }: Props) {
               {capturePhase === "settling" && "Got it — finishing up…"}
             </div>
           )}
-          {phase === "checking" && <div className="practice-overlay">Checking…</div>}
+          {phase === "checking" && (
+            <div className="practice-overlay practice-checking">
+              <span className="practice-spinner" aria-hidden="true" />
+              <span>Checking…</span>
+            </div>
+          )}
         </div>
       )}
 
       {phase === "result" && result && (
         <div className={`practice-result tier-${result.tier}`}>
           <p className="practice-result-tier">{tierLabel(result.tier)}</p>
+          <ScoreGauge score={result.score} />
           <p className="practice-result-feedback">{result.feedback}</p>
-          <p className="practice-result-score">Accuracy: {result.score}%</p>
         </div>
       )}
 

@@ -2178,6 +2178,30 @@ input:focus-visible {
   background: rgba(0, 0, 0, 0.45);
 }
 
+.practice-overlay.practice-checking {
+  flex-direction: column;
+  gap: 0.85rem;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.practice-spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 999px;
+  animation: practice-spinner-spin 0.7s linear infinite;
+}
+
+@keyframes practice-spinner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .practice-result {
   margin-top: 1.25rem;
 }
@@ -2209,12 +2233,116 @@ input:focus-visible {
   margin: 0 0 0.6rem;
 }
 
-.practice-result-score {
+/* Score gauge -- a speedometer-style reveal (ScoreGauge.tsx) instead of
+   the score just appearing as text: the needle climbs from 0 to the real
+   score on mount. No pre-drawn tier bands -- the track behind the needle
+   simply fills in accent blue as it sweeps past, a thick ring matching the
+   catalogue system's own "index card" weight rather than a thin dial. */
+.score-gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.score-gauge-svg {
+  width: 220px;
+  height: 176px;
+  overflow: visible;
+}
+
+.score-gauge-track-bg {
+  stroke: var(--color-border);
+  stroke-linecap: butt;
+}
+
+.score-gauge-track-fill {
+  stroke: var(--color-accent);
+  stroke-linecap: butt;
+}
+
+.score-gauge-needle {
+  stroke: var(--color-text);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.score-gauge-hub {
+  fill: var(--color-text);
+}
+
+.score-gauge-readout {
+  position: relative;
+  margin-top: -2rem;
+}
+
+.score-gauge-value {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1;
+}
+
+/* The one celebratory color break in this system -- reaching the top tier
+   is worth a real "you got it" signal, not just another shade of blue. */
+.score-gauge-value.celebrate {
+  color: #3a7a4a;
+  animation: score-gauge-value-pop 0.5s ease-out;
+}
+
+@keyframes score-gauge-value-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+
+.score-gauge-sparks {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.score-gauge-spark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  margin: -3px;
+  border-radius: 999px;
+  transform: rotate(var(--spark-angle)) translateY(0);
+  animation: score-gauge-spark-burst 0.7s ease-out forwards;
+}
+
+.score-gauge-spark.spark-accent {
+  background: var(--color-accent);
+}
+
+.score-gauge-spark.spark-success {
+  background: #3a7a4a;
+}
+
+@keyframes score-gauge-spark-burst {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--spark-angle)) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--spark-angle)) translateY(-48px) scale(0.4);
+  }
+}
+
+.score-gauge-caption {
+  margin: 0.15rem 0 0;
   color: var(--color-text-muted);
   font-size: 0.78rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  margin: 0;
 }
 
 .practice-error {

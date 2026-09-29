@@ -14,8 +14,6 @@ const router = express.Router();
 const SORTS = {
   gloss_asc: "gloss ASC",
   gloss_desc: "gloss DESC",
-  id_asc: "id ASC",
-  id_desc: "id DESC",
   level_asc: "difficulty_score ASC, gloss ASC",
   level_desc: "difficulty_score DESC, gloss ASC",
 };

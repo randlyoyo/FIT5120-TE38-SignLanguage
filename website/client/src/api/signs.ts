@@ -5,8 +5,6 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 export type SignSort =
   | "gloss_asc"
   | "gloss_desc"
-  | "id_asc"
-  | "id_desc"
   | "level_asc"
   | "level_desc"
   | "popularity_asc"

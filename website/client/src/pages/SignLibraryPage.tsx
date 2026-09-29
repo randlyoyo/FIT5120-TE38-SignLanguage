@@ -20,19 +20,35 @@ const LEVEL_FILTERS: { id: SignLevel; label: string }[] = [
   { id: "advanced", label: "Advanced" },
 ];
 
-// Difficulty and popularity aren't in the dataset -- both are estimated
-// (server/src/utils/difficulty.js, server/src/utils/popularity.js); the
-// rest are plain fields every sign already has.
-const SORT_OPTIONS: { id: SignSort; label: string }[] = [
-  { id: "gloss_asc", label: "A → Z" },
-  { id: "gloss_desc", label: "Z → A" },
-  { id: "id_asc", label: "Catalog no., low to high" },
-  { id: "id_desc", label: "Catalog no., high to low" },
-  { id: "level_asc", label: "Easiest first" },
-  { id: "level_desc", label: "Hardest first" },
-  { id: "popularity_asc", label: "Most common first" },
-  { id: "popularity_desc", label: "Most obscure first" },
+type SortType = "gloss" | "level" | "popularity";
+type SortOrder = "asc" | "desc";
+
+const SORT_TYPES: { id: SortType; label: string }[] = [
+  { id: "gloss", label: "A–Z" },
+  { id: "level", label: "Difficulty" },
+  { id: "popularity", label: "Popularity" },
 ];
+
+const SORT_ORDERS: { id: SortOrder; label: string }[] = [
+  { id: "asc", label: "Ascending" },
+  { id: "desc", label: "Descending" },
+];
+
+const DEFAULT_SORT: { type: SortType; order: SortOrder } = { type: "gloss", order: "asc" };
+
+// The URL's `sort` param is empty for the default (relevance / A-Z) rather
+// than the literal string "gloss_asc", so a plain library link doesn't
+// carry a redundant ?sort= -- everything else round-trips as `${type}_${order}`.
+function parseSort(sort: SignSort | ""): { type: SortType; order: SortOrder } {
+  if (!sort) return DEFAULT_SORT;
+  const [type, order] = sort.split("_") as [SortType, SortOrder];
+  return { type, order };
+}
+
+function buildSort(type: SortType, order: SortOrder): SignSort | "" {
+  if (type === DEFAULT_SORT.type && order === DEFAULT_SORT.order) return "";
+  return `${type}_${order}` as SignSort;
+}
 
 export function SignLibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -125,6 +141,14 @@ export function SignLibraryPage() {
       params.delete("page");
       return params;
     });
+  }
+
+  const { type: sortType, order: sortOrder } = parseSort(sort);
+  function setSortType(next: SortType) {
+    setSort(buildSort(next, sortOrder));
+  }
+  function setSortOrder(next: SortOrder) {
+    setSort(buildSort(sortType, next));
   }
 
   function updateParams(next: { page?: number }) {
@@ -252,22 +276,39 @@ export function SignLibraryPage() {
                     ))}
                   </div>
 
-                  <label className="library-sort-select">
-                    Sort
-                    <select
-                      value={sort}
-                      disabled={Boolean(debouncedQuery)}
-                      title={debouncedQuery ? "Sort is ignored while searching -- results are ranked by relevance instead" : undefined}
-                      onChange={(e) => setSort(e.target.value as SignSort | "")}
-                    >
-                      <option value="">Relevance / A to Z</option>
-                      {SORT_OPTIONS.filter((o) => o.id !== "gloss_asc").map(({ id, label }) => (
-                        <option key={id} value={id}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <div
+                    className="library-sort-controls"
+                    title={debouncedQuery ? "Sort is ignored while searching -- results are ranked by relevance instead" : undefined}
+                  >
+                    <label className="library-sort-select">
+                      Sort by
+                      <select
+                        value={sortType}
+                        disabled={Boolean(debouncedQuery)}
+                        onChange={(e) => setSortType(e.target.value as SortType)}
+                      >
+                        {SORT_TYPES.map(({ id, label }) => (
+                          <option key={id} value={id}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="library-sort-select">
+                      Order
+                      <select
+                        value={sortOrder}
+                        disabled={Boolean(debouncedQuery)}
+                        onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+                      >
+                        {SORT_ORDERS.map(({ id, label }) => (
+                          <option key={id} value={id}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
                 </div>
 
                 {tag && (

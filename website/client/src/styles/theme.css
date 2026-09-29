@@ -1344,6 +1344,16 @@ input:focus-visible {
   flex-wrap: wrap;
 }
 
+/* Sort: two independent dropdowns (type, then order) instead of one
+   enumerating every combination -- "Difficulty" + "Descending" reads as
+   two decisions, not a lookup through eight strings. */
+.library-sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .library-sort-select {
   display: inline-flex;
   align-items: center;

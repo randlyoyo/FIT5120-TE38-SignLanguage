@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auslan Sign Chat</title>
+<!--
+  Chat with the signing avatar. Served by the backend at "/" (signchat/server.py), so it calls the API
+  on its own origin; to use another server, open it as  index.html?api=https://<server>.
+  You type, upload a video or record one with the camera. Your message (or what was recognised from
+  your signing) appears in the chat, the avatar's reply appears as text, and the avatar signs it,
+  with subtitles under the signer timed to the signing (burned into the video; the cue timings are
+  also in reply.sign.subtitles and at reply.sign.subtitle_url as WebVTT).
+-->
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #ffffff; --ink: #1d2330; --muted: #667085; --line: #e2e5ea;
+    --me: #2f6fde; --me-ink: #ffffff; --bot: #eef1f5; --accent: #2f6fde; --danger: #c4372f;
+    --stage: #202020; --sub-bg: rgba(0,0,0,.72);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151b; --panel: #1b1f27; --ink: #e8eaee; --muted: #9aa3b2; --line: #2b313c;
+      --me: #3b7bea; --me-ink: #ffffff; --bot: #252b35; --accent: #5b93f0; --danger: #ef6b62; --stage: #0c0d10;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12151b; --panel: #1b1f27; --ink: #e8eaee; --muted: #9aa3b2; --line: #2b313c;
+    --me: #3b7bea; --me-ink: #ffffff; --bot: #252b35; --accent: #5b93f0; --danger: #ef6b62; --stage: #0c0d10;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .app { display: grid; grid-template-columns: minmax(300px, 520px) 1fr; gap: 16px; height: 100%; padding: 16px; max-width: 1280px; margin: 0 auto; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; min-height: 0; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 16px; margin: 0; }
+  .status { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: #2e9e5b; } .dot.bad { background: var(--danger); }
+
+  /* avatar */
+  .avatar { display: flex; flex-direction: column; }
+  .stage { position: relative; flex: 1; min-height: 280px; background: var(--stage); overflow: hidden; display: grid; place-items: center; }
+  .stage video { width: 100%; height: 100%; object-fit: contain; display: none; background: #fff; }
+  .stage .idle { color: #cfd3da; text-align: center; padding: 24px; font-size: 14px; }
+  .stage .spinner { width: 34px; height: 34px; border: 3px solid #555; border-top-color: #fff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .stage .live-sub { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 14px; text-align: center; color: #fff;
+                     background: var(--sub-bg); font-size: 18px; font-weight: 600; display: none; }
+  .stage-bar { display: flex; gap: 8px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  .stage-bar .now { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* chat */
+  .chat { display: flex; flex-direction: column; }
+  .log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 78%; padding: 10px 13px; border-radius: 14px; word-wrap: break-word; }
+  .msg.me { align-self: flex-end; background: var(--me); color: var(--me-ink); border-bottom-right-radius: 4px; }
+  .msg.bot { align-self: flex-start; background: var(--bot); border-bottom-left-radius: 4px; }
+  .msg.err { align-self: center; background: transparent; color: var(--danger); font-size: 13px; }
+  .msg .who { font-size: 11px; opacity: .75; margin-bottom: 2px; }
+  .msg video { display: block; width: 220px; max-width: 100%; border-radius: 8px; margin-bottom: 6px; background: #000; }
+  .msg .meta { font-size: 11px; opacity: .7; margin-top: 4px; }
+  .msg.bot.clickable { cursor: pointer; } .msg.bot.clickable:hover { outline: 2px solid var(--accent); }
+  .typing { display: inline-flex; gap: 4px; } .typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite; }
+  .typing i:nth-child(2) { animation-delay: .2s; } .typing i:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+  .empty { margin: auto; color: var(--muted); text-align: center; max-width: 360px; font-size: 14px; }
+
+  form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); flex-wrap: wrap; align-items: center; }
+  input[type=text] { flex: 1 1 220px; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; }
+  button, .btn { padding: 9px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: inherit; cursor: pointer; white-space: nowrap; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.rec { border-color: var(--danger); color: var(--danger); }
+  button:disabled { opacity: .5; cursor: default; }
+  .opts { width: 100%; display: flex; gap: 14px; font-size: 12px; color: var(--muted); padding: 0 4px; }
+  .opts label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+
+  .camera { display: none; padding: 12px; border-top: 1px solid var(--line); gap: 10px; align-items: center; }
+  .camera.on { display: flex; }
+  .camera video { width: 200px; border-radius: 10px; transform: scaleX(-1); background: #000; }
+  .camera .hint { font-size: 13px; color: var(--muted); }
+
+  @media (max-width: 820px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; min-height: 100%; }
+    .stage { min-height: 240px; max-height: 46vh; }
+    .chat { min-height: 60vh; }
+    .msg { max-width: 90%; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <section class="card avatar">
+    <header>
+      <h1>Auslan avatar</h1>
+      <span class="status"><span class="dot" id="dot"></span><span id="health">connecting…</span></span>
+    </header>
+    <div class="stage" id="stage">
+      <div class="idle" id="idle">Send a message or a signing video.<br>The avatar replies in Auslan, with subtitles.</div>
+      <video id="player" playsinline muted></video>
+      <div class="live-sub" id="liveSub"></div>
+    </div>
+    <div class="stage-bar">
+      <span class="now" id="now">–</span>
+      <button type="button" id="replay" disabled>Replay</button>
+    </div>
+  </section>
+
+  <section class="card chat">
+    <header>
+      <h1>Chat</h1>
+      <button type="button" id="reset">New chat</button>
+    </header>
+    <div class="log" id="log">
+      <div class="empty" id="empty">Type in English, upload a video of yourself signing in Auslan, or record one with your camera.</div>
+    </div>
+    <div class="camera" id="camera">
+      <video id="preview" autoplay muted playsinline></video>
+      <div>
+        <div class="hint" id="camHint">Recording… sign, then press Stop.</div>
+        <button type="button" class="rec" id="stopRec" style="margin-top:8px">Stop &amp; send</button>
+        <button type="button" id="cancelRec" style="margin-top:8px">Cancel</button>
+      </div>
+    </div>
+    <form id="form" autocomplete="off">
+      <input type="text" id="text" placeholder="Type a message…" maxlength="500">
+      <button type="submit" class="primary" id="send">Send</button>
+      <label class="btn" for="file">Upload video</label>
+      <input type="file" id="file" accept="video/*" hidden>
+      <button type="button" class="rec" id="record">Record</button>
+      <div class="opts">
+        <label><input type="checkbox" id="mirrored"> uploaded video is mirrored (selfie camera)</label>
+      </div>
+    </form>
+  </section>
+</div>
+
+<script>
+const API = (new URLSearchParams(location.search).get('api') || location.origin).replace(/\/$/, '');
+const $ = id => document.getElementById(id);
+const log = $('log'), player = $('player'), liveSub = $('liveSub');
+let sessionId = null, busy = false, current = null, subTimer = null;
+
+const abs = u => !u ? null : /^https?:/.test(u) ? u : API + u;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+
+function add(cls, html) {
+  $('empty')?.remove();
+  const el = document.createElement('div');
+  el.className = 'msg ' + cls;
+  el.innerHTML = html;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+  return el;
+}
+
+function setBusy(b) {
+  busy = b;
+  for (const id of ['send', 'record', 'text', 'file']) $(id).disabled = b;
+}
+
+async function health() {
+  try {
+    const h = await (await fetch(API + '/api/health')).json();
+    const parts = Object.entries(h.components).map(([k, v]) => `${k} ${v.ready ? '✓' : '✗'}`);
+    $('dot').className = 'dot ' + (Object.values(h.components).every(v => v.ready) ? 'ok' : 'bad');
+    $('health').textContent = (h.mock ? 'MOCK · ' : '') + parts.join(' · ');
+  } catch (e) {
+    $('dot').className = 'dot bad';
+    $('health').textContent = 'server not reachable';
+  }
+}
+
+async function post(path, opts) {
+  const r = await fetch(API + path, {method: 'POST', ...opts});
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(typeof body.detail === 'string' ? body.detail : `HTTP ${r.status}`);
+  return body;
+}
+
+// The mp4 is drawn after the reply comes back (video_status "rendering"): 404 until it exists.
+async function waitForVideo(url, seconds = 40) {
+  for (let i = 0; i < seconds * 2; i++) {
+    try {
+      const r = await fetch(url, {method: 'HEAD', cache: 'no-store'});
+      if (r.ok) return true;
+    } catch (e) {}
+    await new Promise(res => setTimeout(res, 500));
+  }
+  return false;
+}
+
+function showStage(state, text) {
+  $('idle').style.display = state === 'video' ? 'none' : 'block';
+  player.style.display = state === 'video' ? 'block' : 'none';
+  if (state === 'loading') $('idle').innerHTML = `<div class="spinner"></div>${esc(text || 'The avatar is preparing its reply…')}`;
+  if (state === 'text') $('idle').innerHTML = esc(text);
+}
+
+// Subtitles drawn by the page: only when there is no video (the server's video has them burned in).
+function playCues(cues) {
+  clearInterval(subTimer);
+  if (!cues || !cues.length) { liveSub.style.display = 'none'; return; }
+  const t0 = performance.now();
+  liveSub.style.display = 'block';
+  subTimer = setInterval(() => {
+    const t = (performance.now() - t0) / 1000;
+    const c = cues.find(c => t >= c.start && t < c.end);
+    if (!c && t >= cues[cues.length - 1].end) { clearInterval(subTimer); liveSub.style.display = 'none'; return; }
+    liveSub.textContent = c ? c.text : '';
+  }, 50);
+}
+
+// A video the browser cannot decode (an mp4v file from a server without ffmpeg): subtitles from the page.
+// Some browsers report no error for such a file and just show nothing, hence the check after loading.
+function cannotPlay() {
+  if (!current || !player.getAttribute('src') || player.style.display === 'none') return;
+  player.removeAttribute('src');
+  showStage('text', '(this browser cannot play the video)');
+  playCues((current.sign || {}).subtitles);
+}
+player.onerror = cannotPlay;
+player.onloadeddata = () => { if (!player.videoWidth) cannotPlay(); };
+
+async function perform(reply) {
+  current = reply;
+  $('replay').disabled = false;
+  $('now').textContent = reply.text;
+  const sign = reply.sign || {};
+  const url = abs(sign.video_url);
+  liveSub.style.display = 'none';
+  clearInterval(subTimer);
+  if (url) {
+    showStage('loading', 'Drawing the signing…');
+    if (await waitForVideo(url) && current === reply) {
+      player.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+      showStage('video');
+      player.currentTime = 0;
+      player.play().catch(() => {});
+      return;
+    }
+    if (current !== reply) return;
+  }
+  showStage('text', '(no video for this reply)');
+  playCues(sign.subtitles);
+}
+
+function botMessage(r) {
+  const s = r.reply.sign || {};
+  const el = add('bot clickable', `<div class="who">Avatar</div>${esc(r.reply.text)}` +
+    `<div class="meta">${s.frames ? (s.frames / s.fps).toFixed(1) + ' s of signing · ' : ''}${r.timings.total.toFixed(1)} s · click to replay</div>`);
+  el.onclick = () => perform(r.reply);
+  perform(r.reply);
+}
+
+async function turn(sendFn, userEl) {
+  setBusy(true);
+  const wait = add('bot', '<div class="who">Avatar</div><span class="typing"><i></i><i></i><i></i></span>');
+  showStage('loading');
+  try {
+    const r = await sendFn();
+    sessionId = r.session_id;
+    wait.remove();
+    if (userEl && r.input.mode === 'sign') {
+      userEl.querySelector('.recog').innerHTML = `<b>${esc(r.input.text)}</b>`;
+    }
+    botMessage(r);
+  } catch (e) {
+    wait.remove();
+    if (userEl?.querySelector('.recog')) userEl.querySelector('.recog').textContent = '(not recognised)';
+    add('err', esc(e.message));
+    showStage('text', 'Something went wrong; see the chat.');
+  } finally {
+    setBusy(false);
+    $('text').focus();
+  }
+}
+
+$('form').onsubmit = e => {
+  e.preventDefault();
+  const text = $('text').value.trim();
+  if (!text || busy) return;
+  $('text').value = '';
+  add('me', `<div class="who">You</div>${esc(text)}`);
+  turn(() => post('/api/chat/text', {headers: {'Content-Type': 'application/json'},
+                                     body: JSON.stringify({text, session_id: sessionId})}));
+};
+
+function sendVideo(blob, filename, mirrored) {
+  const local = URL.createObjectURL(blob);
+  const el = add('me', `<div class="who">You (signing)</div><video src="${local}" controls muted playsinline></video>` +
+                       `<div class="recog"><span class="typing"><i></i><i></i><i></i></span> recognising…</div>`);
+  const fd = new FormData();
+  fd.append('video', blob, filename);
+  fd.append('mirrored', mirrored ? 'true' : 'false');
+  if (sessionId) fd.append('session_id', sessionId);
+  turn(() => post('/api/chat/sign', {body: fd}), el);
+}
+
+$('file').onchange = () => {
+  const f = $('file').files[0];
+  $('file').value = '';
+  if (f && !busy) sendVideo(f, f.name, $('mirrored').checked);
+};
+
+// Camera: the recorded frames are NOT mirrored (only the preview is, with CSS), so mirrored=false.
+let recorder = null, stream = null, chunks = [], cancelled = false;
+$('record').onclick = async () => {
+  if (busy) return;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({video: {width: 640, height: 480}, audio: false});
+  } catch (e) { add('err', 'Camera not available: ' + esc(e.message)); return; }
+  $('preview').srcObject = stream;
+  $('camera').classList.add('on');
+  const type = ['video/webm;codecs=vp8', 'video/webm', 'video/mp4'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
+  recorder = new MediaRecorder(stream, type ? {mimeType: type} : {});
+  chunks = []; cancelled = false;
+  recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
+  recorder.onstop = () => {
+    stream.getTracks().forEach(t => t.stop());
+    $('camera').classList.remove('on');
+    if (cancelled || !chunks.length) return;
+    const mime = recorder.mimeType || 'video/webm';
+    sendVideo(new Blob(chunks, {type: mime}), 'camera.' + (mime.includes('mp4') ? 'mp4' : 'webm'), false);
+  };
+  recorder.start();
+  const t0 = Date.now();
+  const tick = setInterval(() => {
+    if (recorder.state !== 'recording') return clearInterval(tick);
+    const s = Math.floor((Date.now() - t0) / 1000);
+    $('camHint').textContent = `Recording ${s}s… sign, then press Stop (20 s max).`;
+    if (s >= 20) recorder.stop();
+  }, 250);
+};
+$('stopRec').onclick = () => recorder?.state === 'recording' && recorder.stop();
+$('cancelRec').onclick = () => { cancelled = true; recorder?.state === 'recording' && recorder.stop(); };
+
+$('replay').onclick = () => current && perform(current);
+$('reset').onclick = async () => {
+  if (sessionId) fetch(API + '/api/session/' + sessionId, {method: 'DELETE'}).catch(() => {});
+  sessionId = null; current = null;
+  log.innerHTML = '<div class="empty" id="empty">New conversation. Type, upload or record a message.</div>';
+  $('replay').disabled = true; $('now').textContent = '–';
+  player.removeAttribute('src'); clearInterval(subTimer); liveSub.style.display = 'none';
+  showStage('text', 'Send a message or a signing video.');
+};
+
+health();
+setInterval(health, 30000);
+</script>
+</body>
+</html>

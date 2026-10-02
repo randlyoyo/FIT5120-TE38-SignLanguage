@@ -3,6 +3,14 @@
 FIT5120 TE38 team's formal capstone project — an Inclusive Auslan Learning Assistant
 (see `Inclusive_Auslan_Learning_Assistant_Proposal.pptx`).
 
+## `sign_chat/` — chat with the signing avatar
+
+A Python (FastAPI) service where the user types or signs (uploads or records a video), and an
+avatar replies in Auslan with subtitles. Sign→text is Uni-Sign, text→sign is SignSparK, both
+fine-tuned on Auslan-Daily; a small language model writes the replies. It needs a GPU, so it runs
+on Colab (`sign_chat/sign_chat_backend/colab_server.ipynb`), and its public URL opens a chat page.
+Setup, API and file formats: `sign_chat/sign_chat_backend/README.md`.
+
 ## `website/` — HandMirror (main app)
 
 **Live:** https://handmirror.vercel.app (client, on Vercel) — talks to

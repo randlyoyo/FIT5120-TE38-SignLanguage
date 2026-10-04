@@ -50,7 +50,7 @@ DEFAULTS: dict = {
         # retrieval bank = round 2's training set: the LMDB, or bank_compact.npz from scripts/slim_assets.py
         "bank_lmdb": "data/lmdb_smooth/train/AuslanDaily_train.lmdb",
         "smplx_npz": "models/SMPLX_NEUTRAL_2020.npz",
-        "steps": 20,
+        "steps": 20,                    # ODE steps per sample; fewer is faster (scripts/check_speed.py measures both)
         "text_scale": 2.5,
         "sigma": 1.0,
         "seed": 0,
@@ -58,6 +58,7 @@ DEFAULTS: dict = {
         "weights_dtype": "float32",     # "bfloat16" halves the three generators (9.3 -> 4.7 GB); scripts/check_bf16.py
         "encoder_on_gpu": False,        # keep the three M-CLIP text encoders on the GPU (+6.6 GB, faster per sentence)
         "parallel_streams": True,       # sample hand / body / face at the same time (same result, less wait)
+        "batch_guidance": True,         # body / face guidance: conditional + unconditional pass in one batch (same result)
         "render_video": "async",        # skeleton mp4: "async" = after the reply, True = before it, False = never
         "video_size": 720,              # the mp4's square (the page draws the same skeleton itself, at any size)
         # the avatar's stage (stage.py): every reply eases out of the rest pose (hands down) and back into it

@@ -64,6 +64,37 @@ class _slim_weights_allowed:
             self.ft.load_weights = self.orig
 
 
+# --------------------------------------------------------------------------- guidance in one batch
+def _half_uncond(cond, force_mask=False):
+    """SignSparK's mask_cond for a doubled batch: the first half keeps its text embedding, the second
+    half gets the zero embedding that y["uncond"] gives the whole batch (UNet.mask_cond, eval mode)."""
+    n = cond.shape[0] // 2
+    return torch.cat([cond[:n], torch.zeros_like(cond[n:])])
+
+
+def _double(y: dict) -> dict:
+    return {k: torch.cat([v, v]) if torch.is_tensor(v) else v + v if isinstance(v, list) else v for k, v in y.items()}
+
+
+def guided_batched(model, fwd, text_scale):
+    """Classifier-free guidance with the conditional and the unconditional pass in one batch of twice
+    the size, instead of two forward calls per ODE step. Each half is computed exactly as before (the
+    UNet has no batch statistics: group norms, per-sample time and text embeddings); only the GPU
+    work is shared. The model's mask_cond is swapped for the duration of each call, so the model
+    must not be used by another thread meanwhile (each stream has its own model)."""
+    def fn(xx, t, y=None, obs_x0=None, obs_mask=None):
+        n = len(xx)
+        model.mask_cond = _half_uncond
+        try:
+            out = fwd(torch.cat([xx, xx]), torch.cat([t, t]), y=_double(dict(y, uncond=False)),
+                      obs_x0=torch.cat([obs_x0, obs_x0]), obs_mask=torch.cat([obs_mask, obs_mask]))
+        finally:
+            del model.mask_cond                      # back to the class's own method
+        o, u = out[:n], out[n:]
+        return u + text_scale * (o - u)
+    return fn
+
+
 # --------------------------------------------------------------------------- compact retrieval bank
 def compact_bank(bank: list[dict]) -> dict:
     """signspark_render.load_bank entries -> arrays holding each clip's keyframe rows only (what
@@ -290,6 +321,8 @@ class SignGenerator:
                 fwd = ft.Amp(model, self.amp)
                 if keyed[s]:
                     fn = fwd
+                elif c.get("batch_guidance", True):
+                    fn = guided_batched(model, fwd, c["text_scale"])
                 else:
                     def fn(xx, t, y=None, obs_x0=None, obs_mask=None):
                         o = fwd(xx, t, y=y, obs_x0=obs_x0, obs_mask=obs_mask)

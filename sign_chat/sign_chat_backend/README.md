@@ -187,6 +187,7 @@ signchat/
   static/avatar.js    the canvas avatar player (reusable in other frontends)
   _imports.py    keeps the Uni-Sign and SignSparK repos' same-named modules apart in one process
 scripts/demo_cli.py   terminal chat
+scripts/check_speed.py   fewer ODE steps / guidance in one batch: speed and effect on the signing (sets `steps`, `batch_guidance`)
 colab_server.ipynb    GPU server + public URL on Colab
 ```
 

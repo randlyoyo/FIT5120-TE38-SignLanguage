@@ -50,7 +50,10 @@ DEFAULTS: dict = {
         # retrieval bank = round 2's training set: the LMDB, or bank_compact.npz from scripts/slim_assets.py
         "bank_lmdb": "data/lmdb_smooth/train/AuslanDaily_train.lmdb",
         "smplx_npz": "models/SMPLX_NEUTRAL_2020.npz",
-        "steps": 20,                    # ODE steps per sample; fewer is faster (scripts/check_speed.py measures both)
+        # ODE steps per sample. 12 (2026-10-05, scripts/check_speed.py on an A100): 1.64 s per sentence against
+        # 2.70 s at 20; joints move a few mm (a seed change moves them 60-180 mm), DTW to real signing is a
+        # little lower, motion ~5% smaller. 20 = the setting of every experiment in EXPERIMENTS.md.
+        "steps": 12,
         "text_scale": 2.5,
         "sigma": 1.0,
         "seed": 0,

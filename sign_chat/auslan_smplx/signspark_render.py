@@ -609,8 +609,9 @@ def write_video(path, clips, titles, parents, size=400, caption='', hand_closeup
         vw.write(f)
     vw.release()
     try:            # browsers and Colab need H.264; mp4v is kept if ffmpeg is missing
-        subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', tmp, '-vcodec', 'libx264', '-pix_fmt', 'yuv420p', path],
-                       check=True)
+        # +faststart puts the moov index first: browsers' <video> otherwise stalls at readyState 0
+        subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', tmp, '-vcodec', 'libx264', '-pix_fmt', 'yuv420p',
+                        '-movflags', '+faststart', path], check=True)
         os.remove(tmp)
     except (FileNotFoundError, subprocess.CalledProcessError):
         os.replace(tmp, path)

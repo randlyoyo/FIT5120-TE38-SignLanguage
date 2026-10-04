@@ -62,17 +62,21 @@ def _stub_generator(mode, fail=False):
     g.lock = threading.Lock()
     T = 30
     g.features = lambda s: {"T": T, "retrieved": "hi .", "seen": False}
-    g.smplx = lambda f: ({"body_pose": np.zeros((T, 63), np.float32)}, np.zeros((T, 127, 3), np.float32))
+    g.params = lambda f: {"body_pose": np.zeros((T, 63), np.float32)}
+    g.fk = lambda p: np.zeros((len(p["body_pose"]), 127, 3), np.float32)
+    g.rest_params = {"body_pose": np.zeros((1, 63), np.float32)}
     g.skeleton = types.SimpleNamespace(parents=np.full(127, -1))
 
-    def write_video(path, clips, titles, parents, size, hand_closeup, subtitles):
+    def write_video(path, frames, size, captions):
         import time
-        assert len(subtitles) == len(clips[0]) and subtitles[0] == "Hi."     # the reply's cue on every frame
+        assert len(captions) == len(frames) == T + 5             # lead_in + signing + lead_out
+        assert captions[0] == "" and captions[2] == "Hi." and captions[-1] == ""   # the cue only while signing
         time.sleep(0.3)
         if fail:
             raise RuntimeError("ffmpeg broke")
         open(path, "wb").write(b"mp4")
-    g.R = types.SimpleNamespace(FPS=25, write_video=write_video)
+    g.stage = types.SimpleNamespace(lead_in=2, lead_out=3, project=lambda J: J[..., :2], write_video=write_video)
+    g.R = types.SimpleNamespace(FPS=25)
     return g
 
 
@@ -83,7 +87,8 @@ def test_generate_async_video_appears_after_reply(tmp_path):
     r = g.generate("Hi.", str(tmp_path), "x")
     assert r["video_status"] == "rendering" and r["video_file"] == "x.mp4"
     pose = json.load(open(tmp_path / "x.json"))
-    assert pose["frames"] == 30 and pose["subtitles"] == [{"start": 0.0, "end": 1.2, "text": "Hi."}]
+    assert pose["frames"] == 35 and len(pose["joints2d"]) == 35 and (pose["lead_in"], pose["lead_out"]) == (2, 3)
+    assert pose["subtitles"] == [{"start": 0.08, "end": 1.28, "text": "Hi."}]
     assert r["subtitle_file"] == "x.vtt" and (tmp_path / "x.vtt").read_text().startswith("WEBVTT")
     assert not (tmp_path / "x.mp4").exists()                  # reply came back before the video
     for _ in range(50):

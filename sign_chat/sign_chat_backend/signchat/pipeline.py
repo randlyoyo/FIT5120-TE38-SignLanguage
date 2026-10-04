@@ -115,6 +115,10 @@ class ChatPipeline:
         r = self._need("recognizer", "sign2text").recognise(video_path, mirrored)
         return {**r, "raw_text": r["text"], "text": _pretty(r["text"])}
 
+    def avatar(self) -> dict:
+        """How to draw the avatar: bones, colours, the rest pose and the idle loop (stage.py)."""
+        return self._need("generator", "text2sign").stage.rig()
+
     def text_to_sign(self, text: str) -> dict:
         name = f"{time.strftime('%Y%m%d-%H%M%S')}_{uuid.uuid4().hex[:8]}_{_slug(text)}"
         return self._need("generator", "text2sign").generate(text, self.media_dir, name)

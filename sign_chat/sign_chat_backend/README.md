@@ -6,6 +6,7 @@ The model side of the chat app: a user types or signs, and an avatar replies in 
 - the user types a message, uploads a video of themselves signing, or records one with the camera;
 - the user's message is shown in the chat (for a video: the clip and the text recognised from it);
 - the avatar's reply is shown as text, and the avatar signs it, with **subtitles** under the signer that change in time with the signing;
+- the avatar is drawn live on a canvas (`signchat/static/avatar.js`), like a person on a video call: between replies it stands with its hands down and breathes, a reply eases out of that pose, signs, and eases back; there is no video and no play button;
 - clicking a reply plays its signing again; "New chat" clears the conversation.
 
 On `develop` this folder sits in `sign_chat/`, next to the inference files it imports: `sign_chat/unisign/` (extract_pose, spec, dataset, model_adapter, manifest) and `sign_chat/auslan_smplx/` (signspark_ft, signspark_render). Training code and experiments are on the `recognition` branch under `research/signtest/`.
@@ -33,7 +34,7 @@ cd sign_chat_backend
 pip install -r requirements.txt        # only the first block is needed for mock mode
 SIGNCHAT_MOCK=1 SIGNCHAT_DIALOGUE=echo uvicorn signchat.server:app --port 8000
 # chat page: http://localhost:8000/      API docs: http://localhost:8000/docs
-# (the mock avatar only waves; install ffmpeg so its video plays in a browser)
+# (the mock avatar only raises its right arm and waves)
 ```
 
 **Real models.** Open `colab_server.ipynb` in Colab on a GPU runtime and run all cells. It takes the weights from the project Drive (`auslan_work/...`), starts the server and prints a public `https://….trycloudflare.com` URL. That URL opens the chat page; the frontend can use it as its API base. On your own GPU machine, copy `config.example.yaml` to `config.yaml`, fill in the paths, and run:
@@ -72,15 +73,16 @@ Both chat endpoints return:
   "reply": {
     "text": "I am good, thank you. And you?",  // show this under the avatar
     "sign": {
-      "pose_url": "/media/20260925-…json",     // drive the avatar with this
-      "video_url": "/media/20260925-…mp4",     // skeleton rendering; fallback or debug view
+      "pose_url": "/media/20260925-…json",     // drive the avatar with this (avatar.js: avatar.play(pose_url))
+      "video_url": "/media/20260925-…mp4",     // the same skeleton as an mp4; fallback or debug view
       "video_status": "rendering",              // drawn after the reply: the URL returns 404 until ready (~1 s)
       "subtitles": [                            // the reply cut into cues, timed to the signing (seconds)
-        {"start": 0.0, "end": 1.9, "text": "I am good, thank you."},
-        {"start": 1.9, "end": 3.04, "text": "And you?"}
+        {"start": 0.32, "end": 2.22, "text": "I am good, thank you."},
+        {"start": 2.22, "end": 3.36, "text": "And you?"}
       ],
       "subtitle_url": "/media/20260925-…vtt",  // the same cues as WebVTT, for a <track> element
-      "frames": 76, "fps": 25,
+      "frames": 94, "fps": 25,                  // all frames, including the transitions below
+      "lead_in": 8, "lead_out": 10,             // frames easing out of the rest pose / back into it
       "retrieved": "i am good thank you .",    // training sentence the handshapes came from
       "seen": false                             // true = that exact sentence is in the training data
     }
@@ -91,16 +93,17 @@ Both chat endpoints return:
 
 ### Subtitles
 
-`signchat/subtitles.py` cuts the reply into cues of one sentence each, or parts of a sentence for sentences over 7 words (cut at commas, then into even chunks). The signing is one clip whose length the model sets from the word count, so there is no word-to-frame alignment; each cue gets a share of the clip's duration in proportion to its word count, and the cues cover the whole clip with no gaps. The same cues are:
-- burned into `video_url`, in a bar under the signer (the video is 480 x 552);
-- in the response (`reply.sign.subtitles`) and in the pose file (`subtitles`), for an avatar the frontend draws itself;
+`signchat/subtitles.py` cuts the reply into cues of one sentence each, or parts of a sentence for sentences over 7 words (cut at commas, then into even chunks). The signing is one clip whose length the model sets from the word count, so there is no word-to-frame alignment; each cue gets a share of the clip's duration in proportion to its word count, and the cues cover the signing with no gaps (from `lead_in` to `frames - lead_out`; times are seconds from the reply's first frame). The same cues are:
+- in the response (`reply.sign.subtitles`) and in the pose file (`subtitles`), for the avatar the page draws (avatar.js reports the current one through `onCue`);
+- burned into `video_url`, in a bar under the signer (the video is 720 x 828);
 - at `subtitle_url` as WebVTT, for a `<track kind="subtitles">` element over a video that has none burned in.
 
 ### Other endpoints
 - `POST /api/translate/text-to-sign` with `{"text": …}`: signing only, no dialogue. Returns the `reply.sign` object above.
 - `POST /api/translate/sign-to-text` with multipart `video`, `mirrored`: recognition only.
 - `DELETE /api/session/{session_id}`: forget a conversation. The last 6 turns are kept in memory and lost when the server restarts.
-- `GET /`: the chat page.
+- `GET /`: the chat page. `GET /static/avatar.js`: the avatar player it uses.
+- `GET /api/avatar`: how to draw the avatar (bones, colours, rest pose, idle loop); see "Drawing the avatar".
 - `GET /api/health`: shows which components loaded and the error for any that failed. The server still starts when one model fails; that model's endpoints then return 503.
 
 Error codes: `422` for bad input (empty text, no signer visible, unreadable video), `413` for a file that is too large, `415` for a file type that is not a video, `503` for a model that is not loaded.
@@ -120,13 +123,52 @@ One JSON per reply, 25 fps, in SMPL-X convention:
     "betas": [[10] x T], "transl": [[3] x T]
   },
   "joints": [[[x, y, z] x 127] x T],   // SMPL-X joint positions in metres, for a stick figure or retargeting
-  "parents": [127]                     // kinematic tree for `joints`
+  "parents": [55],                     // kinematic tree for joints 0-54
+  "joints2d": [[[x, y] x 127] x T],    // the same joints on the avatar's fixed stage: what the page draws
+  "lead_in": 8, "lead_out": 10,        // T includes these transition frames
+  "subtitles": [...]
 }
 ```
 
+Every reply starts and ends in the same rest pose (hands down) and is framed by the same fixed camera, so replies follow one another without a jump.
+
 - **SMPL-X avatar** (for example the SMPL-X Blender or Unity add-on, or three.js with an SMPL-X glTF): apply `smplx` directly, frame by frame.
 - **Other rigs** (Mixamo, VRM, ReadyPlayerMe): retarget the rotations by joint name (SMPL-X order: pelvis, left_hip, right_hip, spine1, …, left_wrist, right_wrist, then the fingers). Or drive IK targets from `joints`.
+- **Stick figure on a canvas** (what the chat page does): `joints2d` with `GET /api/avatar`, below.
 - **Quickest option**: play `video_url`.
+
+### Drawing the avatar (`GET /api/avatar`, `static/avatar.js`)
+
+The avatar is meant to look like a person on a video call: always there, hands down and breathing between replies, signing when a reply arrives, with no video controls. The server sends the drawing data; the page draws it on a `<canvas>`, sharp at any size.
+
+`GET /api/avatar` (once, at page load):
+```json
+{
+  "format": "stage-v1", "fps": 25,
+  "bones": [{"a": 17, "b": 14, "color": "#e65a00", "width": 0.008}, ...],   // draw a line from joint a to joint b
+  "points": {"joints": [76, ..., 126], "color": "#282828", "radius": 0.0035},  // the face: dots
+  "background": "#ffffff",
+  "rest": [[x, y] x 127],               // the rest pose
+  "idle": [[[x, y] x 127] x 100],       // one 4 s breath, looped; idle[0] = rest
+  "lead_in": 8, "lead_out": 10
+}
+```
+Coordinates are in `[0, 1]` of a square, y down; widths and radii are fractions of its side. Draw in the largest square that fits the canvas, centred. Loop `idle` at 25 fps; for a reply, play the pose file's `joints2d` at 25 fps, then go back to `idle` from frame 0 (a reply ends at rest = `idle[0]`). Show the cue from `subtitles` whose `start <= t < end`.
+
+`static/avatar.js` does all of that (about 150 lines, no dependencies; an ES module):
+```js
+import { SignAvatar } from './avatar.js';      // copy the file into the frontend, or load it from <server>/static/avatar.js
+const avatar = new SignAvatar(canvasElement, {
+  api: 'https://xxxx.trycloudflare.com',       // the backend
+  onCue: text => { subtitleElement.textContent = text; },   // current subtitle, '' when none
+  onState: s => {},                            // 'idle' | 'signing'
+});
+await avatar.load();                           // the avatar appears and idles
+const r = await (await fetch(api + '/api/chat/text', {...})).json();
+await avatar.play(r.reply.sign.pose_url);      // signs; resolves when it is back at rest
+avatar.stop();                                 // back to rest at once (e.g. "New chat")
+```
+In React: create it once in a `useEffect` on a canvas ref, call `play()` when a reply arrives, and `destroy()` on unmount. The canvas is sized by CSS.
 
 ## Layout
 
@@ -139,8 +181,10 @@ signchat/
   pipeline.py    one chat turn; in-memory sessions
   server.py      FastAPI app
   subtitles.py   reply text -> timed cues (+ .vtt, + the text on each video frame)
-  mock.py        fake models with the same outputs, for frontend work and tests
+  stage.py       the avatar's stage: rest pose, idle breath, transitions, fixed camera, 2D drawing (+ mp4)
+  mock.py        fake models with the same outputs, for frontend work and tests (mock_rest.json: its rest pose)
   static/index.html   the chat page served at /
+  static/avatar.js    the canvas avatar player (reusable in other frontends)
   _imports.py    keeps the Uni-Sign and SignSparK repos' same-named modules apart in one process
 scripts/demo_cli.py   terminal chat
 colab_server.ipynb    GPU server + public URL on Colab

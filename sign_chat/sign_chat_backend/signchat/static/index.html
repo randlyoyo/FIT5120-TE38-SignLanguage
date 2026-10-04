@@ -9,8 +9,10 @@
   on its own origin; to use another server, open it as  index.html?api=https://<server>.
   You type, upload a video or record one with the camera. Your message (or what was recognised from
   your signing) appears in the chat, the avatar's reply appears as text, and the avatar signs it,
-  with subtitles under the signer timed to the signing (burned into the video; the cue timings are
-  also in reply.sign.subtitles and at reply.sign.subtitle_url as WebVTT).
+  with subtitles timed to the signing.
+  The avatar is drawn live on a <canvas> by static/avatar.js (no video, no controls): it stands with
+  its hands down and breathes until a reply arrives, signs it, and returns to rest. avatar.js is
+  meant to be reused by other frontends; see its header.
 -->
 <style>
   :root {
@@ -41,11 +43,10 @@
 
   /* avatar */
   .avatar { display: flex; flex-direction: column; }
-  .stage { position: relative; flex: 1; min-height: 280px; background: var(--stage); overflow: hidden; display: grid; place-items: center; }
-  .stage video { width: 100%; height: 100%; object-fit: contain; display: none; background: #fff; }
-  .stage .idle { color: #cfd3da; text-align: center; padding: 24px; font-size: 14px; }
-  .stage .spinner { width: 34px; height: 34px; border: 3px solid #555; border-top-color: #fff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  .stage { position: relative; flex: 1; min-height: 280px; background: #ffffff; overflow: hidden; }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .stage .pill { position: absolute; top: 12px; left: 12px; padding: 5px 11px; border-radius: 999px; font-size: 13px;
+                 background: rgba(0,0,0,.62); color: #fff; display: none; }
   .stage .live-sub { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 14px; text-align: center; color: #fff;
                      background: var(--sub-bg); font-size: 18px; font-weight: 600; display: none; }
   .stage-bar { display: flex; gap: 8px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
@@ -97,8 +98,8 @@
       <span class="status"><span class="dot" id="dot"></span><span id="health">connecting…</span></span>
     </header>
     <div class="stage" id="stage">
-      <div class="idle" id="idle">Send a message or a signing video.<br>The avatar replies in Auslan, with subtitles.</div>
-      <video id="player" playsinline muted></video>
+      <canvas id="avatar" aria-label="Signing avatar"></canvas>
+      <div class="pill" id="pill"></div>
       <div class="live-sub" id="liveSub"></div>
     </div>
     <div class="stage-bar">
@@ -136,11 +137,13 @@
   </section>
 </div>
 
-<script>
+<script type="module">
+import { SignAvatar } from './static/avatar.js';
+
 const API = (new URLSearchParams(location.search).get('api') || location.origin).replace(/\/$/, '');
 const $ = id => document.getElementById(id);
-const log = $('log'), player = $('player'), liveSub = $('liveSub');
-let sessionId = null, busy = false, current = null, subTimer = null;
+const log = $('log'), liveSub = $('liveSub');
+let sessionId = null, busy = false, current = null;
 
 const abs = u => !u ? null : /^https?:/.test(u) ? u : API + u;
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
@@ -179,71 +182,30 @@ async function post(path, opts) {
   return body;
 }
 
-// The mp4 is drawn after the reply comes back (video_status "rendering"): 404 until it exists.
-async function waitForVideo(url, seconds = 40) {
-  for (let i = 0; i < seconds * 2; i++) {
-    try {
-      const r = await fetch(url, {method: 'HEAD', cache: 'no-store'});
-      if (r.ok) return true;
-    } catch (e) {}
-    await new Promise(res => setTimeout(res, 500));
-  }
-  return false;
-}
+// The avatar: drawn by avatar.js, idling until perform() gives it a reply to sign.
+const avatar = new SignAvatar($('avatar'), {
+  api: API,
+  onCue: text => { liveSub.textContent = text; liveSub.style.display = text ? 'block' : 'none'; },
+});
+avatar.load().catch(e => pill('Avatar not available: ' + e.message));
 
-function showStage(state, text) {
-  $('idle').style.display = state === 'video' ? 'none' : 'block';
-  player.style.display = state === 'video' ? 'block' : 'none';
-  if (state === 'loading') $('idle').innerHTML = `<div class="spinner"></div>${esc(text || 'The avatar is preparing its reply…')}`;
-  if (state === 'text') $('idle').innerHTML = esc(text);
+function pill(text) {
+  $('pill').textContent = text || '';
+  $('pill').style.display = text ? 'block' : 'none';
 }
-
-// Subtitles drawn by the page: only when there is no video (the server's video has them burned in).
-function playCues(cues) {
-  clearInterval(subTimer);
-  if (!cues || !cues.length) { liveSub.style.display = 'none'; return; }
-  const t0 = performance.now();
-  liveSub.style.display = 'block';
-  subTimer = setInterval(() => {
-    const t = (performance.now() - t0) / 1000;
-    const c = cues.find(c => t >= c.start && t < c.end);
-    if (!c && t >= cues[cues.length - 1].end) { clearInterval(subTimer); liveSub.style.display = 'none'; return; }
-    liveSub.textContent = c ? c.text : '';
-  }, 50);
-}
-
-// A video the browser cannot decode (an mp4v file from a server without ffmpeg): subtitles from the page.
-// Some browsers report no error for such a file and just show nothing, hence the check after loading.
-function cannotPlay() {
-  if (!current || !player.getAttribute('src') || player.style.display === 'none') return;
-  player.removeAttribute('src');
-  showStage('text', '(this browser cannot play the video)');
-  playCues((current.sign || {}).subtitles);
-}
-player.onerror = cannotPlay;
-player.onloadeddata = () => { if (!player.videoWidth) cannotPlay(); };
 
 async function perform(reply) {
   current = reply;
   $('replay').disabled = false;
   $('now').textContent = reply.text;
-  const sign = reply.sign || {};
-  const url = abs(sign.video_url);
-  liveSub.style.display = 'none';
-  clearInterval(subTimer);
-  if (url) {
-    showStage('loading', 'Drawing the signing…');
-    if (await waitForVideo(url) && current === reply) {
-      player.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
-      showStage('video');
-      player.currentTime = 0;
-      player.play().catch(() => {});
-      return;
-    }
-    if (current !== reply) return;
+  const url = abs((reply.sign || {}).pose_url);
+  if (!url) { pill('(no signing for this reply)'); return; }
+  pill('');
+  try {
+    await avatar.play(url);
+  } catch (e) {
+    pill('Could not load the signing: ' + e.message);
   }
-  showStage('text', '(no video for this reply)');
-  playCues(sign.subtitles);
 }
 
 function botMessage(r) {
@@ -257,7 +219,7 @@ function botMessage(r) {
 async function turn(sendFn, userEl) {
   setBusy(true);
   const wait = add('bot', '<div class="who">Avatar</div><span class="typing"><i></i><i></i><i></i></span>');
-  showStage('loading');
+  pill('The avatar is preparing its reply…');
   try {
     const r = await sendFn();
     sessionId = r.session_id;
@@ -270,7 +232,7 @@ async function turn(sendFn, userEl) {
     wait.remove();
     if (userEl?.querySelector('.recog')) userEl.querySelector('.recog').textContent = '(not recognised)';
     add('err', esc(e.message));
-    showStage('text', 'Something went wrong; see the chat.');
+    pill('Something went wrong; see the chat.');
   } finally {
     setBusy(false);
     $('text').focus();
@@ -342,8 +304,7 @@ $('reset').onclick = async () => {
   sessionId = null; current = null;
   log.innerHTML = '<div class="empty" id="empty">New conversation. Type, upload or record a message.</div>';
   $('replay').disabled = true; $('now').textContent = '–';
-  player.removeAttribute('src'); clearInterval(subTimer); liveSub.style.display = 'none';
-  showStage('text', 'Send a message or a signing video.');
+  avatar.stop(); pill('');
 };
 
 health();

@@ -15,7 +15,9 @@ from that sentence's rescaled keyframes; body and face from the text alone unles
 in the training set word for word; Gaussian smoothing sigma 1 per stream.
 
 Output per sentence: the SMPL-X parameters of every frame (axis-angle, what an avatar rig needs),
-the 127 SMPL-X joint positions, and optionally a skeleton mp4.
+the 127 SMPL-X joint positions, the same joints on the avatar's fixed 2D stage (what the page draws),
+and optionally a skeleton mp4. Every reply starts and ends at the avatar's rest pose (hands down):
+`lead_in` frames ease out of it before the signing and `lead_out` frames back into it after (stage.py).
 """
 
 from __future__ import annotations
@@ -29,7 +31,7 @@ import time
 import numpy as np
 import torch
 
-from . import subtitles
+from . import stage, subtitles
 
 STREAMS = ("hand", "body", "face")
 POSE_KEYS = ("global_orient", "body_pose", "left_hand_pose", "right_hand_pose", "jaw_pose",
@@ -160,6 +162,7 @@ class SignGenerator:
             enc = self.models["hand"][0].encode_text
             self.bank_emb = torch.nn.functional.normalize(enc(self.bank_texts).float(), dim=-1)
         self.skeleton = R.Skeleton(c["smplx_npz"], c["signspark_repo"], device)
+        self._build_stage()
         log(f"[text2sign] SignSparK hand/body/face ready on {device}, bf16 autocast {self.amp}, "
             f"weights {getattr(self, 'weights_dtype', 'float32')}, shared text encoder "
             f"{getattr(self, 'shared_text_encoder', False)} ({time.time() - t0:.0f}s)")
@@ -300,15 +303,60 @@ class SignGenerator:
         return dict(zip(STREAMS, self._pool.map(run, STREAMS)))
 
     @torch.no_grad()
-    def smplx(self, f: dict) -> tuple[dict, np.ndarray]:
-        """Features -> (SMPL-X forward inputs as numpy, joints (T, 127, 3)). Same call as Skeleton.joints."""
+    def params(self, f: dict) -> dict:
+        """Features -> SMPL-X forward inputs as numpy (T, D) arrays. Same call as Skeleton.joints."""
         sk = self.skeleton
         kw = sk.build(torch.from_numpy(f["body"]).float(), torch.from_numpy(f["hand"][:, :90]).float(),
                       torch.from_numpy(f["hand"][:, 90:]).float(), face=torch.from_numpy(f["face"]).float(),
                       device=sk.device)
-        joints = sk.model(**kw).joints.cpu().numpy()
-        params = {k: v.detach().float().cpu().numpy() for k, v in kw.items() if torch.is_tensor(v)}
-        return params, joints
+        self._kw_extra = {k: v for k, v in kw.items() if not torch.is_tensor(v)}
+        return {k: v.detach().float().cpu().numpy() for k, v in kw.items() if torch.is_tensor(v)}
+
+    @torch.no_grad()
+    def fk(self, params: dict) -> np.ndarray:
+        """SMPL-X parameters (numpy) -> joints (T, 127, 3), in metres."""
+        sk = self.skeleton
+        kw = {k: torch.from_numpy(np.ascontiguousarray(v)).float().to(sk.device) for k, v in params.items()}
+        return sk.model(**kw, **getattr(self, "_kw_extra", {})).joints.cpu().numpy()
+
+    def smplx(self, f: dict) -> tuple[dict, np.ndarray]:
+        """Features -> (SMPL-X forward inputs as numpy, joints (T, 127, 3)), without transitions."""
+        params = self.params(f)
+        return params, self.fk(params)
+
+    # ------------------------------------------------------------------ the avatar's stage
+    def _build_stage(self):
+        """The rest pose (hands down), one breath of idle motion, and the fixed camera (stage.py).
+
+        The rest pose goes through the same build_smplx_input as the signing, so it has the same root,
+        shape and conventions: identity rotations for the body stream, the training data's average
+        handshape (a relaxed hand rather than a flat one) and a neutral face; then both arms are
+        lowered. Which way "lowered" turns is checked with forward kinematics: the wrists must end
+        up below the shoulders, along the spine."""
+        R = self.R
+        c = self.cfg
+        total, n = None, 0
+        for e in self.bank:                              # the average hand, in the hand stream's 6D layout
+            rows = np.asarray(e["hand"], np.float64)
+            total = rows.sum(0) if total is None else total + rows.sum(0)
+            n += len(rows)
+        hand = R._orthonormal_6d((total / max(n, 1)).reshape(-1, 6)).reshape(1, -1).astype(np.float32)
+        body = np.tile(R.ID6, (1, R.N_ROT["body"])).astype(np.float32)
+        face = np.concatenate([R.ID6, np.zeros(56 - 6, np.float32)])[None].astype(np.float32)
+        two = lambda x: np.repeat(x, 2, 0)                # a 2-frame clip, as short as a real one can be
+        base = {k: v[:1] for k, v in self.params({"body": two(body), "hand": two(hand), "face": two(face)}).items()}
+
+        def wrist_height(sign):
+            J = self.fk(dict(base, body_pose=stage.arms_down(base["body_pose"], sign)))[0]
+            up = J[stage.NECK] - J[stage.PELVIS]
+            up = up / np.linalg.norm(up)
+            return float(((J[[stage.L_WRIST, stage.R_WRIST]] - J[[stage.L_SHOULDER, stage.R_SHOULDER]]) @ up).mean())
+
+        sign = min((1.0, -1.0), key=wrist_height)
+        self.rest_params = dict(base, body_pose=stage.arms_down(base["body_pose"], sign))
+        idle = self.fk(stage.breathing(self.rest_params, c["idle_frames"], sign))
+        self.stage = stage.Stage(idle[0], idle, self.skeleton.parents, R.FPS, c["stage_width_m"], c["stage_neck_at"],
+                                 c["lead_in"], c["lead_out"])
 
     def generate(self, sentence: str, out_dir: str, name: str) -> dict:
         """Sentence -> <name>.json in out_dir (pose for the avatar), <name>.vtt (subtitles, see
@@ -320,15 +368,21 @@ class SignGenerator:
         False never."""
         import json
         t0 = time.time()
+        st = self.stage
         with self.lock:                     # one generation on the GPU at a time
             f = self.features(sentence)
-            params, joints = self.smplx(f)
+            params = stage.with_transitions(self.params(f), self.rest_params, st.lead_in, st.lead_out)
+            joints = self.fk(params)
         t1 = time.time()
-        cues, vtt = subtitles.write(out_dir, name, sentence, int(f["T"]), self.R.FPS)
+        frames = len(joints)                # lead_in + signing + lead_out
+        cues, vtt = subtitles.write(out_dir, name, sentence, int(f["T"]), self.R.FPS, offset=st.lead_in / self.R.FPS)
+        joints2d = st.project(joints)
         pose = {
             "format": "smplx-v1",
             "fps": self.R.FPS,
-            "frames": int(f["T"]),
+            "frames": frames,
+            "lead_in": st.lead_in,
+            "lead_out": st.lead_out,
             "sentence": sentence,
             "retrieved": f["retrieved"],
             "seen": bool(f["seen"]),
@@ -336,6 +390,7 @@ class SignGenerator:
             "smplx": {k: np.round(v, 5).tolist() for k, v in params.items() if k in POSE_KEYS},
             "joints": np.round(joints, 4).tolist(),
             "parents": self.skeleton.parents.tolist(),
+            "joints2d": joints2d.tolist(),          # on the fixed stage: GET /api/avatar says how to draw it
             "subtitles": cues,
         }
         os.makedirs(out_dir, exist_ok=True)
@@ -350,22 +405,23 @@ class SignGenerator:
             if not hasattr(self, "_render_pool"):
                 from concurrent.futures import ThreadPoolExecutor
                 self._render_pool = ThreadPoolExecutor(2, thread_name_prefix="render")
-            self._render_pool.submit(self._render, out_dir, name, joints, cues)
+            self._render_pool.submit(self._render, out_dir, name, joints2d, cues)
             status = "rendering"
         elif mode:
-            self._render(out_dir, name, joints, cues)
+            self._render(out_dir, name, joints2d, cues)
         return {"pose_file": f"{name}.json", "video_file": video, "video_status": status,
-                "subtitle_file": vtt, "subtitles": cues, "frames": int(f["T"]),
+                "subtitle_file": vtt, "subtitles": cues, "frames": frames,
+                "lead_in": st.lead_in, "lead_out": st.lead_out,
                 "fps": self.R.FPS, "retrieved": f["retrieved"], "seen": bool(f["seen"]),
                 "timings": {"generate": round(t1 - t0, 3), "write": round(time.time() - t1, 3)}}
 
-    def _render(self, out_dir, name, joints, cues):
+    def _render(self, out_dir, name, joints2d, cues):
         """Draw to a hidden temporary name and rename, so video_url never serves a half-written file.
-        The reply's subtitles run in a bar under the signer, each cue on its own frames."""
+        The video shows what the page draws: the same stage, with the subtitles in a bar under the signer."""
         tmp = os.path.join(out_dir, f".{name}.part.mp4")
         try:
-            self.R.write_video(tmp, [joints], ["Auslan"], self.skeleton.parents, size=self.cfg["video_size"],
-                               hand_closeup=False, subtitles=subtitles.per_frame(cues, len(joints), self.R.FPS))
+            self.stage.write_video(tmp, joints2d, self.cfg["video_size"],
+                                   subtitles.per_frame(cues, len(joints2d), self.R.FPS))
             os.replace(tmp, os.path.join(out_dir, f"{name}.mp4"))
         except Exception as e:              # a failed video must not take the server down
             print(f"[text2sign] rendering {name}.mp4 failed: {type(e).__name__}: {e}", flush=True)

@@ -121,7 +121,9 @@ def test_subtitles_in_reply(client):
     sign = client.post("/api/chat/text", json={"text": "Hello! I am good, thank you. And you?"}).json()["reply"]["sign"]
     cues = sign["subtitles"]
     assert [c["text"] for c in cues] == ["Hello!", "I am good, thank you.", "And you?"]
-    assert cues[0]["start"] == 0 and cues[-1]["end"] == round(sign["frames"] / sign["fps"], 3)
+    # the cues cover the signing, between the avatar easing out of its rest pose and back into it
+    assert cues[0]["start"] == round(sign["lead_in"] / sign["fps"], 3)
+    assert cues[-1]["end"] == round((sign["frames"] - sign["lead_out"]) / sign["fps"], 3)
     assert all(a["end"] == b["start"] for a, b in zip(cues, cues[1:]))          # no gaps
     vtt = client.get(sign["subtitle_url"]).text
     assert vtt.startswith("WEBVTT") and "I am good, thank you." in vtt
@@ -144,3 +146,31 @@ def test_chat_page(client):
     r = client.get("/")
     assert r.status_code == 200 and "text/html" in r.headers["content-type"]
     assert "/api/chat/sign" in r.text and "/api/chat/text" in r.text
+    js = client.get("/static/avatar.js")
+    assert js.status_code == 200 and "export class SignAvatar" in js.text
+
+
+def test_avatar_rig(client):
+    rig = client.get("/api/avatar").json()
+    assert rig["format"] == "stage-v1" and rig["fps"] == 25
+    assert len(rig["rest"]) == 127 and len(rig["idle"]) == 100 and rig["idle"][0] == rig["rest"]
+    assert all(0 <= b["a"] < 127 and 0 <= b["b"] < 127 and b["color"].startswith("#") for b in rig["bones"])
+    rest = rig["rest"]
+    drawn = {j for b in rig["bones"] for j in (b["a"], b["b"])} | set(rig["points"]["joints"])
+    assert all(0 <= rest[j][0] <= 1 and 0 <= rest[j][1] <= 1 for j in drawn)       # all of it in the picture
+    # hands down: both wrists (20, 21) below both shoulders (16, 17); y grows downwards
+    assert min(rest[20][1], rest[21][1]) > max(rest[16][1], rest[17][1]) + 0.2
+
+
+def test_reply_starts_and_ends_at_rest(client):
+    rest = client.get("/api/avatar").json()["rest"]
+    sign = client.post("/api/chat/text", json={"text": "See you tomorrow."}).json()["reply"]["sign"]
+    pose = client.get(sign["pose_url"]).json()
+    P = pose["joints2d"]
+    assert len(P) == pose["frames"] == sign["frames"] and len(P[0]) == 127
+    assert pose["lead_in"] == sign["lead_in"] > 0 and pose["lead_out"] == sign["lead_out"] > 0
+    far = lambda a, b: max(abs(p[0] - q[0]) + abs(p[1] - q[1]) for p, q in zip(a, b))
+    lead_in, lead_out = pose["lead_in"], pose["lead_out"]
+    assert far(P[0], rest) < 0.1 and far(P[-1], rest) < 0.1                       # one eased step from rest
+    assert far(P[0], rest) < far(P[lead_in], rest) and far(P[-1], rest) < far(P[-1 - lead_out], rest)
+    assert far(P[len(P) // 2], rest) > 0.1                                          # and it does move in between

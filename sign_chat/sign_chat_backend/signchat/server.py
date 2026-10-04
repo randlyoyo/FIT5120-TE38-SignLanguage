@@ -1,13 +1,15 @@
 """HTTP API for the chat frontend (FastAPI).
 
     GET    /                            the chat page (static/index.html): type or sign, the avatar replies with subtitles
+    GET    /static/avatar.js            the avatar player the chat page uses (draws on a <canvas>; reusable)
     GET    /api/health                  which models are loaded
+    GET    /api/avatar                  how to draw the avatar: bones, colours, rest pose, idle loop (stage.py)
     POST   /api/chat/text               {"session_id"?, "text"}               -> chat turn
     POST   /api/chat/sign               multipart: video, session_id?, mirrored? -> chat turn
     POST   /api/translate/sign-to-text  multipart: video, mirrored?           -> recognised text only
     POST   /api/translate/text-to-sign  {"text"}                              -> signing only (no dialogue)
     DELETE /api/session/{session_id}    forget a conversation
-    GET    /media/<file>                generated pose JSON / mp4 / subtitles (.vtt)
+    GET    /media/<file>                generated pose JSON (with joints2d for the page) / mp4 / subtitles (.vtt)
 
 Run:  uvicorn signchat.server:app --host 0.0.0.0 --port 8000     (config from SIGNCHAT_CONFIG)
 """
@@ -29,7 +31,8 @@ from .config import load_config
 from .pipeline import ChatPipeline
 
 VIDEO_TYPES = (".mp4", ".webm", ".mov", ".mkv", ".avi", ".m4v")
-PAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "index.html")
+STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+PAGE = os.path.join(STATIC, "index.html")
 
 
 class TextTurn(BaseModel):
@@ -55,6 +58,7 @@ def create_app(cfg: dict | None = None, pipeline: ChatPipeline | None = None) ->
     app.add_middleware(CORSMiddleware, allow_origins=cfg["cors_origins"], allow_methods=["*"], allow_headers=["*"])
     os.makedirs(cfg["media_dir"], exist_ok=True)
     app.mount("/media", StaticFiles(directory=cfg["media_dir"]), name="media")
+    app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
     def pipe() -> ChatPipeline:
         return state["pipeline"]
@@ -101,6 +105,10 @@ def create_app(cfg: dict | None = None, pipeline: ChatPipeline | None = None) ->
     @app.get("/api/health")
     def health():
         return pipe().status()
+
+    @app.get("/api/avatar")
+    def avatar():
+        return run(pipe().avatar)
 
     @app.post("/api/chat/text")
     def chat_text(body: TextTurn):

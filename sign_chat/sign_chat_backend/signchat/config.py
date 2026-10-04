@@ -59,7 +59,13 @@ DEFAULTS: dict = {
         "encoder_on_gpu": False,        # keep the three M-CLIP text encoders on the GPU (+6.6 GB, faster per sentence)
         "parallel_streams": True,       # sample hand / body / face at the same time (same result, less wait)
         "render_video": "async",        # skeleton mp4: "async" = after the reply, True = before it, False = never
-        "video_size": 480,
+        "video_size": 720,              # the mp4's square (the page draws the same skeleton itself, at any size)
+        # the avatar's stage (stage.py): every reply eases out of the rest pose (hands down) and back into it
+        "lead_in": 8,                   # frames from rest to the first signed frame (0.32 s)
+        "lead_out": 10,                 # frames from the last signed frame back to rest (0.4 s)
+        "idle_frames": 100,             # one breath of the idle loop (4 s)
+        "stage_width_m": 1.1,           # the fixed camera: metres across the square
+        "stage_neck_at": 0.30,          # ... and how far down the square the neck sits at rest
     },
 
     "dialogue": {

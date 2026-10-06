@@ -5,6 +5,7 @@ import heroPoster from "../assets/home-hero-poster.webp";
 import { MirrorMark } from "../components/MirrorMark";
 import { PlaceholderMedia } from "../components/PlaceholderMedia";
 import { tagChipStyle } from "../lib/tagColors";
+import { SCENARIOS } from "../lib/scenarioStories";
 import type { Sign } from "../api/types";
 
 export function HomePage() {
@@ -160,17 +161,66 @@ export function HomePage() {
         <section className="home-showcase-section">
           <div className="home-showcase-grid">
             <div className="home-showcase-text">
-              <p className="home-showcase-kicker">03 — Coming soon</p>
-              <h2 className="home-section-heading">Practise in front of the camera</h2>
+              <p className="home-showcase-kicker">03 — Practice</p>
+              <h2 className="home-section-heading">Sign back at the camera</h2>
               <p className="home-section-lead">
-                We're building AI Auslan-sign recognition, so you'll be able to
-                sign back at your camera and see straight away whether you've
-                got it right.
+                Every entry has a Practice tab: sign it back at your camera and
+                find out straight away whether you've got it right, powered by
+                our own Auslan recognition model.
               </p>
-              <span className="home-coming-soon-badge">Coming soon</span>
+              <Link to="/library" className="home-showcase-link">
+                Find a sign to practise &rarr;
+              </Link>
             </div>
             <div className="home-showcase-visual">
               <AiRecognitionPreview />
+            </div>
+          </div>
+        </section>
+
+        <section className="home-showcase-section">
+          <div className="home-showcase-grid home-showcase-grid-reverse">
+            <div className="home-showcase-visual">
+              <SignChatPreview />
+            </div>
+            <div className="home-showcase-text">
+              <p className="home-showcase-kicker">04 — Sign Chat</p>
+              <h2 className="home-section-heading">Chat with a signing avatar</h2>
+              <p className="home-section-lead">
+                Type a sentence, or sign one at your camera, and a 3D avatar
+                replies in Auslan — like a video call with someone who signs
+                back to you.
+              </p>
+              <Link to="/conversation" className="home-showcase-link">
+                Try Sign Chat &rarr;
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className="home-showcase-section">
+          <div className="home-showcase-grid">
+            <div className="home-showcase-text">
+              <p className="home-showcase-kicker">05 — Scenario Learning</p>
+              <h2 className="home-section-heading">Learn signs for real situations</h2>
+              <p className="home-section-lead">
+                Walk through everyday scenarios — meeting someone new, ordering
+                at a café, asking for directions — step by step, picking up
+                exactly the words each one takes.
+              </p>
+              <Link to="/scenarios" className="home-showcase-link">
+                Browse scenarios &rarr;
+              </Link>
+            </div>
+            <div className="home-showcase-visual">
+              <div className="home-library-preview">
+                {SCENARIOS.slice(0, 4).map((scenario) => (
+                  <Link key={scenario.id} to={`/scenarios/${scenario.id}`} className="home-library-preview-chip">
+                    <span aria-hidden="true">{scenario.emoji} </span>
+                    <span className="home-library-preview-gloss">{scenario.title}</span>
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -188,6 +238,20 @@ function AiRecognitionPreview() {
         <circle cx="50" cy="60" r="18" />
         <circle cx="50" cy="60" r="6" fill="currentColor" stroke="none" />
         <rect x="34" y="14" width="14" height="6" rx="2" />
+      </svg>
+    </div>
+  );
+}
+
+function SignChatPreview() {
+  return (
+    <div className="home-ai-preview" aria-hidden="true">
+      <svg viewBox="0 0 120 120" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        {/* avatar: head + shoulders */}
+        <circle cx="46" cy="38" r="16" />
+        <path d="M22 92c0-16 10-26 24-26s24 10 24 26" />
+        {/* reply bubble */}
+        <path d="M70 18h36a6 6 0 0 1 6 6v22a6 6 0 0 1-6 6H84l-10 10V52h-4a6 6 0 0 1-6-6V24a6 6 0 0 1 6-6Z" />
       </svg>
     </div>
   );

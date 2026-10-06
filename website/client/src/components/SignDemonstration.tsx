@@ -1,19 +1,64 @@
 import { useEffect, useRef, useState } from "react";
 import type { SignVideo } from "../api/types";
+import { fetchSignPose } from "../api/signs";
+import { parseSmplxPose, type SmplxClip } from "../lib/smplx";
+import { SmplxAvatar, smplxAvatarConfigured } from "./SmplxAvatar";
 import { StickFigureStage } from "./StickFigureStage";
 
 const SPEEDS = [0.5, 1, 2] as const;
 
 interface Props {
+  signId: number;
   gloss: string;
   videos: SignVideo[];
 }
 
-export function SignDemonstration({ gloss, videos }: Props) {
+export function SignDemonstration({ signId, gloss, videos }: Props) {
   const [videoIndex, setVideoIndex] = useState(0);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
   const [view, setView] = useState<"video" | "skeleton">("video");
+  // undefined = not fetched yet, null = this sign has no pose data.
+  const [poseClip, setPoseClip] = useState<SmplxClip | null | undefined>(undefined);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    setPoseClip(undefined);
+  }, [signId]);
+
+  useEffect(() => {
+    if (view !== "skeleton" || poseClip !== undefined) return;
+    const controller = new AbortController();
+    fetchSignPose(signId, controller.signal)
+      .then((pose) => setPoseClip(pose ? parseSmplxPose(pose) : null))
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+        console.error("Failed to load pose data:", err);
+        setPoseClip(null);
+      });
+    return () => controller.abort();
+  }, [view, signId, poseClip]);
+
+  const speedControl = (
+    <label>
+      Speed{" "}
+      <select
+        value={speed}
+        onChange={(e) => {
+          const nextSpeed = Number(e.target.value) as (typeof SPEEDS)[number];
+          setSpeed(nextSpeed);
+          if (videoRef.current) {
+            videoRef.current.playbackRate = nextSpeed;
+          }
+        }}
+      >
+        {SPEEDS.map((value) => (
+          <option key={value} value={value}>
+            {value}×
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 
   const availableVideos = videos.filter((video) => Boolean(video.videoUrl));
 
@@ -43,9 +88,23 @@ export function SignDemonstration({ gloss, videos }: Props) {
       </div>
 
       {view === "skeleton" ? (
-        <StickFigureStage
-          caption="Replays the sign as a motion-capture skeleton instead of video."
-        />
+        poseClip && smplxAvatarConfigured ? (
+          <>
+            <SmplxAvatar className="sign-demo-avatar" clip={poseClip} playing loop speed={speed} />
+            <div className="playback-controls" role="group" aria-label="Skeleton playback controls">
+              {speedControl}
+            </div>
+          </>
+        ) : (
+          <StickFigureStage
+            status={poseClip === undefined ? "Loading…" : undefined}
+            caption={
+              poseClip === undefined
+                ? "Loading the motion-capture preview…"
+                : "No motion-capture preview for this sign yet."
+            }
+          />
+        )
       ) : availableVideos.length === 0 ? (
         <p className="demo-empty">
           No demonstration video is available for this sign yet.
@@ -134,28 +193,7 @@ export function SignDemonstration({ gloss, videos }: Props) {
           ↶ Replay
         </button>
 
-        <label>
-          Speed{" "}
-          <select
-            value={speed}
-            onChange={(e) => {
-              const nextSpeed = Number(e.target.value) as
-                (typeof SPEEDS)[number];
-
-              setSpeed(nextSpeed);
-
-              if (videoRef.current) {
-                videoRef.current.playbackRate = nextSpeed;
-              }
-            }}
-          >
-            {SPEEDS.map((value) => (
-              <option key={value} value={value}>
-                {value}×
-              </option>
-            ))}
-          </select>
-        </label>
+        {speedControl}
       </div>
         </>
       )}

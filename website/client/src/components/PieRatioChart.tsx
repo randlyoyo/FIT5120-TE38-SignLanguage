@@ -1,4 +1,4 @@
-import { useEffect, useState, type PointerEvent } from "react";
+import { useEffect, useState, type KeyboardEvent, type PointerEvent } from "react";
 
 interface Props {
   tags: string[];
@@ -70,6 +70,21 @@ export function PieRatioChart({ tags, counts, colors, onChange }: Props) {
     setDragBoundary(boundaryIndex);
   }
 
+  // Keyboard equivalent of dragging: the arrow keys move a boundary the
+  // same way a drag would, one count at a time -- the same two-wedge
+  // redistribution, just discrete instead of following the pointer.
+  function handleBoundaryKeyDown(boundaryIndex: number, e: KeyboardEvent) {
+    const before = boundaryIndex - 1;
+    const after = boundaryIndex;
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+      e.preventDefault();
+      redistribute(after, before, 1);
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+      e.preventDefault();
+      redistribute(after, before, -1);
+    }
+  }
+
   function handlePointerMove(e: PointerEvent) {
     if (dragBoundary === null) return;
     const before = dragBoundary - 1; // wedge ending at this boundary
@@ -119,8 +134,8 @@ export function PieRatioChart({ tags, counts, colors, onChange }: Props) {
       onPointerMove={handlePointerMove}
       onPointerUp={() => setDragBoundary(null)}
       onPointerLeave={() => setDragBoundary(null)}
-      role="img"
-      aria-label="Word count ratio across the chosen topics -- drag a boundary or scroll over a wedge to adjust"
+      role="group"
+      aria-label="Word count ratio across the chosen topics -- drag a boundary, scroll over a wedge, or tab to a boundary handle and use the arrow keys"
     >
       {tags.length === 1 ? (
         // A single wedge spans the full 360 degrees, whose start and end
@@ -146,6 +161,11 @@ export function PieRatioChart({ tags, counts, colors, onChange }: Props) {
         })
       )}
       {boundaries.slice(1, -1).map((angle, i) => {
+        const boundaryIndex = i + 1;
+        const before = tags[boundaryIndex - 1];
+        const after = tags[boundaryIndex];
+        const countBefore = counts[before] ?? 0;
+        const countAfter = counts[after] ?? 0;
         const p = pointOnCircle(angle, RADIUS);
         return (
           <circle
@@ -154,7 +174,15 @@ export function PieRatioChart({ tags, counts, colors, onChange }: Props) {
             cy={p.y}
             r={7}
             className="pie-ratio-handle"
-            onPointerDown={(e) => handlePointerDown(i + 1, e)}
+            tabIndex={0}
+            role="slider"
+            aria-label={`Split between ${before} and ${after}`}
+            aria-valuemin={1}
+            aria-valuemax={countBefore + countAfter - 1}
+            aria-valuenow={countBefore}
+            aria-valuetext={`${before}: ${countBefore}, ${after}: ${countAfter}`}
+            onPointerDown={(e) => handlePointerDown(boundaryIndex, e)}
+            onKeyDown={(e) => handleBoundaryKeyDown(boundaryIndex, e)}
           />
         );
       })}

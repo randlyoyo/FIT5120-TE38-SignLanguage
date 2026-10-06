@@ -190,7 +190,7 @@ export function SignDetailPage() {
         </div>
 
         <div className="detail-media">
-          <SignDemonstration gloss={sign.gloss} videos={sign.videos ?? []} />
+          <SignDemonstration signId={sign.id} gloss={sign.gloss} videos={sign.videos ?? []} />
         </div>
 
         {/* Keyed by mode so switching Learn <-> Practice remounts this panel

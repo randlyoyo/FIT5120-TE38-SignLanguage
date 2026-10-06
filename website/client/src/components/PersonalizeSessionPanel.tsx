@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchRandomSignsByTag, fetchTags } from "../api/signs";
 import type { TagCount } from "../api/types";
 import { getLearnedIds } from "../lib/learnedSigns";
@@ -36,6 +36,46 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const openerRef = useRef<HTMLButtonElement | null>(null);
+
+  // Standard dialog keyboard behaviour (WAI-ARIA APG): Escape dismisses it,
+  // Tab/Shift+Tab cycle only through the dialog's own focusable elements
+  // instead of leaking out to the page underneath, and focus starts inside
+  // it and returns to the button that opened it on close.
+  useEffect(() => {
+    if (!modalOpen) return;
+    const modal = modalRef.current;
+    const focusable = modal?.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])'
+    );
+    focusable?.[0]?.focus();
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        closeWizard();
+        return;
+      }
+      if (e.key !== "Tab" || !focusable || focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      openerRef.current?.focus();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modalOpen, step, result]);
 
   useEffect(() => {
     if (!modalOpen || allTags.length > 0) return;
@@ -138,7 +178,7 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
 
   return (
     <div className="personalize-panel">
-      <button type="button" className="personalize-panel-toggle" onClick={openWizard}>
+      <button type="button" ref={openerRef} className="personalize-panel-toggle" onClick={openWizard}>
         <span className="personalize-panel-icon" aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -151,6 +191,7 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
       {modalOpen && (
         <div className="wizard-overlay" onClick={closeWizard}>
           <div
+            ref={modalRef}
             className="wizard-modal"
             role="dialog"
             aria-modal="true"
@@ -246,7 +287,10 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
                     ))}
                   </ul>
                 </div>
-                <p className="wizard-ratio-hint">Drag a boundary, or scroll over a wedge, to change the split.</p>
+                <p className="wizard-ratio-hint">
+                  Drag a boundary, scroll over a wedge, or type a count directly. A boundary handle can also be
+                  tabbed to and adjusted with the arrow keys.
+                </p>
               </div>
             )}
 

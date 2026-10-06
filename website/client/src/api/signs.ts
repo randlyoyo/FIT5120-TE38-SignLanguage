@@ -1,4 +1,5 @@
 import type { Sign, SignLevel, SignsResponse, TagCount } from "./types";
+import type { SmplxPoseJson } from "../lib/smplx";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
@@ -45,6 +46,14 @@ export async function fetchSigns({
 export async function fetchSignById(id: number, signal?: AbortSignal): Promise<Sign> {
   const res = await fetch(`${API_BASE}/signs/${id}`, { signal });
   if (!res.ok) throw new Error(`Failed to fetch sign ${id} (${res.status})`);
+  return res.json();
+}
+
+/** SMPL-X clip for the skeleton preview; null when this sign has none yet. */
+export async function fetchSignPose(id: number, signal?: AbortSignal): Promise<SmplxPoseJson | null> {
+  const res = await fetch(`${API_BASE}/signs/${id}/pose`, { signal });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Failed to fetch pose for sign ${id} (${res.status})`);
   return res.json();
 }
 

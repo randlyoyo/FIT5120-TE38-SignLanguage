@@ -34,8 +34,11 @@ const START_OF: Record<Granularity, (d: Date) => Date> = {
   year: startOfYear,
 };
 
-const DAY_FMT = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" });
-const MONTH_FMT = new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" });
+// Fixed to English regardless of the viewer's browser/OS locale -- this is
+// an English-language product, and "undefined" here previously meant
+// "2026年9月" instead of "September 2026" for a browser set to Chinese.
+const DAY_FMT = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short", year: "numeric" });
+const MONTH_FMT = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
 
 function labelFor(start: Date, granularity: Granularity): string {
   switch (granularity) {

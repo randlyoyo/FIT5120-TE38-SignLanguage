@@ -256,4 +256,23 @@ res.json(sign);
   }
 });
 
+// GET /api/signs/:id/pose -- SMPL-X clip for the skeleton preview. Stored
+// already gzipped, so it's sent as-is and the browser inflates it.
+router.get("/:id/pose", async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid sign id" });
+    }
+    const [rows] = await pool.query("SELECT pose_gz FROM sign_poses WHERE sign_id = ?", [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "No pose data for this sign", id });
+    }
+    res.set({ "Content-Type": "application/json", "Content-Encoding": "gzip" });
+    res.send(rows[0].pose_gz);
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

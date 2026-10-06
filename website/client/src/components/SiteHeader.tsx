@@ -13,6 +13,9 @@ export function SiteHeader() {
           <NavLink to="/library" className={({ isActive }) => (isActive ? "active" : "")}>
             Library
           </NavLink>
+          <NavLink to="/scenarios" className={({ isActive }) => (isActive ? "active" : "")}>
+            Scenarios
+          </NavLink>
           <NavLink to="/conversation" className={({ isActive }) => (isActive ? "active" : "")}>
             Sign Chat
           </NavLink>

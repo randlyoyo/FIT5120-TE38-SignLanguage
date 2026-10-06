@@ -72,3 +72,15 @@ CREATE TABLE IF NOT EXISTS sign_videos (
         REFERENCES signs(id)
         ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+
+-- SMPL-X motion for the detail page's skeleton preview, one clip per sign.
+-- `pose_gz` is the gzipped pose JSON from scripts/convert_poses.py, served
+-- as-is with Content-Encoding: gzip so the server never inflates it.
+-- No foreign key: the deployed `signs` table has no key on id to reference.
+CREATE TABLE IF NOT EXISTS sign_poses (
+    sign_id INT UNSIGNED NOT NULL PRIMARY KEY,
+    pose_gz MEDIUMBLOB NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+        DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;

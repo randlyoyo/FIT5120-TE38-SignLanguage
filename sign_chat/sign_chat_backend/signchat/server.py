@@ -23,6 +23,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -56,6 +57,11 @@ def create_app(cfg: dict | None = None, pipeline: ChatPipeline | None = None) ->
 
     app = FastAPI(title="Auslan sign chat backend", version="0.1.0", lifespan=lifespan)
     app.add_middleware(CORSMiddleware, allow_origins=cfg["cors_origins"], allow_methods=["*"], allow_headers=["*"])
+    # The pose JSON is the biggest thing this serves over the Colab tunnel's
+    # limited bandwidth (joints + joints2d for every frame, most of it text
+    # the chat frontends don't use) -- gzip is a one-line win there (JSON
+    # compresses ~70-80%) with no change to the response shape.
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
     os.makedirs(cfg["media_dir"], exist_ok=True)
     app.mount("/media", StaticFiles(directory=cfg["media_dir"]), name="media")
     app.mount("/static", StaticFiles(directory=STATIC), name="static")

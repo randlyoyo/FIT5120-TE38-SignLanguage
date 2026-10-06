@@ -1,64 +1,141 @@
 import { useEffect, useRef, useState } from "react";
 import { StickFigureStage } from "../components/StickFigureStage";
+import { SmplxAvatar, smplxAvatarConfigured } from "../components/SmplxAvatar";
+import { SignCaptureModal } from "../components/SignCaptureModal";
+import { parseSmplxPose, type SmplxClip } from "../lib/smplx";
+import {
+  deleteChatSession,
+  fetchSignPose,
+  sendChatSign,
+  sendChatText,
+  signChatMediaUrl,
+  waitForSignVideo,
+  SignChatApiError,
+  type ChatResponse,
+} from "../api/signChat";
 
 interface Message {
   id: number;
-  text: string;
-  status: "generating" | "done";
+  /** "Signing…" until the signed clip is recognised, then the recognised text. */
+  userText: string;
+  signed: boolean;
+  status: "generating" | "done" | "error";
+  reply?: ChatResponse["reply"];
+  errorMessage?: string;
 }
 
-// Stand-in for what a real sign-to-text pass would transcribe -- there's no
-// camera capture wired up yet, so the record button cycles through a small
-// rotating set instead of leaving the "+" a dead, disabled control.
-const SAMPLE_TRANSCRIPTS = [
-  "How are you",
-  "Thank you",
-  "See you later",
-  "Nice to meet you",
-];
+function messageFor(err: unknown): string {
+  if (err instanceof SignChatApiError) return err.message;
+  if (err instanceof DOMException && err.name === "NotAllowedError") {
+    return "Camera access was denied — allow it in your browser and try again.";
+  }
+  console.error("ConversationPage failed:", err);
+  return "The avatar couldn't reply just now. Please try again.";
+}
 
-/** Shell for the text-to-sign avatar feature -- real generation runs on a
- *  separate GPU inference service that isn't wired up yet (recognition's
- *  measured pipeline runs 5-8s round trip), so "Send" here only drives the
- *  placeholder stage through its states. The reply area splits into a
- *  narrower transcript column and a wide avatar column, roughly 2:5 -- the
- *  avatar is the actual reply, so it gets the bigger share. The input bar
- *  is independent of that split: a single pill centered on the page below
- *  both columns, the same as a typical chat app's composer. */
+/** Sign-chat page, wired to the real backend (sign_chat/sign_chat_backend).
+ *  It runs on a separate GPU host -- set VITE_SIGNCHAT_API_BASE_URL, or
+ *  point it at a `SIGNCHAT_MOCK=1` instance for frontend work without a
+ *  GPU. Reply video is played directly (`reply.sign.video_url`); the
+ *  backend's own README calls this the quickest route to a working avatar,
+ *  short of a full SMPL-X rig. The reply area splits into a narrower
+ *  transcript column and a wide avatar column, roughly 2:5 -- the avatar is
+ *  the actual reply, so it gets the bigger share. The input bar is a single
+ *  pill centered below both columns, the same as a typical chat composer. */
 export function ConversationPage() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [input, setInput] = useState("");
-  const [recording, setRecording] = useState(false);
-  const [transcriptIndex, setTranscriptIndex] = useState(0);
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [sessionId, setSessionId] = useState<string | undefined>(undefined);
+  const [poseClips, setPoseClips] = useState<Record<number, SmplxClip>>({});
   const logRef = useRef<HTMLDivElement | null>(null);
 
-  const last = messages[messages.length - 1];
-  const isGenerating = last?.status === "generating";
+  const selected = messages.find((m) => m.id === selectedId) ?? messages[messages.length - 1];
+  const isGenerating = messages[messages.length - 1]?.status === "generating";
 
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
+  async function runTurn(id: number, call: () => Promise<ChatResponse>) {
+    try {
+      const res = await call();
+      setSessionId(res.session_id);
+      // The VRM avatar never plays the debug mp4, so there's nothing to
+      // gain by waiting on it -- that used to add several needless seconds
+      // (video render time) before the avatar could even start, while the
+      // pose JSON it actually needs is already written by the time this
+      // response comes back. Fetched here (not in a useEffect keyed on
+      // `selected`) so it lands in the same state update as the reply
+      // text, instead of a visible beat later.
+      let clip: SmplxClip | null = null;
+      if (smplxAvatarConfigured) {
+        try {
+          clip = parseSmplxPose(await fetchSignPose(res.reply.sign.pose_url));
+        } catch (err) {
+          console.error("Failed to load pose data:", err);
+        }
+      } else if (res.reply.sign.video_status !== "ready") {
+        await waitForSignVideo(res.reply.sign.video_url);
+      }
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === id
+            ? {
+                ...m,
+                status: "done",
+                reply: res.reply,
+                userText: res.input.recognition?.raw_text ?? m.userText,
+              }
+            : m
+        )
+      );
+      if (clip) setPoseClips((prev) => ({ ...prev, [id]: clip }));
+      setSelectedId(id);
+    } catch (err) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, status: "error", errorMessage: messageFor(err) } : m))
+      );
+      setSelectedId(id);
+    }
+  }
+
   function handleSend() {
     const text = input.trim();
     if (!text || isGenerating) return;
     const id = Date.now();
-    setMessages((prev) => [...prev, { id, text, status: "generating" }]);
+    setMessages((prev) => [...prev, { id, userText: text, signed: false, status: "generating" }]);
+    setSelectedId(id);
     setInput("");
-    window.setTimeout(() => {
-      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, status: "done" } : m)));
-    }, 1400);
+    void runTurn(id, () => sendChatText(text, sessionId));
   }
 
-  function toggleRecording() {
-    if (recording) {
-      setRecording(false);
-      setInput(SAMPLE_TRANSCRIPTS[transcriptIndex % SAMPLE_TRANSCRIPTS.length]);
-      setTranscriptIndex((i) => i + 1);
-      return;
-    }
-    setRecording(true);
+  function handleCaptureConfirmed(video: Blob) {
+    setCaptureOpen(false);
+    const id = Date.now();
+    setMessages((prev) => [...prev, { id, userText: "Signing…", signed: true, status: "generating" }]);
+    setSelectedId(id);
+    // The front camera's own feed, so (like a selfie) it's mirrored --
+    // README.md "mirrored: ... most front-camera recordings".
+    void runTurn(id, () => sendChatSign(video, { mirrored: true, sessionId }));
   }
+
+  function newChat() {
+    if (sessionId) void deleteChatSession(sessionId);
+    setMessages([]);
+    setSelectedId(null);
+    setSessionId(undefined);
+    setInput("");
+  }
+
+  const stageStatus = !selected
+      ? "Waiting for input"
+      : selected.status === "generating"
+        ? "Generating…"
+        : selected.status === "error"
+          ? "Couldn't reply"
+          : "Signed";
 
   return (
     <div className="conversation-shell">
@@ -71,23 +148,75 @@ export function ConversationPage() {
               </p>
             ) : (
               messages.map((m) => (
-                <div key={m.id} className="conversation-message-group">
-                  <p className="conversation-message conversation-message-user">{m.text}</p>
-                  <p className="conversation-message conversation-message-status">
-                    {m.status === "generating" ? "Generating…" : "✓ Signed"}
+                <button
+                  key={m.id}
+                  type="button"
+                  className={`conversation-message-group ${m.id === selected?.id ? "selected" : ""}`}
+                  onClick={() => m.status === "done" && setSelectedId(m.id)}
+                  disabled={m.status !== "done"}
+                >
+                  <p className="conversation-message conversation-message-user">
+                    {m.signed && <span aria-hidden="true">🤟 </span>}
+                    {m.userText}
                   </p>
-                </div>
+                  {m.status === "generating" && <p className="conversation-message-status">Generating…</p>}
+                  {m.status === "done" && m.reply && (
+                    <p className="conversation-message conversation-message-avatar">{m.reply.text}</p>
+                  )}
+                  {m.status === "error" && (
+                    <p className="conversation-message-status" role="alert">
+                      {m.errorMessage}
+                    </p>
+                  )}
+                </button>
               ))
             )}
           </div>
+          {messages.length > 0 && (
+            <button type="button" className="conversation-new-chat" onClick={newChat}>
+              New chat
+            </button>
+          )}
         </div>
 
         <div className="conversation-stage-area">
-          <StickFigureStage
-            className="conversation-stage"
-            status={!last ? "Waiting for input" : isGenerating ? "Generating…" : "Signed"}
-            signing={isGenerating}
-          />
+          {smplxAvatarConfigured ? (
+            // Shown in every other state too (idle, generating), not just
+            // once a reply lands -- a relaxed idle pose (SmplxAvatar's own
+            // IDLE_POSE fallback when clip is null) reads as "waiting", not
+            // the frozen T-pose rest, or the SVG placeholder this replaces.
+            <div className="stick-figure-stage stick-figure-stage--avatar">
+              <span className="stick-figure-status">{stageStatus}</span>
+              <SmplxAvatar
+                className="conversation-avatar-3d"
+                clip={(selected?.status === "done" && poseClips[selected.id]) || null}
+                playing
+              />
+            </div>
+          ) : selected?.status === "done" && selected.reply ? (
+            <div className="stick-figure-stage">
+              <span className="stick-figure-status">{stageStatus}</span>
+              <video
+                key={selected.id}
+                className="conversation-avatar-video"
+                src={signChatMediaUrl(selected.reply.sign.video_url)}
+                controls
+                autoPlay
+              >
+                {selected.reply.sign.subtitle_url && (
+                  <track
+                    kind="subtitles"
+                    srcLang="en"
+                    src={signChatMediaUrl(selected.reply.sign.subtitle_url)}
+                    default
+                  />
+                )}
+              </video>
+              <p className="stick-figure-caption">Click a message on the left to replay its reply.</p>
+            </div>
+          ) : (
+            <StickFigureStage className="conversation-stage" status={stageStatus} signing={isGenerating} />
+          )}
         </div>
       </div>
 
@@ -95,29 +224,22 @@ export function ConversationPage() {
         <div className="conversation-input-pill">
           <button
             type="button"
-            className={`conversation-record-button ${recording ? "recording" : ""}`}
-            onClick={toggleRecording}
-            title={recording ? "Stop recording" : "Record a sign instead of typing"}
-            aria-label={recording ? "Stop recording" : "Record a sign instead of typing"}
-            aria-pressed={recording}
+            className="conversation-record-button"
+            onClick={() => setCaptureOpen(true)}
+            disabled={isGenerating}
+            title="Record a sign instead of typing"
+            aria-label="Record a sign instead of typing"
           >
-            {recording ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <rect x="6" y="6" width="12" height="12" rx="2.5" />
-              </svg>
-            ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" />
-                <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" />
-              </svg>
-            )}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" />
+            </svg>
           </button>
           <input
             id="conversation-input"
             type="text"
             value={input}
-            placeholder={recording ? "Recording… click again to stop" : "Type a sentence to sign…"}
-            disabled={recording}
+            placeholder="Type a sentence to sign…"
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
           />
@@ -125,7 +247,7 @@ export function ConversationPage() {
             type="button"
             className="conversation-send-button"
             onClick={handleSend}
-            disabled={!input.trim() || isGenerating || recording}
+            disabled={!input.trim() || isGenerating}
             aria-label="Send"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -135,6 +257,10 @@ export function ConversationPage() {
           </button>
         </div>
       </div>
+
+      {captureOpen && (
+        <SignCaptureModal onConfirm={handleCaptureConfirmed} onCancel={() => setCaptureOpen(false)} />
+      )}
     </div>
   );
 }

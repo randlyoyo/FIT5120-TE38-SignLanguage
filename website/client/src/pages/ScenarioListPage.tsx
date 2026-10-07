@@ -1,37 +1,75 @@
 import { Link } from "react-router-dom";
-import { SCENARIOS, type Scenario } from "../lib/scenarioStories";
-import { useScenarioProgress } from "../hooks/useScenarioProgress";
+import { SCENARIO_CATEGORIES, SCENARIO_STATS, type ScenarioCategory } from "../lib/scenarioCategories";
 
-const LEVEL_LABELS = {
-  beginner: "Beginner",
-  intermediate: "Intermediate",
-  advanced: "Advanced",
+const CATEGORY_EMOJIS: Record<ScenarioCategory, string> = {
+  A: "🏠",
+  B: "💼",
+  C: "📝",
 };
 
-function ScenarioCard({ scenario }: { scenario: Scenario }) {
-  const { learnedCount, totalSteps } = useScenarioProgress(scenario);
+const CATEGORY_DESCRIPTIONS: Record<ScenarioCategory, string> = {
+  A: "Real-life everyday situations",
+  B: "Professional and specialized topics",
+  C: "Grammar and abstract concepts",
+};
 
+function CategoryCard({ group }: { group: typeof SCENARIO_CATEGORIES[0] }) {
   return (
-    <Link to={`/scenarios/${scenario.id}`} className="scenario-card">
-      <span className="scenario-card-emoji" aria-hidden="true">
-        {scenario.emoji}
-      </span>
-      <h2 className="scenario-card-title">{scenario.title}</h2>
-      <p className="scenario-card-situation">{scenario.situation}</p>
-      <div className="scenario-card-footer">
-        <span className={`level-badge level-badge-${scenario.level}`}>{LEVEL_LABELS[scenario.level]}</span>
-        <span className={`scenario-card-progress ${learnedCount === totalSteps ? "scenario-card-progress-done" : ""}`}>
-          {learnedCount}/{totalSteps} learned
-        </span>
+    <Link to={`/scenarios/category/${group.id}`} className="category-card">
+      <h3 className="category-card-title">{group.title}</h3>
+      <div className="category-card-meta">
+        <span className="category-badge">{group.id}</span>
+        <span className="word-count">{group.wordCount} words</span>
+      </div>
+      <div className="category-card-subs">
+        {group.subScenarios.map((sub) => (
+          <span key={sub.id} className="sub-badge">
+            {sub.name}
+          </span>
+        ))}
       </div>
     </Link>
   );
 }
 
-/** Scenario Learning index -- a scenario is a short story walked through
- *  step by step (ScenarioLearningPage), rather than a flat vocabulary list.
- *  Pick one here to open its teaching page. Each card's progress is real
- *  (useScenarioProgress reads lib/learnedSigns.ts), not decorative. */
+function CategorySection({ category, title, description }: { category: ScenarioCategory; title: string; description: string }) {
+  const scenarios = SCENARIO_CATEGORIES.filter((s) => s.category === category);
+  const scenarioCount = scenarios.length;
+  const wordCount = scenarios.reduce((sum, s) => sum + s.wordCount, 0);
+
+  return (
+    <section className="scenario-category-section">
+      <div className="category-section-header">
+        <div>
+          <span className="category-emoji" aria-hidden="true">
+            {CATEGORY_EMOJIS[category]}
+          </span>
+          <h2 className="category-section-title">{title}</h2>
+          <p className="category-section-description">{description}</p>
+        </div>
+        <div className="category-stats">
+          <div className="stat">
+            <span className="stat-value">{scenarioCount}</span>
+            <span className="stat-label">Scenarios</span>
+          </div>
+          <div className="stat">
+            <span className="stat-value">{wordCount}</span>
+            <span className="stat-label">Words</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="category-grid">
+        {scenarios.map((group) => (
+          <CategoryCard key={group.id} group={group} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Scenario Learning index -- browse the scenario library organized by topic.
+ *  Explore everyday situations, professional topics, and grammar concepts. */
 export function ScenarioListPage() {
   return (
     <>
@@ -41,19 +79,33 @@ export function ScenarioListPage() {
             <p className="library-eyebrow-light">Index</p>
             <h1 className="page-title">Scenario Learning</h1>
           </div>
-          <p className="results-count library-hero-count">{SCENARIOS.length} scenarios</p>
+          <p className="results-count library-hero-count">
+            {SCENARIO_STATS.totalCategories} scenarios
+          </p>
         </div>
       </header>
 
       <div className="page-container scenario-list-page">
         <p className="scenario-list-intro">
-          Walk through a real-life situation step by step, learning the signs you'd actually need for it.
+          Browse the complete scenario library organized by topic. Explore everyday situations, professional topics,
+          and grammar concepts.
         </p>
-
-        <div className="scenario-card-grid">
-          {SCENARIOS.map((scenario) => (
-            <ScenarioCard key={scenario.id} scenario={scenario} />
-          ))}
+        <div className="scenario-categories-container">
+          <CategorySection
+            category="A"
+            title="Daily Life"
+            description={CATEGORY_DESCRIPTIONS.A}
+          />
+          <CategorySection
+            category="B"
+            title="Professional"
+            description={CATEGORY_DESCRIPTIONS.B}
+          />
+          <CategorySection
+            category="C"
+            title="Language Basics"
+            description={CATEGORY_DESCRIPTIONS.C}
+          />
         </div>
       </div>
     </>

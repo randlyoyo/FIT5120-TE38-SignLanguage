@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Scenario } from "../lib/scenarioStories";
-import { resolveScenarioWord } from "../lib/resolveScenarioWord";
+import { WORD_TO_SIGN_ID } from "../lib/wordToSignId";
 import { isLearned } from "../lib/learnedSigns";
 
 export interface ScenarioProgress {
@@ -21,16 +21,10 @@ export function useScenarioProgress(scenario: Scenario): ScenarioProgress {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    let active = true;
+    // Use the pre-computed WORD_TO_SIGN_ID map instead of API calls
     const words = [...new Set(scenario.steps.flatMap((s) => s.words))];
-    Promise.all(words.map(async (w) => [w, await resolveScenarioWord(w).catch(() => null)] as const)).then(
-      (pairs) => {
-        if (active) setWordIds(Object.fromEntries(pairs));
-      }
-    );
-    return () => {
-      active = false;
-    };
+    const pairs = words.map((w) => [w, WORD_TO_SIGN_ID.get(w) ?? null] as const);
+    setWordIds(Object.fromEntries(pairs));
   }, [scenario]);
 
   useEffect(() => {

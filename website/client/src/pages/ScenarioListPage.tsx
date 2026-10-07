@@ -16,6 +16,7 @@ const CATEGORY_DESCRIPTIONS: Record<ScenarioCategory, string> = {
 function CategoryCard({ group }: { group: typeof SCENARIO_CATEGORIES[0] }) {
   return (
     <Link to={`/scenarios/category/${group.id}`} className="category-card">
+      <div className="category-card-icon">{group.icon}</div>
       <h3 className="category-card-title">{group.title}</h3>
       <div className="category-card-meta">
         <span className="category-badge">{group.id}</span>

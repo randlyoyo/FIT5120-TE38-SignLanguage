@@ -1,5 +1,8 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { SCENARIO_CATEGORIES, SCENARIO_STATS, type ScenarioCategory } from "../lib/scenarioCategories";
+import { WORD_TO_SIGN_ID } from "../lib/wordToSignId";
+import { isLearned } from "../lib/learnedSigns";
 
 const CATEGORY_EMOJIS: Record<ScenarioCategory, string> = {
   A: "🏠",
@@ -14,13 +17,27 @@ const CATEGORY_DESCRIPTIONS: Record<ScenarioCategory, string> = {
 };
 
 function CategoryCard({ group }: { group: typeof SCENARIO_CATEGORIES[0] }) {
+  // 计算学会的单词数量
+  const learnedCount = useMemo(() => {
+    let count = 0;
+    for (const sub of group.subScenarios) {
+      for (const word of sub.words) {
+        const signId = WORD_TO_SIGN_ID.get(word);
+        if (signId !== undefined && isLearned(signId)) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }, [group]);
+
   return (
     <Link to={`/scenarios/category/${group.id}`} className="category-card">
       <div className="category-card-icon">{group.icon}</div>
       <h3 className="category-card-title">{group.title}</h3>
       <div className="category-card-meta">
         <span className="category-badge">{group.id}</span>
-        <span className="word-count">{group.wordCount} words</span>
+        <span className="word-count">{learnedCount}/{group.wordCount} words learned</span>
       </div>
       <div className="category-card-subs">
         {group.subScenarios.map((sub) => (

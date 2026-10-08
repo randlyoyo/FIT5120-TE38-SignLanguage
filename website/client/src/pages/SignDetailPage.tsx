@@ -28,18 +28,25 @@ export function SignDetailPage() {
   const location = useLocation();
   const signId = Number(id);
 
-  // Extract navigation context from ResultCard
-  const siblingIds = (location.state as { siblingIds?: number[]; returnTo?: string } | null)?.siblingIds;
-  const returnTo = (location.state as { siblingIds?: number[]; returnTo?: string } | null)?.returnTo;
+  // Extract navigation context from ResultCard or Scenario Category Page
+  const siblingIds = (location.state as { siblingIds?: number[]; returnTo?: string; selectedSubId?: string } | null)?.siblingIds;
+  const returnTo = (location.state as { siblingIds?: number[]; returnTo?: string; selectedSubId?: string } | null)?.returnTo;
+  const selectedSubId = (location.state as { siblingIds?: number[]; returnTo?: string; selectedSubId?: string } | null)?.selectedSubId;
   
   // Calculate prev/next ids based on siblingIds
   const currentIndex = siblingIds ? siblingIds.indexOf(signId) : -1;
   const prevId = currentIndex > 0 ? siblingIds![currentIndex - 1] : null;
   const nextId = currentIndex >= 0 && currentIndex < siblingIds!.length - 1 ? siblingIds![currentIndex + 1] : null;
 
-  // Determine which page to return to
-  const backPath = returnTo || "/library";
+  // Determine which page to return to and what state to pass
+  let backPath = returnTo || "/library";
+  let backState: any = undefined;
   const backLabel = returnTo ? "↤ Back" : "↤ Back to library";
+  
+  // If we're returning to a scenario category with a selected sub-id, pass it along
+  if (returnTo?.includes("/scenarios/category/") && selectedSubId) {
+    backState = { selectedSubId };
+  }
 
   const [sign, setSign] = useState<Sign | null>(null);
   const [isError, setIsError] = useState(false);
@@ -109,7 +116,7 @@ export function SignDetailPage() {
     return (
       <div className="page-container">
         <p role="alert">Couldn't load this sign.</p>
-        <button type="button" className="back-link" onClick={() => navigate(backPath)}>
+        <button type="button" className="back-link" onClick={() => navigate(backPath, { state: backState })}>
           {backLabel}
         </button>
       </div>
@@ -137,7 +144,7 @@ export function SignDetailPage() {
       <button
         type="button"
         className="detail-nav-arrow prev"
-        onClick={() => prevId !== null && navigate(`/signs/${prevId}`, { state: siblingIds || returnTo ? { siblingIds, returnTo } : undefined })}
+        onClick={() => prevId !== null && navigate(`/signs/${prevId}`, { state: siblingIds || returnTo ? { siblingIds, returnTo, selectedSubId } : undefined })}
         disabled={prevId === null}
         aria-label="Previous sign"
       >
@@ -148,7 +155,7 @@ export function SignDetailPage() {
       <button
         type="button"
         className="detail-nav-arrow next"
-        onClick={() => nextId !== null && navigate(`/signs/${nextId}`, { state: siblingIds || returnTo ? { siblingIds, returnTo } : undefined })}
+        onClick={() => nextId !== null && navigate(`/signs/${nextId}`, { state: siblingIds || returnTo ? { siblingIds, returnTo, selectedSubId } : undefined })}
         disabled={nextId === null}
         aria-label="Next sign"
       >
@@ -159,7 +166,7 @@ export function SignDetailPage() {
 
       <div className="detail-layout">
         <div className="detail-back">
-          <button type="button" className="back-link" onClick={() => navigate(backPath)}>
+          <button type="button" className="back-link" onClick={() => navigate(backPath, { state: backState })}>
             {backLabel}
           </button>
           <div className="detail-back-right">

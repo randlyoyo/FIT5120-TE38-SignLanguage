@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchSigns } from "../api/signs";
 import heroPoster from "../assets/home-hero-poster.webp";
-import { MirrorMark } from "../components/MirrorMark";
 import { PlaceholderMedia } from "../components/PlaceholderMedia";
 import { tagChipStyle } from "../lib/tagColors";
 import { SCENARIOS } from "../lib/scenarioStories";
@@ -43,20 +42,11 @@ export function HomePage() {
       <section className="home-hero-band">
         <div className="home-hero-inner">
           <div className="home-hero-text">
-            <div className="home-lockup">
-              <MirrorMark size={52} />
-              <span>HandMirror</span>
-            </div>
             <h1 className="home-hero-title">Look up a sign. Practise it. Teach your family.</h1>
             <p className="home-hero-tagline">
-              HandMirror is a free Auslan sign dictionary built for families — search
-              any word, watch how it's signed, and practise together with your kids
-              at home.
-            </p>
-            <p className="home-hero-detail">
-              It's just as useful for teachers and Auslan beginners: every entry pairs
-              a real demonstration video with a clear, step-by-step breakdown of how
-              the sign is formed.
+              A free Auslan dictionary for families. Watch each sign on video or on a
+              3D avatar you can turn, practise with live camera feedback, and use Sign
+              Chat to see a whole sentence signed.
             </p>
             <div className="home-hero-actions">
               <Link to="/library" className="home-cta">

@@ -10,6 +10,9 @@ import type { SmplxClip } from "../lib/smplx";
  *  vrm_fit/smplx_web/build_glb.py: one bone per SMPL-X joint, named as in
  *  lib/smplx.ts, rest rotations all identity. The poses were fitted on this
  *  exact body, so they apply as-is -- no retargeting, contacts stay put.
+ *  Skin/clothes are a texture on the SMPL-X UV (BEDLAM skin + Meshcapade
+ *  sample clothes, composed by vrm_fit/smplx_web/compose_texture.py); the
+ *  hair is a separate mesh rigidly bound to the head bone.
  *  Lives in client/public/. */
 const AVATAR_URL = "/smplx.glb";
 
@@ -43,10 +46,10 @@ function applyAxisAngle(bone: THREE.Object3D, x: number, y: number, z: number) {
 }
 
 // Waist-up framing for the SMPL-X template's own coordinates (y up, origin
-// near the chest: pelvis at y -0.35, top of head at y 0.42). The pelvis
+// near the chest: waist (spine1) at y -0.24, top of head at y 0.42). The pelvis
 // stays at rest (pose JSON carries no transl), so this framing holds.
-const CAMERA_POSITION: [number, number, number] = [0, 0.02, 2.1];
-const CAMERA_TARGET: [number, number, number] = [0, 0.0, 0];
+const CAMERA_POSITION: [number, number, number] = [0, 0.1, 1.5];
+const CAMERA_TARGET: [number, number, number] = [0, 0.1, 0];
 // Vertical angle pinned at the tuned framing's own, so dragging only turns
 // the avatar left/right -- looking from above/below adds nothing for
 // reading a sign, and would expose the cropped-off framing.
@@ -178,6 +181,10 @@ export function SmplxAvatar({ clip, playing, loop = false, speed = 1, className 
       <button type="button" className="smplx-avatar-reset" onClick={resetView}>
         Reset view
       </button>
+      {/* Required by the asset licences (CC BY 4.0 / CC BY-NC 4.0, SMPL-X non-commercial). */}
+      <span className="smplx-avatar-credit">
+        Body: SMPL-X (MPI-IS) · Textures: Meshcapade, CC BY / CC BY-NC 4.0
+      </span>
     </div>
   );
 }

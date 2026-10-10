@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchSigns } from "../api/signs";
 import { SavedSignsPage } from "../components/SavedSignsPage";
-import { getLearnedIds } from "../lib/learnedSigns";
+import { getLearnedEntries } from "../lib/learnedSigns";
 
 export function LearnedSignsPage() {
   const [totalEntries, setTotalEntries] = useState<number | null>(null);
@@ -23,7 +23,7 @@ export function LearnedSignsPage() {
     <SavedSignsPage
       eyebrow="Your list"
       title="Learned Words"
-      getIds={getLearnedIds}
+      getEntries={getLearnedEntries}
       emptyIcon={
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <circle cx="10" cy="10" r="6.5" />

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { fetchRecognitionVocabulary, type IdentifyCandidate } from "../api/recognize";
-import { fetchSigns } from "../api/signs";
+import { fetchSigns, type SignSort } from "../api/signs";
 import { CategoryRail } from "../components/CategoryRail";
 import { EmptyState } from "../components/EmptyState";
 import { HandGlyphPagination } from "../components/Pagination/HandGlyphPagination";
@@ -12,13 +12,51 @@ import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useSignSearch } from "../hooks/useSignSearch";
 import { useTags } from "../hooks/useTags";
 import { tagChipStyle } from "../lib/tagColors";
-import type { Sign } from "../api/types";
+import type { Sign, SignLevel } from "../api/types";
+
+const LEVEL_FILTERS: { id: SignLevel; label: string }[] = [
+  { id: "beginner", label: "Beginner" },
+  { id: "intermediate", label: "Intermediate" },
+  { id: "advanced", label: "Advanced" },
+];
+
+type SortType = "gloss" | "level" | "popularity";
+type SortOrder = "asc" | "desc";
+
+const SORT_TYPES: { id: SortType; label: string }[] = [
+  { id: "gloss", label: "A–Z" },
+  { id: "level", label: "Difficulty" },
+  { id: "popularity", label: "Popularity" },
+];
+
+const SORT_ORDERS: { id: SortOrder; label: string }[] = [
+  { id: "asc", label: "Ascending" },
+  { id: "desc", label: "Descending" },
+];
+
+const DEFAULT_SORT: { type: SortType; order: SortOrder } = { type: "gloss", order: "asc" };
+
+// The URL's `sort` param is empty for the default (relevance / A-Z) rather
+// than the literal string "gloss_asc", so a plain library link doesn't
+// carry a redundant ?sort= -- everything else round-trips as `${type}_${order}`.
+function parseSort(sort: SignSort | ""): { type: SortType; order: SortOrder } {
+  if (!sort) return DEFAULT_SORT;
+  const [type, order] = sort.split("_") as [SortType, SortOrder];
+  return { type, order };
+}
+
+function buildSort(type: SortType, order: SortOrder): SignSort | "" {
+  if (type === DEFAULT_SORT.type && order === DEFAULT_SORT.order) return "";
+  return `${type}_${order}` as SignSort;
+}
 
 export function SignLibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const page = Number(searchParams.get("page")) || 1;
   const tag = searchParams.get("tag") ?? "";
+  const level = (searchParams.get("level") ?? "") as SignLevel | "";
+  const sort = (searchParams.get("sort") ?? "") as SignSort | "";
 
   // The search input keeps its own local state so every keystroke feels
   // instant. Routing every keystroke through useSearchParams (which is
@@ -82,8 +120,36 @@ export function SignLibraryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery]);
 
-  const { data, isLoading, isError } = useSignSearch({ query: debouncedQuery, tag, page });
+  const { data, isLoading, isError } = useSignSearch({ query: debouncedQuery, tag, level, sort, page });
   const tags = useTags();
+
+  function setLevel(next: SignLevel | "") {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (next) params.set("level", next);
+      else params.delete("level");
+      params.delete("page");
+      return params;
+    });
+  }
+
+  function setSort(next: SignSort | "") {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (next) params.set("sort", next);
+      else params.delete("sort");
+      params.delete("page");
+      return params;
+    });
+  }
+
+  const { type: sortType, order: sortOrder } = parseSort(sort);
+  function setSortType(next: SortType) {
+    setSort(buildSort(next, sortOrder));
+  }
+  function setSortOrder(next: SortOrder) {
+    setSort(buildSort(sortType, next));
+  }
 
   function updateParams(next: { page?: number }) {
     setSearchParams((prev) => {
@@ -185,6 +251,66 @@ export function SignLibraryPage() {
               <CategoryRail tags={tags} activeTag={tag} />
 
               <div className="library-main">
+                <div className="library-filter-bar">
+                  <div className="detail-mode-toggle library-level-toggle" role="tablist" aria-label="Filter by estimated difficulty">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={level === ""}
+                      className={`detail-mode-tab ${level === "" ? "active" : ""}`}
+                      onClick={() => setLevel("")}
+                    >
+                      All levels
+                    </button>
+                    {LEVEL_FILTERS.map(({ id, label }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        role="tab"
+                        aria-selected={level === id}
+                        className={`detail-mode-tab ${level === id ? "active" : ""}`}
+                        onClick={() => setLevel(id)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div
+                    className="library-sort-controls"
+                    title={debouncedQuery ? "Sort is ignored while searching -- results are ranked by relevance instead" : undefined}
+                  >
+                    <label className="library-sort-select">
+                      Sort by
+                      <select
+                        value={sortType}
+                        disabled={Boolean(debouncedQuery)}
+                        onChange={(e) => setSortType(e.target.value as SortType)}
+                      >
+                        {SORT_TYPES.map(({ id, label }) => (
+                          <option key={id} value={id}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="library-sort-select">
+                      Order
+                      <select
+                        value={sortOrder}
+                        disabled={Boolean(debouncedQuery)}
+                        onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+                      >
+                        {SORT_ORDERS.map(({ id, label }) => (
+                          <option key={id} value={id}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                </div>
+
                 {tag && (
                   <div className="active-tag-filter">
                     <span style={tagChipStyle(tag)} className="tag-chip">

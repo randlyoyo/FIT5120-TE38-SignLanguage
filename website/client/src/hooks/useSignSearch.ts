@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
-import { fetchSigns } from "../api/signs";
-import type { SignsResponse } from "../api/types";
+import { fetchSigns, type SignSort } from "../api/signs";
+import type { SignLevel, SignsResponse } from "../api/types";
 
 interface Params {
   query: string;
   tag: string;
+  level: SignLevel | "";
+  sort: SignSort | "";
   page: number;
 }
 
-export function useSignSearch({ query, tag, page }: Params) {
+export function useSignSearch({ query, tag, level, sort, page }: Params) {
   const [data, setData] = useState<SignsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
@@ -18,7 +20,14 @@ export function useSignSearch({ query, tag, page }: Params) {
     setIsLoading(true);
     setIsError(false);
 
-    fetchSigns({ query, tag, page, signal: controller.signal })
+    fetchSigns({
+      query,
+      tag,
+      level: level || undefined,
+      sort: sort || undefined,
+      page,
+      signal: controller.signal,
+    })
       .then(setData)
       .catch((err) => {
         if (err.name !== "AbortError") {
@@ -31,7 +40,7 @@ export function useSignSearch({ query, tag, page }: Params) {
       });
 
     return () => controller.abort();
-  }, [query, tag, page]);
+  }, [query, tag, level, sort, page]);
 
   return { data, isLoading, isError };
 }

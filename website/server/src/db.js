@@ -9,6 +9,10 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME || "auslan_learning",
   waitForConnections: true,
   connectionLimit: 10,
+  // Railway drops idle connections; without keepalive the first query after
+  // a quiet spell hits a dead socket and fails with ECONNRESET.
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
 });
 
 module.exports = pool;

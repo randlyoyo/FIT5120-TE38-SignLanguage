@@ -59,7 +59,10 @@ export function ResultCard({ sign, siblingIds, returnTo }: Props) {
           )}
         </div>
         <div className="result-card-body">
-          <h3 className="result-card-title">{sign.gloss}</h3>
+          <div className="result-card-title-row">
+            <h3 className="result-card-title">{sign.gloss}</h3>
+            {sign.level && <span className={`level-badge level-badge-${sign.level}`}>{sign.level}</span>}
+          </div>
           <p className="result-card-meta">{sign.source ?? "Unknown source"}</p>
           {preview && <p className="result-card-preview">{preview}</p>}
         </div>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { PersonalizeSessionPanel } from "../components/PersonalizeSessionPanel";
 import { SavedSignsPage } from "../components/SavedSignsPage";
-import { getToLearnIds } from "../lib/toLearnSigns";
+import { getToLearnEntries } from "../lib/toLearnSigns";
 
 export function ToLearnPage() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -10,7 +10,7 @@ export function ToLearnPage() {
     <SavedSignsPage
       eyebrow="Your list"
       title="To Learn"
-      getIds={getToLearnIds}
+      getEntries={getToLearnEntries}
       refreshKey={refreshKey}
       emptyIcon={
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

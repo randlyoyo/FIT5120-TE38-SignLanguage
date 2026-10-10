@@ -3,23 +3,38 @@ const pool = require("../db");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const { formatSign } = require("../utils/formatSign");
 const { formatVideo } = require("../utils/video");
+const { DIFFICULTY_SQL, LEVEL_CONDITION_SQL, levelForScore } = require("../utils/difficulty");
+const { getPopularityRankMap, popularityRankForGloss } = require("../utils/popularity");
 
 const router = express.Router();
 
-// GET /api/signs?query=&tag=&page=&pageSize=
+// Additional sort orders on top of the default gloss order -- "level_*"
+// reuses DIFFICULTY_SQL's SELECT alias so it never has to repeat the
+// scoring expression.
+const SORTS = {
+  gloss_asc: "gloss ASC",
+  gloss_desc: "gloss DESC",
+  level_asc: "difficulty_score ASC, gloss ASC",
+  level_desc: "difficulty_score DESC, gloss ASC",
+};
+
+// GET /api/signs?query=&tag=&level=&sort=&page=&pageSize=
 // Keyword search (US1.1) across gloss, keywords and definitions, an
-// optional exact `tag` filter (US1.x tag browsing), plus pagination.
-// When `query` is given, results are ranked keyword matches first
-// (gloss/keywords), tag matches second, definition matches last --
-// `keywords` and `tags` are distinct fields in the schema (search-only
-// synonyms vs. visible classification), and search order should reflect
-// that distinction.
+// optional exact `tag` filter (US1.x tag browsing), an optional estimated
+// `level` filter (beginner/intermediate/advanced, see utils/difficulty.js),
+// a `sort` order, plus pagination. When `query` is given, results are
+// ranked keyword matches first (gloss/keywords), tag matches second,
+// definition matches last -- `keywords` and `tags` are distinct fields in
+// the schema (search-only synonyms vs. visible classification), and search
+// order should reflect that distinction, so `sort` is ignored whenever a
+// free-text query is present.
 router.get("/", async (req, res, next) => {
   try {
-    const { query = "", tag = "" } = req.query;
+    const { query = "", tag = "", level = "", sort = "" } = req.query;
     const { page, pageSize, offset } = parsePagination(req.query);
     const trimmedQuery = query.trim();
     const trimmedTag = tag.trim();
+    const trimmedLevel = level.trim().toLowerCase();
 
     const conditions = [];
     const params = [];
@@ -35,6 +50,10 @@ router.get("/", async (req, res, next) => {
     if (trimmedTag) {
       conditions.push("JSON_CONTAINS(tags, JSON_QUOTE(?))");
       params.push(trimmedTag);
+    }
+
+    if (LEVEL_CONDITION_SQL[trimmedLevel]) {
+      conditions.push(LEVEL_CONDITION_SQL[trimmedLevel]);
     }
 
     const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -65,12 +84,40 @@ router.get("/", async (req, res, next) => {
         END ASC,
         gloss ASC`;
       orderParams = [trimmedQuery, prefixLike, like, like, like];
+    } else if (SORTS[sort]) {
+      orderClause = `ORDER BY ${SORTS[sort]}`;
     }
 
-    const [rows] = await pool.query(
-      `SELECT * FROM signs ${whereClause} ${orderClause} LIMIT ? OFFSET ?`,
-      [...params, ...orderParams, pageSize, offset]
-    );
+    // Popularity isn't a SQL column -- it's ranked against an external
+    // word-frequency list in JS (utils/popularity.js) -- so this sort can't
+    // join the ORDER BY above. Instead it fetches every row the existing
+    // WHERE already matches (same conditions/params, so `totalResults`
+    // above still applies), ranks and sorts in JS, then slices the page.
+    // 3215 signs total, so a full fetch here is a non-issue at this scale.
+    let rows;
+    if (!trimmedQuery && (sort === "popularity_asc" || sort === "popularity_desc")) {
+      const [allRows] = await pool.query(
+        `SELECT *, ${DIFFICULTY_SQL} AS difficulty_score FROM signs ${whereClause} ORDER BY gloss ASC`,
+        params
+      );
+      const rankMap = await getPopularityRankMap();
+      const ranked = allRows.map((row) => ({ row, rank: popularityRankForGloss(row.gloss, rankMap) }));
+      ranked.sort((a, b) => {
+        // Unranked (no word of the gloss is in the frequency list at all --
+        // proper nouns, technical terms) sort after every ranked word,
+        // alphabetically among themselves rather than at a fake rank.
+        if (a.rank === null && b.rank === null) return a.row.gloss.localeCompare(b.row.gloss);
+        if (a.rank === null) return 1;
+        if (b.rank === null) return -1;
+        return sort === "popularity_asc" ? a.rank - b.rank : b.rank - a.rank;
+      });
+      rows = ranked.slice(offset, offset + pageSize).map((r) => r.row);
+    } else {
+      [rows] = await pool.query(
+        `SELECT *, ${DIFFICULTY_SQL} AS difficulty_score FROM signs ${whereClause} ${orderClause} LIMIT ? OFFSET ?`,
+        [...params, ...orderParams, pageSize, offset]
+      );
+    }
 
     // One short (~2s) preview clip per card, so the library grid can play
     // the actual sign instead of a static thumbnail -- cheap enough at the
@@ -96,6 +143,7 @@ router.get("/", async (req, res, next) => {
       results: rows.map((row) => ({
         ...formatSign(row),
         previewVideo: previewBySignId.get(row.id) ?? null,
+        level: levelForScore(row.difficulty_score),
       })),
       pagination: buildPaginationMeta(page, pageSize, totalResults),
       query: { query: trimmedQuery || null, tag: trimmedTag || null },
@@ -203,6 +251,25 @@ const sign = formatSign(rows[0]);
 sign.videos = videoRows.map(formatVideo);
 
 res.json(sign);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/signs/:id/pose -- SMPL-X clip for the skeleton preview. Stored
+// already gzipped, so it's sent as-is and the browser inflates it.
+router.get("/:id/pose", async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid sign id" });
+    }
+    const [rows] = await pool.query("SELECT pose_gz FROM sign_poses WHERE sign_id = ?", [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "No pose data for this sign", id });
+    }
+    res.set({ "Content-Type": "application/json", "Content-Encoding": "gzip" });
+    res.send(rows[0].pose_gz);
   } catch (err) {
     next(err);
   }

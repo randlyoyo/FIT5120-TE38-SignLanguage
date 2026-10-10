@@ -1,10 +1,21 @@
-import type { Sign, SignsResponse, TagCount } from "./types";
+import type { Sign, SignLevel, SignsResponse, TagCount } from "./types";
+import type { SmplxPoseJson } from "../lib/smplx";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
+
+export type SignSort =
+  | "gloss_asc"
+  | "gloss_desc"
+  | "level_asc"
+  | "level_desc"
+  | "popularity_asc"
+  | "popularity_desc";
 
 export interface FetchSignsParams {
   query?: string;
   tag?: string;
+  level?: SignLevel;
+  sort?: SignSort;
   page?: number;
   pageSize?: number;
   signal?: AbortSignal;
@@ -13,6 +24,8 @@ export interface FetchSignsParams {
 export async function fetchSigns({
   query,
   tag,
+  level,
+  sort,
   page,
   pageSize,
   signal,
@@ -20,6 +33,8 @@ export async function fetchSigns({
   const params = new URLSearchParams();
   if (query) params.set("query", query);
   if (tag) params.set("tag", tag);
+  if (level) params.set("level", level);
+  if (sort) params.set("sort", sort);
   if (page) params.set("page", String(page));
   if (pageSize) params.set("pageSize", String(pageSize));
 
@@ -31,6 +46,14 @@ export async function fetchSigns({
 export async function fetchSignById(id: number, signal?: AbortSignal): Promise<Sign> {
   const res = await fetch(`${API_BASE}/signs/${id}`, { signal });
   if (!res.ok) throw new Error(`Failed to fetch sign ${id} (${res.status})`);
+  return res.json();
+}
+
+/** SMPL-X clip for the skeleton preview; null when this sign has none yet. */
+export async function fetchSignPose(id: number, signal?: AbortSignal): Promise<SmplxPoseJson | null> {
+  const res = await fetch(`${API_BASE}/signs/${id}/pose`, { signal });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Failed to fetch pose for sign ${id} (${res.status})`);
   return res.json();
 }
 

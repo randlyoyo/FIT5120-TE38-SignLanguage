@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useLoader } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
@@ -29,6 +29,12 @@ const DEG = Math.PI / 180;
 const IDLE_POSE: Record<string, [number, number, number]> = {
   left_shoulder: [0, 0, -75 * DEG],
   right_shoulder: [0, 0, 75 * DEG],
+  // Trunk/neck/head at the median of the fitted clips (643-clip sample, IQR
+  // under 5°), so the head doesn't jump between idle and signing: ~5° nod at
+  // both neck and head, a slight turn of the whole body.
+  global_orient: [0, -0.046, 0],
+  neck: [0.084, -0.003, -0.012],
+  head: [0.084, -0.003, -0.012],
 };
 
 /** SMPL-X stores each joint as an axis-angle vector: direction = rotation
@@ -50,13 +56,33 @@ function applyAxisAngle(bone: THREE.Object3D, x: number, y: number, z: number) {
 // stays at rest (pose JSON carries no transl), so this framing holds.
 const CAMERA_POSITION: [number, number, number] = [0, 0.1, 1.5];
 const CAMERA_TARGET: [number, number, number] = [0, 0.1, 0];
-// Vertical angle pinned at the tuned framing's own, so dragging only turns
-// the avatar left/right -- looking from above/below adds nothing for
-// reading a sign, and would expose the cropped-off framing.
+// Dragging turns the view around both axes: left/right up to 90°, and
+// up/down (around x) within TILT of the tuned framing's own angle -- enough
+// to look at the hands from above or below, not enough to flip over.
 const POLAR_ANGLE = Math.acos(
   (CAMERA_POSITION[1] - CAMERA_TARGET[1]) /
     Math.hypot(CAMERA_POSITION[1] - CAMERA_TARGET[1], CAMERA_POSITION[2] - CAMERA_TARGET[2])
 );
+const TILT = 30 * DEG;
+
+/** The pose data has no eye motion, so the eyes are driven here: they look
+ *  at the camera (following the viewer as the view is turned), with small
+ *  random saccades every second or few, like a person holding eye contact.
+ *  Tracking is held to a small cone around the front view (±8°): past it the
+ *  eyes stay at the edge of that cone instead of rolling toward the viewer. */
+const EYE_MAX_YAW = 8 * DEG;
+const EYE_MAX_PITCH = 8 * DEG;
+const SACCADE = 2.5 * DEG;
+const tmpEye = new THREE.Vector3();
+const tmpEuler = new THREE.Euler();
+const clampAngle = (a: number, max: number) => Math.max(-max, Math.min(max, a));
+
+/** Seconds for the avatar to rise into place once its file has loaded (the
+ *  fade itself is the loading overlay fading out on top of it -- fading the
+ *  materials instead would make the body transparent, and three can't sort
+ *  it against the already-transparent hair, so the hairline flickers). */
+const APPEAR_SECONDS = 0.6;
+const APPEAR_RISE = 0.04;
 
 /** Canvas gets mounted fresh every time the user switches messages (the
  *  stage only renders it for the selected reply), and react-three-fiber's
@@ -81,10 +107,32 @@ interface RiggedAvatarProps {
   playing: boolean;
   loop: boolean;
   speed: number;
+  smile: boolean;
+  onReady: () => void;
 }
 
-function RiggedAvatar({ url, clip, playing, loop, speed }: RiggedAvatarProps) {
+function RiggedAvatar({ url, clip, playing, loop, speed, smile, onReady }: RiggedAvatarProps) {
   const gltf = useLoader(GLTFLoader, url);
+
+  // The GLB carries a "smile" morph target (build_glb.py), off by default.
+  // Set on every change, since the loaded scene is shared between pages.
+  useEffect(() => {
+    gltf.scene.traverse((obj) => {
+      const i = (obj as THREE.Mesh).morphTargetDictionary?.smile;
+      if (i !== undefined) (obj as THREE.Mesh).morphTargetInfluences![i] = smile ? 1 : 0;
+    });
+  }, [gltf, smile]);
+
+  // Rise in on mount. The loaded scene is cached and shared between mounts,
+  // so its offset is reset on unmount.
+  const appearRef = useRef(0);
+  useEffect(() => {
+    onReady();
+    appearRef.current = 0;
+    return () => {
+      gltf.scene.position.y = 0;
+    };
+  }, [gltf, onReady]);
 
   useEffect(() => {
     // Three.js frustum-culls a SkinnedMesh by its rest-pose bounding box;
@@ -106,13 +154,24 @@ function RiggedAvatar({ url, clip, playing, loop, speed }: RiggedAvatarProps) {
     return map;
   }, [gltf]);
 
+  const eyes = useMemo(
+    () => ["left_eye", "right_eye"].flatMap((name) => bonesBySmplxName.get(name) ?? []),
+    [bonesBySmplxName]
+  );
+  const gazeRef = useRef({ offset: new THREE.Vector2(), target: new THREE.Vector2(), wait: 0 });
+
   const elapsedRef = useRef(0);
 
   useEffect(() => {
     elapsedRef.current = 0;
   }, [clip]);
 
-  useFrame((_state, delta) => {
+  useFrame((state, delta) => {
+    if (appearRef.current < 1) {
+      appearRef.current = Math.min(1, appearRef.current + delta / APPEAR_SECONDS);
+      const t = 1 - (1 - appearRef.current) ** 3; // ease-out
+      gltf.scene.position.y = -APPEAR_RISE * (1 - t);
+    }
     if (clip && playing) {
       elapsedRef.current += delta * speed;
       const rawFrame = Math.floor(elapsedRef.current * clip.fps);
@@ -129,6 +188,23 @@ function RiggedAvatar({ url, clip, playing, loop, speed }: RiggedAvatarProps) {
         else bone.quaternion.identity();
       }
     }
+
+    const gaze = gazeRef.current;
+    gaze.wait -= delta;
+    if (gaze.wait <= 0) {
+      gaze.target.set((Math.random() * 2 - 1) * SACCADE, (Math.random() * 2 - 1) * SACCADE * 0.6);
+      gaze.wait = 0.8 + Math.random() * 2.2;
+    }
+    gaze.offset.lerp(gaze.target, 1 - Math.exp(-delta * 25)); // saccades are quick
+    for (const eye of eyes) {
+      // Camera position in the eye's parent (head) space, relative to the eye
+      // centre; the eye's rest gaze is +z, so yaw/pitch fall out directly.
+      eye.parent!.updateWorldMatrix(true, false);
+      eye.parent!.worldToLocal(tmpEye.copy(state.camera.position)).sub(eye.position);
+      const yaw = clampAngle(Math.atan2(tmpEye.x, tmpEye.z) + gaze.offset.x, EYE_MAX_YAW);
+      const pitch = clampAngle(Math.atan2(tmpEye.y, Math.hypot(tmpEye.x, tmpEye.z)) + gaze.offset.y, EYE_MAX_PITCH);
+      eye.quaternion.setFromEuler(tmpEuler.set(-pitch, yaw, 0, "YXZ"));
+    }
   });
 
   return <primitive object={gltf.scene} />;
@@ -140,14 +216,18 @@ interface Props {
   /** Restart the clip when it ends instead of holding the last frame. */
   loop?: boolean;
   speed?: number;
+  /** Gentle resting smile (Sign Chat's conversational avatar). */
+  smile?: boolean;
   className?: string;
 }
 
 /** 3D SMPL-X body driven directly by the backend's pose data (pose_url),
  *  instead of playing a rendered video. Renders nothing (caller should
  *  fall back to the video) only if the GLB path is ever cleared. */
-export function SmplxAvatar({ clip, playing, loop = false, speed = 1, className }: Props) {
+export function SmplxAvatar({ clip, playing, loop = false, speed = 1, smile = false, className }: Props) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
+  const [ready, setReady] = useState(false);
+  const markReady = useMemo(() => () => setReady(true), []);
   if (!AVATAR_URL) return null;
 
   function resetView() {
@@ -168,16 +248,24 @@ export function SmplxAvatar({ clip, playing, loop = false, speed = 1, className 
           enableZoom={false}
           minAzimuthAngle={-Math.PI / 2}
           maxAzimuthAngle={Math.PI / 2}
-          minPolarAngle={POLAR_ANGLE}
-          maxPolarAngle={POLAR_ANGLE}
+          minPolarAngle={Math.max(0.05, POLAR_ANGLE - TILT)}
+          maxPolarAngle={Math.min(Math.PI - 0.05, POLAR_ANGLE + TILT)}
         />
         <ForceResizeAfterMount />
         <ambientLight intensity={0.9} />
         <directionalLight position={[2, 4, 3]} intensity={1.1} />
         <Suspense fallback={null}>
-          <RiggedAvatar url={AVATAR_URL} clip={clip} playing={playing} loop={loop} speed={speed} />
+          <RiggedAvatar url={AVATAR_URL} clip={clip} playing={playing} loop={loop} speed={speed} smile={smile} onReady={markReady} />
         </Suspense>
       </Canvas>
+      <div className={`smplx-avatar-loading${ready ? " is-done" : ""}`} role="status" aria-hidden={ready}>
+        {/* Indeterminate: three's loading manager counts whole files, not bytes,
+            so a one-file avatar would sit at 0% until it is done. */}
+        <span className="smplx-avatar-loading-label">Loading avatar</span>
+        <span className="smplx-avatar-loading-track">
+          <span className="smplx-avatar-loading-fill" />
+        </span>
+      </div>
       <button type="button" className="smplx-avatar-reset" onClick={resetView}>
         Reset view
       </button>

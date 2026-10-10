@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { StickFigureStage } from "../components/StickFigureStage";
 import { SmplxAvatar, smplxAvatarConfigured } from "../components/SmplxAvatar";
 import { SignCaptureModal } from "../components/SignCaptureModal";
 import { parseSmplxPose, type SmplxClip } from "../lib/smplx";
@@ -8,7 +7,6 @@ import {
   fetchSignPose,
   sendChatSign,
   sendChatText,
-  signChatMediaUrl,
   waitForSignVideo,
   SignChatApiError,
   type ChatResponse,
@@ -180,43 +178,22 @@ export function ConversationPage() {
         </div>
 
         <div className="conversation-stage-area">
-          {smplxAvatarConfigured ? (
-            // Shown in every other state too (idle, generating), not just
-            // once a reply lands -- a relaxed idle pose (SmplxAvatar's own
-            // IDLE_POSE fallback when clip is null) reads as "waiting", not
-            // the frozen T-pose rest, or the SVG placeholder this replaces.
-            <div className="stick-figure-stage stick-figure-stage--avatar">
-              <span className="stick-figure-status">{stageStatus}</span>
-              <SmplxAvatar
-                className="conversation-avatar-3d"
-                clip={(selected?.status === "done" && poseClips[selected.id]) || null}
-                playing
-              />
-            </div>
-          ) : selected?.status === "done" && selected.reply ? (
-            <div className="stick-figure-stage">
-              <span className="stick-figure-status">{stageStatus}</span>
-              <video
-                key={selected.id}
-                className="conversation-avatar-video"
-                src={signChatMediaUrl(selected.reply.sign.video_url)}
-                controls
-                autoPlay
-              >
-                {selected.reply.sign.subtitle_url && (
-                  <track
-                    kind="subtitles"
-                    srcLang="en"
-                    src={signChatMediaUrl(selected.reply.sign.subtitle_url)}
-                    default
-                  />
-                )}
-              </video>
-              <p className="stick-figure-caption">Click a message on the left to replay its reply.</p>
-            </div>
-          ) : (
-            <StickFigureStage className="conversation-stage" status={stageStatus} signing={isGenerating} />
-          )}
+          {/* Shown in every state (idle, generating), not just once a reply
+              lands -- a relaxed idle pose (SmplxAvatar's own IDLE_POSE
+              fallback when clip is null) reads as "waiting". */}
+          <div className="stick-figure-stage stick-figure-stage--avatar">
+            <span className="stick-figure-status">{stageStatus}</span>
+            <SmplxAvatar
+              className="conversation-avatar-3d"
+              clip={(selected?.status === "done" && poseClips[selected.id]) || null}
+              playing
+              smile
+            />
+            <p className="stick-figure-caption avatar-reference-note--dark">
+              The 3D avatar is a guide to the overall movement. For exact handshapes, see each
+              sign’s video in the Sign Library.
+            </p>
+          </div>
         </div>
       </div>
 

@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { SignVideo } from "../api/types";
 import { fetchSignPose } from "../api/signs";
 import { parseSmplxPose, type SmplxClip } from "../lib/smplx";
-import { SmplxAvatar, smplxAvatarConfigured } from "./SmplxAvatar";
-import { StickFigureStage } from "./StickFigureStage";
+import { SmplxAvatar } from "./SmplxAvatar";
 
 const SPEEDS = [0.5, 1, 2] as const;
 
@@ -16,7 +15,7 @@ interface Props {
 export function SignDemonstration({ signId, gloss, videos }: Props) {
   const [videoIndex, setVideoIndex] = useState(0);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
-  const [view, setView] = useState<"video" | "skeleton">("video");
+  const [view, setView] = useState<"video" | "avatar">("video");
   // undefined = not fetched yet, null = this sign has no pose data.
   const [poseClip, setPoseClip] = useState<SmplxClip | null | undefined>(undefined);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -26,7 +25,7 @@ export function SignDemonstration({ signId, gloss, videos }: Props) {
   }, [signId]);
 
   useEffect(() => {
-    if (view !== "skeleton" || poseClip !== undefined) return;
+    if (view !== "avatar" || poseClip !== undefined) return;
     const controller = new AbortController();
     fetchSignPose(signId, controller.signal)
       .then((pose) => setPoseClip(pose ? parseSmplxPose(pose) : null))
@@ -78,32 +77,32 @@ export function SignDemonstration({ signId, gloss, videos }: Props) {
 
   return (
     <div className="sign-demo">
-      <div className="video-variants sign-demo-view-toggle" role="group" aria-label="Video or AI skeleton preview">
+      <div className="video-variants sign-demo-view-toggle" role="group" aria-label="Video or 3D avatar">
         <button type="button" className={view === "video" ? "active" : ""} onClick={() => setView("video")}>
           Video
         </button>
-        <button type="button" className={view === "skeleton" ? "active" : ""} onClick={() => setView("skeleton")}>
-          Skeleton preview
+        <button type="button" className={view === "avatar" ? "active" : ""} onClick={() => setView("avatar")}>
+          3D avatar
         </button>
       </div>
 
-      {view === "skeleton" ? (
-        poseClip && smplxAvatarConfigured ? (
+      {view === "avatar" ? (
+        poseClip === null ? (
+          <p className="demo-empty">
+            There’s no 3D avatar for this sign yet — please follow the demonstration video.
+          </p>
+        ) : (
           <>
-            <SmplxAvatar className="sign-demo-avatar" clip={poseClip} playing loop speed={speed} />
-            <div className="playback-controls" role="group" aria-label="Skeleton playback controls">
+            {/* While the motion is still loading (undefined) the avatar waits in its idle pose. */}
+            <SmplxAvatar className="sign-demo-avatar" clip={poseClip ?? null} playing loop speed={speed} />
+            <p className="avatar-reference-note">
+              The 3D avatar is a guide to the overall movement. For exact handshapes and finger
+              positions, follow the demonstration video.
+            </p>
+            <div className="playback-controls" role="group" aria-label="3D avatar playback controls">
               {speedControl}
             </div>
           </>
-        ) : (
-          <StickFigureStage
-            status={poseClip === undefined ? "Loading…" : undefined}
-            caption={
-              poseClip === undefined
-                ? "Loading the motion-capture preview…"
-                : "No motion-capture preview for this sign yet."
-            }
-          />
         )
       ) : availableVideos.length === 0 ? (
         <p className="demo-empty">

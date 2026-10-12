@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { SmplxAvatar, smplxAvatarConfigured } from "../components/SmplxAvatar";
+import { SIGNED_PICTOGRAM } from "../lib/pictograms";
 import { SignCaptureModal } from "../components/SignCaptureModal";
 import { parseSmplxPose, type SmplxClip } from "../lib/smplx";
 import {
@@ -137,13 +138,32 @@ export function ConversationPage() {
 
   return (
     <div className="conversation-shell">
+      <header className="library-hero-band home-hero-band conversation-hero">
+        <div className="library-hero-inner">
+          <div>
+            <p className="library-eyebrow-light">Talk in Auslan</p>
+            <h1 className="page-title">Sign Chat</h1>
+          </div>
+        </div>
+      </header>
       <div className="conversation-panels">
         <div className="conversation-chat-col">
+          {messages.length > 0 && (
+            <div className="conversation-chat-head">
+              <button type="button" className="conversation-new-chat" onClick={newChat}>
+                New chat
+              </button>
+            </div>
+          )}
           <div className="conversation-chat-log" ref={logRef}>
             {messages.length === 0 ? (
-              <p className="conversation-chat-empty">
-                Type a sentence below and the avatar will perform it in Auslan, sign by sign.
-              </p>
+              <div className="conversation-chat-empty">
+                <p className="conversation-chat-empty-title">Say something in English</p>
+                <p>
+                  Type a sentence in the box at the bottom and the avatar signs it back in Auslan, sign by sign.
+                  Click any reply to watch it again.
+                </p>
+              </div>
             ) : (
               messages.map((m) => (
                 <button
@@ -154,7 +174,7 @@ export function ConversationPage() {
                   disabled={m.status !== "done"}
                 >
                   <p className="conversation-message conversation-message-user">
-                    {m.signed && <span aria-hidden="true">🤟 </span>}
+                    {m.signed && <img src={SIGNED_PICTOGRAM} className="signed-pictogram" alt="" />}
                     {m.userText}
                   </p>
                   {m.status === "generating" && <p className="conversation-message-status">Generating…</p>}
@@ -170,11 +190,6 @@ export function ConversationPage() {
               ))
             )}
           </div>
-          {messages.length > 0 && (
-            <button type="button" className="conversation-new-chat" onClick={newChat}>
-              New chat
-            </button>
-          )}
         </div>
 
         <div className="conversation-stage-area">
@@ -189,10 +204,6 @@ export function ConversationPage() {
               playing
               smile
             />
-            <p className="stick-figure-caption avatar-reference-note--dark">
-              The 3D avatar is a guide to the overall movement. For exact handshapes, see each
-              sign’s video in the Sign Library.
-            </p>
           </div>
         </div>
       </div>
@@ -216,7 +227,7 @@ export function ConversationPage() {
             id="conversation-input"
             type="text"
             value={input}
-            placeholder="Type a sentence to sign…"
+            placeholder="Type a sentence, e.g. “Where is the bus stop?”"
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
           />
@@ -233,6 +244,7 @@ export function ConversationPage() {
             </svg>
           </button>
         </div>
+        <p className="conversation-input-hint">Press Enter to send · or tap ● to sign it on camera instead</p>
       </div>
 
       {captureOpen && (

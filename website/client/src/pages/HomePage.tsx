@@ -1,248 +1,368 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { fetchSigns } from "../api/signs";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { fetchSignById, fetchSigns } from "../api/signs";
 import heroPoster from "../assets/home-hero-poster.webp";
-import { PlaceholderMedia } from "../components/PlaceholderMedia";
-import { tagChipStyle } from "../lib/tagColors";
-import { SCENARIOS } from "../lib/scenarioStories";
+import { SmplxAvatar } from "../components/SmplxAvatar";
+import { SCENARIO_CATEGORIES } from "../lib/scenarioCategories";
+import { scenarioPictogram } from "../lib/pictograms";
 import type { Sign } from "../api/types";
 
-export function HomePage() {
-  const [totalEntries, setTotalEntries] = useState<number | null>(null);
-  const [featured, setFeatured] = useState<Sign | null>(null);
-  const [librarySample, setLibrarySample] = useState<Sign[]>([]);
+/** Quick searches under the search box -- everyday first words. */
+const TRY_WORDS = ["hello", "thank you", "family", "dog"];
+/** "Today's sign" is drawn from these family-friendly signs only -- a random
+ *  pick from the whole catalogue can land on a crude or adult gloss. IDs of
+ *  HELLO, THANK YOU, DOG, CAT, MOTHER, FATHER, FRIEND, PLAY, LOVE, BABY,
+ *  SCHOOL, HOME, BIRD, BROTHER, SISTER, APPLE (all have a video). */
+const FEATURED_SIGNS: [number, string][] = [
+  [1606, "HELLO"], [1579, "THANK YOU"], [1929, "DOG"], [2503, "CAT"], [1069, "MOTHER"], [978, "FATHER"],
+  [2308, "FRIEND"], [1879, "PLAY"], [3212, "LOVE"], [1860, "BABY"], [1530, "SCHOOL"], [1604, "HOME"],
+  [2513, "BIRD"], [2784, "BROTHER"], [669, "SISTER"], [1387, "APPLE"],
+];
 
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchSigns({ pageSize: 1, signal: controller.signal })
-      .then((data) => {
-        setTotalEntries(data.pagination.totalResults);
-        const randomPage = Math.floor(Math.random() * data.pagination.totalResults) + 1;
-        return fetchSigns({ page: randomPage, pageSize: 1, signal: controller.signal });
-      })
-      .then((data) => setFeatured(data.results[0] ?? null))
-      .catch((err) => {
-        if (err.name !== "AbortError") console.error(err);
-      });
-    return () => controller.abort();
-  }, []);
+/** The three result tiers Practice actually reports (routes/recognize.js). */
+const SCORE_TIERS = [
+  { score: 92, label: "Excellent! ✓", note: "80+ · a clear match", tone: "good" },
+  { score: 68, label: "Almost there", note: "60–79 · recognisable", tone: "close" },
+  { score: 41, label: "Keep practicing", note: "under 60 · try again", tone: "retry" },
+] as const;
 
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchSigns({ pageSize: 4, signal: controller.signal })
-      .then((data) => setLibrarySample(data.results))
-      .catch((err) => {
-        if (err.name !== "AbortError") console.error(err);
-      });
-    return () => controller.abort();
-  }, []);
-
+/** A strip that scrolls sideways on its own; two copies make the loop seamless. */
+function Marquee({
+  count,
+  secondsPerCard,
+  reverse,
+  children,
+}: {
+  count: number;
+  secondsPerCard: number;
+  reverse?: boolean;
+  children: (copy: number) => ReactNode;
+}) {
   return (
-    <>
-      <section className="home-hero-band">
-        <div className="home-hero-inner">
-          <div className="home-hero-text">
-            <h1 className="home-hero-title">Look up a sign. Practise it. Teach your family.</h1>
-            <p className="home-hero-tagline">
-              A free Auslan dictionary for families. Watch each sign on video or on a
-              3D avatar you can turn, practise with live camera feedback, and use Sign
-              Chat to see a whole sentence signed.
-            </p>
-            <div className="home-hero-actions">
-              <Link to="/library" className="home-cta">
-                Browse the library
-              </Link>
-              {totalEntries !== null && (
-                <p className="results-count home-hero-count">{totalEntries} signs indexed</p>
-              )}
-            </div>
-          </div>
-
-          <div className="home-video-block home-poster-block">
-            <img
-              className="home-poster-img"
-              src={heroPoster}
-              alt="Poster: 'Language lives between us.' Two hands reaching toward each other, halftone-screened in blue and terracotta. Auslan / Together. A free Auslan dictionary for every family."
-            />
-          </div>
-        </div>
-      </section>
-
-      <div className="page-container">
-        <section className="home-showcase-section">
-          <div className="home-showcase-grid">
-            <div className="home-showcase-text">
-              <p className="home-showcase-kicker">01 — The library</p>
-              <h2 className="home-section-heading">Search or browse, your way</h2>
-              <p className="home-section-lead">
-                Type any word, or explore the index by topic — Animals, Food &amp;
-                Drink, Family, and more — so kids can browse just as easily as they
-                can search.
-              </p>
-              <Link to="/library" className="home-showcase-link">
-                Browse the library &rarr;
-              </Link>
-            </div>
-            <div className="home-showcase-visual">
-              <div className="home-library-preview">
-                {librarySample.map((sign) => (
-                  <Link key={sign.id} to={`/signs/${sign.id}`} className="home-library-preview-chip">
-                    <span className="home-library-preview-gloss">{sign.gloss}</span>
-                    {sign.tags[0] && (
-                      <span className="tag-chip" style={tagChipStyle(sign.tags[0])}>
-                        #{sign.tags[0]}
-                      </span>
-                    )}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="home-showcase-section">
-          <div className="home-showcase-grid home-showcase-grid-reverse">
-            <div className="home-showcase-visual">
-              {featured && (
-                <div className="home-video-block">
-                  <div className="home-video-frame">
-                    <span className="home-video-accent home-video-accent-a" aria-hidden="true" />
-                    <span className="home-video-accent home-video-accent-b" aria-hidden="true" />
-                    <div className="home-video-media">
-                      {featured.previewVideo?.videoUrl ? (
-                        <video
-                          src={featured.previewVideo.videoUrl}
-                          autoPlay
-                          muted
-                          loop
-                          playsInline
-                          preload="auto"
-                          aria-label={`${featured.gloss} Auslan demonstration`}
-                        />
-                      ) : (
-                        <PlaceholderMedia seed={featured.id} gloss={featured.gloss} />
-                      )}
-                    </div>
-                  </div>
-                  <p className="home-video-caption home-video-caption-dark">
-                    Practise today's sign <strong>{featured.gloss}</strong>
-                  </p>
-                </div>
-              )}
-            </div>
-            <div className="home-showcase-text">
-              <p className="home-showcase-kicker">02 — Every entry</p>
-              <h2 className="home-section-heading">Watch it, practise it, mark it learned</h2>
-              <p className="home-section-lead">
-                Every sign pairs a real demonstration video with a clear,
-                step-by-step breakdown of how it's formed — then stamp it
-                "Learned" once your family has got it, right from that entry's
-                page.
-              </p>
-              {featured && (
-                <Link to={`/signs/${featured.id}`} className="home-showcase-link">
-                  See the full entry for {featured.gloss} &rarr;
-                </Link>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <section className="home-showcase-section">
-          <div className="home-showcase-grid">
-            <div className="home-showcase-text">
-              <p className="home-showcase-kicker">03 — Practice</p>
-              <h2 className="home-section-heading">Sign back at the camera</h2>
-              <p className="home-section-lead">
-                Every entry has a Practice tab: sign it back at your camera and
-                find out straight away whether you've got it right, powered by
-                our own Auslan recognition model.
-              </p>
-              <Link to="/library" className="home-showcase-link">
-                Find a sign to practise &rarr;
-              </Link>
-            </div>
-            <div className="home-showcase-visual">
-              <AiRecognitionPreview />
-            </div>
-          </div>
-        </section>
-
-        <section className="home-showcase-section">
-          <div className="home-showcase-grid home-showcase-grid-reverse">
-            <div className="home-showcase-visual">
-              <SignChatPreview />
-            </div>
-            <div className="home-showcase-text">
-              <p className="home-showcase-kicker">04 — Sign Chat</p>
-              <h2 className="home-section-heading">Chat with a signing avatar</h2>
-              <p className="home-section-lead">
-                Type a sentence, or sign one at your camera, and a 3D avatar
-                replies in Auslan — like a video call with someone who signs
-                back to you.
-              </p>
-              <Link to="/conversation" className="home-showcase-link">
-                Try Sign Chat &rarr;
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        <section className="home-showcase-section">
-          <div className="home-showcase-grid">
-            <div className="home-showcase-text">
-              <p className="home-showcase-kicker">05 — Scenario Learning</p>
-              <h2 className="home-section-heading">Learn signs for real situations</h2>
-              <p className="home-section-lead">
-                Walk through everyday scenarios — meeting someone new, ordering
-                at a café, asking for directions — step by step, picking up
-                exactly the words each one takes.
-              </p>
-              <Link to="/scenarios" className="home-showcase-link">
-                Browse scenarios &rarr;
-              </Link>
-            </div>
-            <div className="home-showcase-visual">
-              <div className="home-library-preview">
-                {SCENARIOS.slice(0, 4).map((scenario) => (
-                  <Link key={scenario.id} to={`/scenarios/${scenario.id}`} className="home-library-preview-chip">
-                    <span aria-hidden="true">{scenario.emoji} </span>
-                    <span className="home-library-preview-gloss">{scenario.title}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
+    <div className="home3-marquee">
+      {/* Duration scales with the card count so every strip moves at the same pace. */}
+      <div className={`home3-marquee-track ${reverse ? "is-reverse" : ""}`} style={{ animationDuration: `${count * secondsPerCard}s` }}>
+        {children(0)}
+        {children(1)}
       </div>
-    </>
-  );
-}
-
-function AiRecognitionPreview() {
-  return (
-    <div className="home-ai-preview" aria-hidden="true">
-      <svg viewBox="0 0 120 120" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="10" y="30" width="80" height="60" rx="8" />
-        <path d="M90 48 L108 36 V84 L90 72" />
-        <circle cx="50" cy="60" r="18" />
-        <circle cx="50" cy="60" r="6" fill="currentColor" stroke="none" />
-        <rect x="34" y="14" width="14" height="6" rx="2" />
-      </svg>
     </div>
   );
 }
 
-function SignChatPreview() {
+/** True once the element has come within 400px of the viewport (and stays true). */
+function useNearViewport<T extends Element>() {
+  const ref = useRef<T | null>(null);
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || near) return;
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && setNear(true), { rootMargin: "400px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [near]);
+  return [ref, near] as const;
+}
+
+/** The (6 MB) avatar, mounted only once its folder comes near the viewport. */
+function LazyAvatar() {
+  const [ref, near] = useNearViewport<HTMLDivElement>();
   return (
-    <div className="home-ai-preview" aria-hidden="true">
-      <svg viewBox="0 0 120 120" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        {/* avatar: head + shoulders */}
-        <circle cx="46" cy="38" r="16" />
-        <path d="M22 92c0-16 10-26 24-26s24 10 24 26" />
-        {/* reply bubble */}
-        <path d="M70 18h36a6 6 0 0 1 6 6v22a6 6 0 0 1-6 6H84l-10 10V52h-4a6 6 0 0 1-6-6V24a6 6 0 0 1 6-6Z" />
-      </svg>
+    <div ref={ref} className="home3-avatar">
+      {near && <SmplxAvatar clip={null} playing smile className="home3-avatar-canvas" />}
+    </div>
+  );
+}
+
+/** Sideways strip of signing videos; fetches the clips once it's near the viewport. */
+function SignVideoStrip() {
+  const [ref, near] = useNearViewport<HTMLDivElement>();
+  const [urls, setUrls] = useState<Record<number, string>>({});
+  useEffect(() => {
+    if (!near) return;
+    const controller = new AbortController();
+    Promise.all(
+      FEATURED_SIGNS.map(([id]) =>
+        fetchSignById(id, controller.signal)
+          .then((sign) => [id, sign.videos?.find((v) => v.videoUrl)?.videoUrl ?? ""] as const)
+          .catch(() => [id, ""] as const)
+      )
+    ).then((pairs) => setUrls(Object.fromEntries(pairs.filter(([, u]) => u))));
+    return () => controller.abort();
+  }, [near]);
+  return (
+    <div ref={ref}>
+      <Marquee count={FEATURED_SIGNS.length} secondsPerCard={7}>
+        {(copy) =>
+          FEATURED_SIGNS.map(([sid, gloss]) => (
+            <Link
+              key={`${copy}-${sid}`}
+              to={`/signs/${sid}`}
+              className="home3-sign-card"
+              aria-hidden={copy === 1}
+              tabIndex={copy === 1 ? -1 : undefined}
+            >
+              <span className="home3-sign-card-video">
+                {urls[sid] && <video src={urls[sid]} autoPlay muted loop playsInline preload="auto" />}
+              </span>
+              <span className="home3-sign-card-gloss">{gloss}</span>
+            </Link>
+          ))
+        }
+      </Marquee>
+    </div>
+  );
+}
+
+type Tone = "blue" | "sun" | "leaf" | "clay" | "sky";
+
+/** One coloured "folder" per feature: a tab with the section name, an open
+ *  button, and a white card inside. Stacks over the previous one on scroll. */
+function Folder({
+  tone,
+  number,
+  eyebrow,
+  title,
+  to,
+  cta,
+  children,
+}: {
+  tone: Tone;
+  number: string;
+  eyebrow: string;
+  title: string;
+  to: string;
+  cta: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className={`home3-folder home3-folder--${tone}`}>
+      <div className="home3-folder-head">
+        <div>
+          <p className="home3-folder-eyebrow">
+            {number} · {eyebrow}
+          </p>
+          <h2 className="home3-folder-title">{title}</h2>
+        </div>
+        <Link to={to} className="home3-folder-open">
+          <span>{cta}</span>
+          <span className="home3-flower-button" aria-hidden="true">
+            <span className="home3-flower-arrow">→</span>
+          </span>
+        </Link>
+      </div>
+      <div className="home3-folder-card">{children}</div>
+    </section>
+  );
+}
+
+/** A feature list: bold lead + one plain line each. */
+function Points({ items }: { items: [string, string][] }) {
+  return (
+    <ul className="home3-points">
+      {items.map(([lead, text]) => (
+        <li key={lead}>
+          <strong>{lead}</strong>
+          <span>{text}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function HomePage() {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+  const [totalEntries, setTotalEntries] = useState<number | null>(null);
+  const [featured, setFeatured] = useState<Sign | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const onError = (err: Error) => {
+      if (err.name !== "AbortError") console.error(err);
+    };
+    fetchSigns({ pageSize: 1, signal: controller.signal })
+      .then((data) => setTotalEntries(data.pagination.totalResults))
+      .catch(onError);
+    const [id] = FEATURED_SIGNS[Math.floor(Math.random() * FEATURED_SIGNS.length)];
+    fetchSignById(id, controller.signal).then(setFeatured).catch(onError);
+    return () => controller.abort();
+  }, []);
+
+  function search(e: FormEvent) {
+    e.preventDefault();
+    const q = query.trim();
+    navigate(q ? `/library?query=${encodeURIComponent(q)}` : "/library");
+  }
+
+  // /signs/:id returns the full `videos` list rather than a `previewVideo`.
+  const featuredVideo = featured?.previewVideo?.videoUrl ?? featured?.videos?.find((v) => v.videoUrl)?.videoUrl;
+  const signCount = totalEntries !== null ? totalEntries.toLocaleString() : "3,000+";
+
+  return (
+    <div className="home3">
+      {/* Full-bleed moving poster: a real signer, duotoned into the brand blue. */}
+      <section className="home3-hero" aria-label="A signer demonstrating an Auslan sign">
+        {featuredVideo ? (
+          <video className="home3-hero-video" src={featuredVideo} autoPlay muted loop playsInline preload="auto" />
+        ) : (
+          <div className="home3-hero-video" />
+        )}
+        <div className="home3-hero-tint" aria-hidden="true" />
+        <h1 className="home3-hero-mark">
+          Learn Auslan
+          <br />
+          together
+        </h1>
+        {featured && (
+          <Link to={`/signs/${featured.id}`} className="home3-hero-caption">
+            Now signing: <strong>{featured.gloss}</strong> →
+          </Link>
+        )}
+        <span className="home3-hero-scroll" aria-hidden="true">
+          ↓
+        </span>
+      </section>
+
+      <section className="home3-statement">
+        <div className="home3-statement-text">
+          <p className="home3-kicker">A free Auslan dictionary for families</p>
+          <h2 className="home3-title">Start with the word you need today.</h2>
+          <p className="home3-poem">
+            Type any English word and see it signed by a real person.
+            <br />
+            Slow it down, turn the 3D avatar, copy it together —
+            <br />
+            then try it on camera and see how close you got.
+          </p>
+          <form className="home3-search" onSubmit={search} role="search">
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Look up a word…"
+              aria-label="Look up a word in the Auslan library"
+            />
+            <button type="submit">Look it up</button>
+          </form>
+          <p className="home3-try">
+            Try:
+            {TRY_WORDS.map((w) => (
+              <Link key={w} to={`/library?query=${encodeURIComponent(w)}`}>
+                {w}
+              </Link>
+            ))}
+          </p>
+        </div>
+        <div className="home3-poster">
+          <img
+            src={heroPoster}
+            alt="Poster: 'Language lives between us.' Two hands reaching toward each other, halftone-screened in blue and terracotta."
+          />
+        </div>
+      </section>
+
+      <div className="home3-folders">
+        <Folder tone="blue" number="01" eyebrow="Sign Library" title="Look up any sign" to="/library" cta="Open the library">
+          <div className="home3-split home3-library-split">
+            <div>
+              <p className="home3-big-number">
+                {signCount}
+                <span>Auslan signs, each with a real signer on video</span>
+              </p>
+              <p className="home3-card-text">
+                Search in English or browse by topic. Every sign has a video you can slow down, a step-by-step breakdown
+                and a 3D avatar you can turn.
+              </p>
+            </div>
+            <SignVideoStrip />
+          </div>
+        </Folder>
+
+        <Folder tone="clay" number="02" eyebrow="Practice" title="Sign it back to the camera" to="/library" cta="Find a sign to practise">
+          <div className="home3-split">
+            <ol className="home3-steps">
+              <li>
+                <strong>Open a sign</strong>
+                <span>Pick any sign with a Practice tab.</span>
+              </li>
+              <li>
+                <strong>Sign it at your webcam</strong>
+                <span>Video stays on your device — only hand positions are checked.</span>
+              </li>
+              <li>
+                <strong>Get your score</strong>
+                <span>One of three results, each with a tip on what to try next.</span>
+              </li>
+            </ol>
+            <div className="home3-scores" aria-label="The three practice results">
+              {SCORE_TIERS.map((t) => (
+                <div key={t.label} className={`home3-score is-${t.tone}`}>
+                  <span className="home3-score-ring" style={{ "--pct": `${t.score}%` } as React.CSSProperties}>
+                    <strong>{t.score}</strong>
+                  </span>
+                  <span className="home3-score-label">{t.label}</span>
+                  <span className="home3-score-note">{t.note}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Folder>
+
+        <Folder tone="sky" number="03" eyebrow="Sign Chat" title="Chat with a signing avatar" to="/conversation" cta="Try Sign Chat">
+          <div className="home3-split home3-chat-split">
+            <div className="home3-chat-intro">
+              <p className="home3-chat-headline">
+                Ask in English.
+                <br />
+                Get the answer in Auslan.
+              </p>
+              <p className="home3-card-text">
+                Type a sentence or sign one at your camera — the avatar signs back, word by word.
+              </p>
+            </div>
+            <div className="home3-chat-stage">
+              <div className="home3-chat" aria-hidden="true">
+                <span className="home3-bubble home3-bubble--me">Where is the bus stop?</span>
+                <span className="home3-bubble home3-bubble--avatar">The bus stop is over there.</span>
+              </div>
+              <LazyAvatar />
+            </div>
+          </div>
+        </Folder>
+
+        <Folder tone="leaf" number="04" eyebrow="Scenario Learning" title="Signs for real situations" to="/scenarios" cta="See all journeys">
+          <p className="home3-card-text home3-card-lead">
+            {SCENARIO_CATEGORIES.length} journeys, from ordering at a café to seeing a doctor. Each one is split into short
+            stops, so you always know what to learn next.
+          </p>
+          <Marquee count={SCENARIO_CATEGORIES.length} secondsPerCard={5} reverse>
+            {(copy) =>
+              SCENARIO_CATEGORIES.map((g) => (
+                <Link
+                  key={`${copy}-${g.id}`}
+                  to={`/scenarios/category/${g.id}`}
+                  className="home3-journey"
+                  aria-hidden={copy === 1}
+                  tabIndex={copy === 1 ? -1 : undefined}
+                >
+                  <img src={scenarioPictogram(g.id)} alt="" />
+                  <span>{g.title}</span>
+                </Link>
+              ))
+            }
+          </Marquee>
+        </Folder>
+
+        <Folder tone="sun" number="05" eyebrow="Your lists" title="Keep track as you learn" to="/to-learn" cta="Open To Learn">
+          <Points
+            items={[
+              ["To Learn", "Queue the signs you want to work on, grouped by when you added them."],
+              ["Personalised sessions", "Pick topics and a word count — we fill your list with signs you haven't learned."],
+              ["Learned", "Mark a sign learned and watch your progress grow across every journey."],
+            ]}
+          />
+        </Folder>
+      </div>
     </div>
   );
 }

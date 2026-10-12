@@ -7,8 +7,8 @@
 const assert = require("node:assert");
 const fs = require("node:fs");
 const path = require("node:path");
-const { buildFeatures, toFixedLength } = require("../src/recognition/features");
-const { load, embed } = require("../src/recognition/model");
+const { buildFeatures, toFixedLength, mirrorCapture } = require("../src/recognition/features");
+const { load, embed, distanceToWord } = require("../src/recognition/model");
 
 const GOLDEN = path.join(__dirname, "..", "..", "..", "recognition", "test", "golden.json");
 
@@ -42,4 +42,20 @@ const GOLDEN = path.join(__dirname, "..", "..", "..", "recognition", "test", "go
   }
   console.log(failed ? `\n${failed} case(s) diverge from the Python pipeline` : "\nAll cases match Python.");
   assert.strictEqual(failed, 0);
+
+  // Handedness-free verify: mirroring is its own inverse, and a mirrored
+  // attempt scores the same as the original once verify takes the closer of both.
+  for (const c of g.cases) {
+    const m = mirrorCapture(c.input);
+    assert.deepStrictEqual(mirrorCapture(m), c.input);
+    const verifyDistance = async (cap) => Math.min(
+      distanceToWord(s, (await embed(cap)).embedding, 0),
+      distanceToWord(s, (await embed(mirrorCapture(cap))).embedding, 0),
+    );
+    const [dOrig, dMirror] = [await verifyDistance(c.input), await verifyDistance(m)];
+    assert.ok(Math.abs(dOrig - dMirror) < 1e-6, `${c.name}: ${dOrig} vs ${dMirror}`);
+    // ...and mirroring really changes what the model sees (not a no-op).
+    assert.notDeepStrictEqual((await embed(m)).embedding, (await embed(c.input)).embedding);
+  }
+  console.log("Mirror check passed.");
 })();

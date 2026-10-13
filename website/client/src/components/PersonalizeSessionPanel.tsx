@@ -178,14 +178,23 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
 
   return (
     <div className="personalize-panel">
-      <button type="button" ref={openerRef} className="personalize-panel-toggle" onClick={openWizard}>
-        <span className="personalize-panel-icon" aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+      <button type="button" ref={openerRef} className="personalize-cta" onClick={openWizard}>
+        <span className="personalize-cta-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
         </span>
-        Personalize your learning
+        <span className="personalize-cta-text">
+          <span className="personalize-cta-title">Personalize your learning</span>
+          <span className="personalize-cta-sub">
+            Pick the topics you care about and how many words you want &mdash; we&rsquo;ll fill your list
+            with signs you haven&rsquo;t learned yet.
+          </span>
+        </span>
+        <span className="personalize-cta-go" aria-hidden="true">
+          Start &rarr;
+        </span>
       </button>
 
       {modalOpen && (
@@ -200,7 +209,20 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
           >
             <div className="wizard-header">
               <div>
-                <p className="wizard-step-indicator">Step {step === "tags" ? 1 : 2} of 2</p>
+                <ol className="wizard-stepper" aria-label="Progress">
+                  {["Topics", "Word mix"].map((label, i) => {
+                    const current = result ? 3 : step === "tags" ? 1 : 2;
+                    const state = i + 1 < current ? "done" : i + 1 === current ? "current" : "todo";
+                    return (
+                      <li key={label} className={`wizard-stepper-step is-${state}`} aria-current={state === "current" ? "step" : undefined}>
+                        <span className="wizard-stepper-num" aria-hidden="true">
+                          {state === "done" ? "✓" : i + 1}
+                        </span>
+                        {label}
+                      </li>
+                    );
+                  })}
+                </ol>
                 <h2 className="wizard-title">
                   {result ? "All set" : step === "tags" ? "Choose your topics" : "Set word count & ratio"}
                 </h2>
@@ -212,6 +234,9 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
 
             {result ? (
               <div className="wizard-body wizard-result">
+                <span className="wizard-result-icon" aria-hidden="true">
+                  &#10003;
+                </span>
                 <p>{result}</p>
               </div>
             ) : step === "tags" ? (
@@ -229,13 +254,11 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
                           onClick={() => toggleTag(tag)}
                           aria-pressed={active}
                         >
-                          {active && (
-                            <span className="wizard-tag-check" aria-hidden="true">
-                              &#10003;
-                            </span>
-                          )}
+                          <span className="wizard-tag-check" aria-hidden="true">
+                            {active ? "✓" : ""}
+                          </span>
                           <span className="wizard-tag-label">{tag}</span>
-                          <span className="wizard-tag-chip-count">{count}</span>
+                          <span className="wizard-tag-chip-count">{count} new</span>
                         </button>
                       </li>
                     );
@@ -301,6 +324,15 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
             )}
 
             <div className="wizard-footer">
+              <span className="wizard-footer-summary">
+                {result
+                  ? ""
+                  : step === "tags"
+                    ? selectedTags.length === 0
+                      ? "Choose at least one topic"
+                      : `${selectedTags.length} topic${selectedTags.length === 1 ? "" : "s"} selected`
+                    : `${total} words from ${selectedTags.length} topic${selectedTags.length === 1 ? "" : "s"}`}
+              </span>
               {result ? (
                 <button type="button" className="practice-start-button" onClick={closeWizard}>
                   Done

@@ -9,7 +9,7 @@ interface Props {
   eyebrow: string;
   title: string;
   getEntries: () => IdEntry[];
-  emptyIcon: ReactNode;
+  emptyIcon?: ReactNode;
   emptyTitle: string;
   emptyBody: string;
   /** Extra header content next to the title, e.g. Learned's progress bar --
@@ -101,11 +101,13 @@ export function SavedSignsPage({
           </button>
         </div>
 
+        {/* Always above the list, full width -- not tucked into the list's toolbar. */}
+        {beforeList && <div className="personalize-panel-standalone">{beforeList}</div>}
+
         {isError && <p role="alert">Couldn't load your signs.</p>}
 
         {isLoading ? (
           <>
-            {beforeList && <div className="personalize-panel-standalone">{beforeList}</div>}
             <ul className="result-list">
               {Array.from({ length: 6 }).map((_, i) => (
                 <ResultCardSkeleton key={i} />
@@ -114,7 +116,6 @@ export function SavedSignsPage({
           </>
         ) : timedSigns.length === 0 ? (
           <>
-            {beforeList && <div className="personalize-panel-standalone">{beforeList}</div>}
             <div className="empty-state learned-empty-state">
               {emptyIcon}
               <h2>{emptyTitle}</h2>
@@ -125,7 +126,7 @@ export function SavedSignsPage({
             </div>
           </>
         ) : (
-          <TimeGroupedList entries={timedSigns} returnTo={window.location.pathname} headerExtra={beforeList} />
+          <TimeGroupedList entries={timedSigns} returnTo={window.location.pathname} />
         )}
       </div>
     </>

@@ -42,6 +42,7 @@ export function LearnedSignsPage() {
             <div
               className="progress-bar"
               role="progressbar"
+              aria-label="Signs learned"
               aria-valuenow={Math.round((count / totalEntries) * 100)}
               aria-valuemin={0}
               aria-valuemax={100}

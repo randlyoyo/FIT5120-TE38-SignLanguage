@@ -5,11 +5,14 @@ import heroPoster from "../assets/home-hero-poster.webp";
 import { SmplxAvatar } from "../components/SmplxAvatar";
 import { SCENARIO_CATEGORIES } from "../lib/scenarioCategories";
 import { scenarioPictogram } from "../lib/pictograms";
-import type { Sign } from "../api/types";
+/** Hero footage: people signing, from Pexels (free licence, no attribution
+ *  required). Played one after another from a random start, so only one clip
+ *  downloads at a time. */
+const HERO_CLIPS = ["10373883", "10374296", "10374298", "10373841"].map((id) => `/hero/${id}.mp4`);
 
 /** Quick searches under the search box -- everyday first words. */
 const TRY_WORDS = ["hello", "thank you", "family", "dog"];
-/** "Today's sign" is drawn from these family-friendly signs only -- a random
+/** The sign strip shows these family-friendly signs only -- a random
  *  pick from the whole catalogue can land on a crude or adult gloss. IDs of
  *  HELLO, THANK YOU, DOG, CAT, MOTHER, FATHER, FRIEND, PLAY, LOVE, BABY,
  *  SCHOOL, HOME, BIRD, BROTHER, SISTER, APPLE (all have a video). */
@@ -173,18 +176,15 @@ export function HomePage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [totalEntries, setTotalEntries] = useState<number | null>(null);
-  const [featured, setFeatured] = useState<Sign | null>(null);
+  const [clip, setClip] = useState(() => Math.floor(Math.random() * HERO_CLIPS.length));
 
   useEffect(() => {
     const controller = new AbortController();
-    const onError = (err: Error) => {
-      if (err.name !== "AbortError") console.error(err);
-    };
     fetchSigns({ pageSize: 1, signal: controller.signal })
       .then((data) => setTotalEntries(data.pagination.totalResults))
-      .catch(onError);
-    const [id] = FEATURED_SIGNS[Math.floor(Math.random() * FEATURED_SIGNS.length)];
-    fetchSignById(id, controller.signal).then(setFeatured).catch(onError);
+      .catch((err: Error) => {
+        if (err.name !== "AbortError") console.error(err);
+      });
     return () => controller.abort();
   }, []);
 
@@ -194,30 +194,28 @@ export function HomePage() {
     navigate(q ? `/library?query=${encodeURIComponent(q)}` : "/library");
   }
 
-  // /signs/:id returns the full `videos` list rather than a `previewVideo`.
-  const featuredVideo = featured?.previewVideo?.videoUrl ?? featured?.videos?.find((v) => v.videoUrl)?.videoUrl;
   const signCount = totalEntries !== null ? totalEntries.toLocaleString() : "3,000+";
 
   return (
     <div className="home3">
-      {/* Full-bleed moving poster: a real signer, duotoned into the brand blue. */}
-      <section className="home3-hero" aria-label="A signer demonstrating an Auslan sign">
-        {featuredVideo ? (
-          <video className="home3-hero-video" src={featuredVideo} autoPlay muted loop playsInline preload="auto" />
-        ) : (
-          <div className="home3-hero-video" />
-        )}
+      {/* Full-bleed moving poster: people signing, duotoned into the brand blue. */}
+      <section className="home3-hero" aria-label="People talking in sign language">
+        <video
+          key={clip}
+          className="home3-hero-video"
+          src={HERO_CLIPS[clip]}
+          autoPlay
+          muted
+          playsInline
+          preload="auto"
+          onEnded={() => setClip((c) => (c + 1) % HERO_CLIPS.length)}
+        />
         <div className="home3-hero-tint" aria-hidden="true" />
         <h1 className="home3-hero-mark">
           Learn Auslan
           <br />
           together
         </h1>
-        {featured && (
-          <Link to={`/signs/${featured.id}`} className="home3-hero-caption">
-            Now signing: <strong>{featured.gloss}</strong> →
-          </Link>
-        )}
         <span className="home3-hero-scroll" aria-hidden="true">
           ↓
         </span>

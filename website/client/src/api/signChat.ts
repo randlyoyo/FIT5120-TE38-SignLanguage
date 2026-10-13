@@ -5,7 +5,21 @@
 
 import type { SmplxPoseJson } from "../lib/smplx";
 
-const API_BASE = import.meta.env.VITE_SIGNCHAT_API_BASE_URL ?? "http://localhost:8000";
+const SITE_API = import.meta.env.VITE_API_BASE_URL ?? "/api";
+const FALLBACK_BASE = import.meta.env.VITE_SIGNCHAT_API_BASE_URL ?? "http://localhost:8000";
+
+// The Colab host's URL changes on every restart; the notebook reports it to
+// this site's API (routes/signchat.js), so ask there first and fall back to
+// the build-time value. Resolved once per page load.
+let API_BASE = FALLBACK_BASE;
+let resolving: Promise<string> | null = null;
+function apiBase(): Promise<string> {
+  resolving ??= fetch(`${SITE_API}/signchat-url`)
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data: { url?: string } | null) => (API_BASE = data?.url || FALLBACK_BASE))
+    .catch(() => FALLBACK_BASE);
+  return resolving;
+}
 
 export interface SignSubtitleCue {
   start: number;
@@ -61,7 +75,7 @@ async function handle<T>(res: Response): Promise<T> {
 }
 
 export async function sendChatText(text: string, sessionId?: string): Promise<ChatResponse> {
-  const res = await fetch(`${API_BASE}/api/chat/text`, {
+  const res = await fetch(`${await apiBase()}/api/chat/text`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, session_id: sessionId }),
@@ -80,12 +94,12 @@ export async function sendChatSign(
   form.append("video", video, options.filename ?? "recording.webm");
   if (options.sessionId) form.append("session_id", options.sessionId);
   form.append("mirrored", String(options.mirrored ?? true));
-  const res = await fetch(`${API_BASE}/api/chat/sign`, { method: "POST", body: form });
+  const res = await fetch(`${await apiBase()}/api/chat/sign`, { method: "POST", body: form });
   return handle<ChatResponse>(res);
 }
 
 export async function deleteChatSession(sessionId: string): Promise<void> {
-  await fetch(`${API_BASE}/api/session/${sessionId}`, { method: "DELETE" });
+  await fetch(`${await apiBase()}/api/session/${sessionId}`, { method: "DELETE" });
 }
 
 /** Polls `video_url` until it's done rendering (the backend returns 404 for

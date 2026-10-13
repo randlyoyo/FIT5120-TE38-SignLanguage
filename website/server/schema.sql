@@ -84,3 +84,12 @@ CREATE TABLE IF NOT EXISTS sign_poses (
     updated_at TIMESTAMP NOT NULL
         DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
+-- Small key/value settings. Holds `signchat_url`: the Sign Chat models' current
+-- Colab tunnel URL, reported by the notebook (routes/signchat.js creates this
+-- table on first write, so it needs no manual migration).
+CREATE TABLE IF NOT EXISTS app_settings (
+    name VARCHAR(64) NOT NULL PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+        DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;

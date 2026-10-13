@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const signsRouter = require("./routes/signs");
 const recognizeRouter = require("./routes/recognize");
+const signchatRouter = require("./routes/signchat");
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(express.json({ limit: "5mb" }));
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 app.use("/api/signs", signsRouter);
 app.use("/api/recognize", recognizeRouter);
+app.use("/api/signchat-url", signchatRouter);
 
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 

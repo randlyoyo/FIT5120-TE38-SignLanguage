@@ -21,8 +21,9 @@ export function LearnedSignsPage() {
 
   return (
     <SavedSignsPage
+      list="learnt"
       eyebrow="Your list"
-      title="Learned Words"
+      title="Learnt Words"
       getEntries={getLearnedEntries}
       emptyIcon={
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -31,18 +32,18 @@ export function LearnedSignsPage() {
           <path d="M8 10h4" strokeLinecap="round" />
         </svg>
       }
-      emptyTitle="No learned words yet"
-      emptyBody="Mark a sign as learned from its detail page to see it here."
+      emptyTitle="No learnt words yet"
+      emptyBody="Mark a sign as learnt from its detail page to see it here."
       headerExtra={(count) =>
         totalEntries !== null && (
           <div className="library-header-tools learned-progress">
             <p className="results-count library-hero-count">
-              {count} of {totalEntries} signs learned
+              {count} of {totalEntries} signs learnt
             </p>
             <div
               className="progress-bar"
               role="progressbar"
-              aria-label="Signs learned"
+              aria-label="Signs learnt"
               aria-valuenow={Math.round((count / totalEntries) * 100)}
               aria-valuemin={0}
               aria-valuemax={100}

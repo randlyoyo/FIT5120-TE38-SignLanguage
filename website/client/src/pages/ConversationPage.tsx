@@ -144,17 +144,19 @@ export function ConversationPage() {
             <p className="library-eyebrow-light">Talk in Auslan</p>
             <h1 className="page-title">Sign Chat</h1>
           </div>
+          {/* The band carries the page's tools, so the chat column needs no header row of its own. */}
+          <div className="conversation-hero-tools">
+            <p className="conversation-hero-hint">Type or sign a message — the avatar replies in Auslan.</p>
+            {messages.length > 0 && (
+              <button type="button" className="conversation-new-chat" onClick={newChat}>
+                New chat
+              </button>
+            )}
+          </div>
         </div>
       </header>
       <div className="conversation-panels">
         <div className="conversation-chat-col">
-          {messages.length > 0 && (
-            <div className="conversation-chat-head">
-              <button type="button" className="conversation-new-chat" onClick={newChat}>
-                New chat
-              </button>
-            </div>
-          )}
           <div className="conversation-chat-log" ref={logRef}>
             {messages.length === 0 ? (
               <div className="conversation-chat-empty">

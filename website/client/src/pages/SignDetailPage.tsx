@@ -27,6 +27,8 @@ export function SignDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const signId = Number(id);
+  // ?mode=practice (e.g. from the scenario word preview) opens Practice once it's known to be available.
+  const wantsPractice = new URLSearchParams(location.search).get("mode") === "practice";
 
   // Extract navigation context from ResultCard or Scenario Category Page
   const siblingIds = (location.state as { siblingIds?: number[]; returnTo?: string; selectedSubId?: string } | null)?.siblingIds;
@@ -105,12 +107,13 @@ export function SignDetailPage() {
         const supported = vocabulary.has(sign?.gloss ?? "");
         setCanPractice(supported);
         if (!supported) setMode("learn");
+        else if (wantsPractice) setMode("practice");
       }
     });
     return () => {
       active = false;
     };
-  }, [sign?.gloss]);
+  }, [sign?.gloss, wantsPractice]);
 
   if (isError) {
     return (
@@ -210,7 +213,6 @@ export function SignDetailPage() {
             {mode === "learn" ? (
               <>
                 <h1 className="page-title detail-gloss-title">{sign.gloss}</h1>
-                <p className="result-card-meta">{sign.source ?? "Unknown source"}</p>
                 {sign.tags.length > 0 && (
                   <div className="tag-chips">
                     {sign.tags.map((tag) => (
@@ -259,7 +261,7 @@ export function SignDetailPage() {
                       }
                     }}
                   >
-                    {learned ? "✓ Learned" : "Mark as learned"}
+                    {learned ? "✓ Learnt" : "Mark as learnt"}
                   </button>
                 </div>
               </>

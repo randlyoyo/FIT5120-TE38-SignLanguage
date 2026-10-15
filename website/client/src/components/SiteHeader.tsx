@@ -23,7 +23,7 @@ export function SiteHeader() {
             To Learn
           </NavLink>
           <NavLink to="/learned" className={({ isActive }) => (isActive ? "active" : "")}>
-            Learned
+            Learnt
           </NavLink>
         </nav>
       </div>

@@ -16,11 +16,12 @@ from pathlib import Path
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Pt, RGBColor
+from docx.shared import Cm, Pt, RGBColor
 
-VERSION = "Version 2.1 · 13 October 2026 (living document -- updated each iteration) | Team TE38 · BitDance | FIT5120, Monash University"
+VERSION = "Version 2.2 · 15 October 2026 (living document -- updated each iteration) | Team TE38 · BitDance | FIT5120, Monash University"
 ACCENT, INK, MUTED, BORDER = "1F3D7A", "201E19", "6B6455", "D9D3C4"
 FLAG_INK, FLAG_FILL, FLAG_BORDER = "9C2F2F", "FBEFEF", "E3B8B8"
+IMG = Path(__file__).parent / "img"  # screenshots of the live site and the diagrams
 LIVE = "https://handmirror.vercel.app"
 REPO = "https://github.com/randlyoyo/FIT5120-TE38-SignLanguage"
 API = "https://fit5120-te38-signlanguage-production.up.railway.app"
@@ -39,6 +40,7 @@ TEAM = [  # name, role, email, LinkedIn -- from the team's Team Info document (i
 class Doc:
     def __init__(self, path: Path):
         self.path = path
+        self.fig = 0
         self.d = Document(path)
         body = self.d.element.body
         for el in list(body.iterchildren()):
@@ -78,10 +80,14 @@ class Doc:
         self._run(self._p(after=280), VERSION, MUTED, 20, italic=True)
 
     def h1(self, text):
-        self._run(self._p(before=280, after=120), text, ACCENT, 28, bold=True)
+        p = self._p(before=280, after=120)
+        p.paragraph_format.keep_with_next = True
+        self._run(p, text, ACCENT, 28, bold=True)
 
     def h2(self, text):
-        self._run(self._p(before=160, after=80), text, INK, 23, bold=True)
+        p = self._p(before=160, after=80)
+        p.paragraph_format.keep_with_next = True
+        self._run(p, text, INK, 23, bold=True)
 
     def para(self, text):
         self._run(self._p(after=160), text, INK, 21, italic=False)
@@ -93,6 +99,17 @@ class Doc:
         for it in items:
             p = self._p(after=60, style="List Bullet")
             self._run(p, it, INK, 21)
+
+    def figure(self, name, caption, width=16.0):
+        """A centred image from img/ with a numbered caption under it."""
+        self.fig += 1
+        p = self._p(before=80, after=40)
+        p.alignment = 1
+        p.paragraph_format.keep_with_next = True  # the caption stays under its picture
+        p.add_run().add_picture(str(IMG / name), width=Cm(width))
+        cap = self._p(after=200)
+        cap.alignment = 1
+        self._run(cap, f"Figure {self.fig}. {caption}", MUTED, 18, italic=True)
 
     def closing(self, text):
         self._run(self._p(before=320), text, MUTED, 18)
@@ -138,8 +155,9 @@ class Doc:
         for r, values in enumerate([headers] + rows):
             for c, value in enumerate(values):
                 cell = t.cell(r, c)
-                self._cell(cell, widths[c], ACCENT if r == 0 else "FFFFFF", (100, 100, 140, 140))
+                self._cell(cell, widths[c], ACCENT if r == 0 else "FFFFFF", (60, 60, 120, 120))
                 p = cell.paragraphs[0]
+                p.paragraph_format.space_after = Pt(0)  # the style's spacing made every row a line taller
                 self._run(p, value, "FFFFFF" if r == 0 else INK, 19, bold=(r == 0))
         self._p(after=80)
 
@@ -162,11 +180,11 @@ class Doc:
 SHARED_LICENCE_ROWS = [
     ["Sign records & demonstration videos", "MM-WLAuslan word-level dataset (UQ CV Lab); dictionary cross-reference to Auslan Signbank", "Research dataset terms; Signbank is CC BY-NC-ND 4.0"],
     ["Practice recognition model", "Trained by the team on MM-WLAuslan", "Inherits the dataset's terms"],
-    ["3D avatar body", "SMPL-X neutral model (Max Planck Institute for Intelligent Systems)", "Non-commercial research licence; the model may not be redistributed"],
+    ["3D avatar body", "SMPL-X neutral model (Max Planck Institute for Intelligent Systems)", "Non-commercial use only; the model may not be redistributed"],
     ["Avatar motion", "SMPL-X parameters fitted by the team to the MM-WLAuslan signers", "Inherits the dataset's terms"],
     ["Avatar skin", "BEDLAM body textures by Meshcapade", "CC BY-NC 4.0"],
     ["Avatar clothing", "Meshcapade SMPL texture samples", "CC BY 4.0"],
-    ["Avatar hair", "Exported from an Avaturn avatar", "Not yet confirmed"],
+    ["Avatar hair", "Exported from an Avaturn avatar", "CC BY-NC 4.0 -- non-commercial use only"],
     ["Scenario pictograms", "Human Pictogram 2.0 by TopeconHeroes (recoloured)", "Free to use as part of a design; files may not be redistributed or sold on their own"],
     ["Sign Chat models", "Uni-Sign (sign-to-text) and SignSparK (text-to-sign), fine-tuned on Auslan-Daily; Qwen2.5-1.5B-Instruct for dialogue", "Per each upstream project's licence"],
     ["Home page cover footage", "Four clips of people signing from Pexels, video IDs 10373883, 10374296, 10374298, 10373841 (client/public/hero)", "Pexels licence: free to use, attribution not required"],
@@ -183,6 +201,7 @@ def product(d: Doc):
         "it on camera with instant feedback; organise learning with personalised To Learn lists and real-life "
         "scenario journeys; and hold a short conversation with a signing avatar (Sign Chat)."
     )
+    d.figure("01-home.jpg", "The home page states what HandMirror is and who it is for within the first screen.", 10.5)
     d.h2("The problem")
     d.para(
         "Parents and caregivers of young Deaf or hard-of-hearing children in Australia often have limited Auslan "
@@ -213,17 +232,18 @@ def product(d: Doc):
         [
             ["Epic 1 -- Sign library search & browse", "Delivered",
              "Keyword search across gloss, tags, keywords and definitions; topic browsing; difficulty-level filter and sort; pagination; "
-             "sign-to-search (sign at the webcam and pick from the four closest signs)."],
+             "sign-to-search (sign at the webcam and pick from the four closest signs); select several signs at once and add them to "
+             "To Learn or mark them learnt."],
             ["Epic 2 -- Sign demonstration & learning", "Delivered",
              "Real signer video for every sign (0.5×–2× speed), a step-by-step movement description, a rotatable 3D avatar "
-             "playing the sign, and Mark-as-learned."],
+             "playing the sign, Mark as learnt, and + / ✓ buttons on every sign card for one-click saving."],
             ["Epic 3 -- Basic quiz / self-check", "Not built", "Remains open for a future iteration."],
             ["Epic 4 -- AI sign recognition & webcam feedback", "Delivered",
              "Practice tab: the learner signs at the webcam and gets one of three results -- Excellent (score 80+), "
              "Almost there (60–79) or Keep practicing (under 60) -- with a tip. Either hand may lead."],
             ["Epic 5 -- Personalised learning", "Delivered",
              "To Learn list (grouped by when signs were added), a personalise wizard (pick topics, a word count and its split; "
-             "it fills the list with signs not yet learned), and a Learned list with progress."],
+             "it fills the list with signs not yet learnt), and a Learnt list with progress."],
             ["Epic 6 -- Family mode", "Not built", "Remains open for a future iteration."],
             ["Epic 7 -- Real-life conversation practice", "Delivered",
              "Scenario Learning: 34 journeys (e.g. café, doctor, family) split into short stops, with a guided route and progress. "
@@ -240,7 +260,7 @@ def product(d: Doc):
         "Express API. Sign Chat uses a separate Python model service that needs a GPU. Full technical detail is in "
         "the Support and Maintenance Documents."
     )
-    d.para(f"Live product: {LIVE}   |   Source code: {REPO}")
+    d.para(f"Live product: {LIVE} (public -- no account, login or password is needed)   |   Source code: {REPO}")
 
     d.h1("4. Ethics & responsible design")
     d.h2("Data provenance and licensing")
@@ -250,10 +270,12 @@ def product(d: Doc):
         "terms they come under, are:"
     )
     d.table(["Asset", "Source", "Licence / terms"], SHARED_LICENCE_ROWS, [2400, 4300, 3272])
-    d.flag(
-        "several assets above are licensed for non-commercial use only (SMPL-X, the BEDLAM skin texture, Auslan "
-        "Signbank, the research datasets). Confirm the terms of each against how a sponsor intends to use the product "
-        "before any commercial use, and confirm whether the Avaturn hair may be used on a public website."
+    d.para(
+        "Licence position: the restricted assets above -- Auslan Signbank, the research datasets and everything derived "
+        "from them, SMPL-X, the BEDLAM skin and the avatar hair -- are licensed under Creative Commons 4.0 "
+        "non-commercial terms (CC BY-NC 4.0; CC BY-NC-ND 4.0 for Signbank) or an equivalent non-commercial research "
+        "licence. HandMirror may therefore be run free of charge, as it is today, for non-commercial use only. Any "
+        "commercial use requires a separate licence from each rights holder first."
     )
     d.h2("Content safety")
     d.para(
@@ -265,7 +287,7 @@ def product(d: Doc):
     )
     d.h2("Privacy")
     d.bullets([
-        "No user accounts. Learned and To Learn lists are stored only in the visitor's own browser (localStorage) and are never sent to the server.",
+        "No user accounts. Learnt and To Learn lists are stored only in the visitor's own browser (localStorage) and are never sent to the server.",
         "Practice: camera video never leaves the browser. Hand-tracking runs locally; only numeric landmark coordinates are posted for scoring, and they are not stored.",
         "Sign Chat: typed messages are sent to the Sign Chat service. When a learner chooses to sign a message instead, the recorded clip is uploaded to that service so it can be recognised.",
     ])
@@ -276,7 +298,12 @@ def product(d: Doc):
         "Generated replies: each reply's motion file, skeleton video and subtitles (which contain the reply text) are saved under media/ and are not cleaned up automatically. On Colab they disappear when the runtime ends; a permanent host should delete them after a set period.",
         "No accounts, names or IP addresses are recorded by the service itself.",
     ])
-    d.para("Recommendation: tell users on the Sign Chat page that their messages are processed by the service and not kept beyond the session.")
+    d.para(
+        "Personal information is handled in line with the Australian Privacy Principles (Privacy Act 1988, Cth): "
+        "nothing is collected that the feature does not need, camera video is not stored, and no learner is identified. "
+        "The mapping to each principle is in the Support Document, Section 7. Recommendation: tell users on the Sign "
+        "Chat page that their messages are processed by the service and not kept beyond the session."
+    )
     d.h2("Honesty about limits")
     d.para(
         "The interface tells learners that the 3D avatar shows the overall movement and that exact handshapes should be "
@@ -292,7 +319,7 @@ def product(d: Doc):
             ["Honesty", "Source fields disclose provenance; the avatar is labelled as a guide; adult signs are kept off the family-facing home page."],
             ["Competence", "Recognition has a parity test against the training pipeline; the APIs and data paths are documented for safe extension."],
             ["Professional development", "The recognition contract (recognition/API.md) and Sign Chat README let future contributors retrain or replace models without redesigning the product."],
-            ["Professionalism", "Known limitations and unconfirmed licences are disclosed rather than hidden."],
+            ["Professionalism", "Known limitations and licence restrictions (non-commercial use only) are disclosed rather than hidden."],
         ],
         [2400, 7572],
     )
@@ -316,9 +343,9 @@ def product(d: Doc):
     d.table(
         ["Item", "Link"],
         [
-            ["Live product", LIVE],
+            ["Live product", LIVE + " -- public, no login or password"],
             ["Source code (GitHub)", REPO],
-            ["System Architecture Document", "website/docs/system-architecture.docx (predates Practice, the 3D avatar and Sign Chat -- see the Maintenance Document)"],
+            ["System architecture", "Current diagram: Support Document, Section 3 (and Maintenance Document, Section 2); earlier write-up in website/docs/system-architecture.docx"],
             ["Product demo video", "Project Governance Portfolio → Project Support folder"],
             ["Team LinkedIn", "Each member's profile is listed in Section 5"],
             ["Project Governance Portfolio (Google Drive)", GOVERNANCE],
@@ -333,26 +360,100 @@ def support(d: Doc):
     d.h1("1. Purpose & audience")
     d.para(
         "This document is for whoever operationally runs and supports the live HandMirror product once a sponsor has "
-        "taken it on -- day-to-day operation, data loading, backups, and what to do when something breaks. It assumes "
-        "no prior familiarity with the codebase (that's the companion Maintenance Document)."
+        "taken it on: what every feature does (so support staff can help learners), day-to-day operation, data "
+        "loading, backups, security, and what to do when something breaks. It assumes no prior familiarity with the "
+        "codebase -- that is the companion Maintenance Document."
     )
-    d.h1("2. System summary")
+    d.para(
+        "Reading order: Section 2 for the features, Sections 3-6 to run the system, Section 7 for security and the "
+        "standards it follows, Section 9 when something goes wrong, and Section 10 for the handover plan itself."
+    )
+
+    d.h1("2. Using HandMirror -- feature guide")
+    d.para(
+        "HandMirror needs no account: every feature works as soon as the site opens. A learner's To Learn and Learnt "
+        "lists are kept in their own browser, so they are tied to that browser and device."
+    )
+    d.h2("2.1 Look up a sign (Library)")
+    d.bullets([
+        "Type any English word in the search bar; results match the sign's name, its topics, search keywords and definitions.",
+        "Narrow the list with the topic index on the left, the All levels / Beginner / Intermediate / Advanced switch, and Sort by (A-Z, difficulty or popularity).",
+        "The camera icon in the search bar is sign-to-search: sign at the webcam and pick from the four closest matches.",
+        "Each card plays its demonstration video, shows the estimated level (top-left), and has two buttons at the bottom-right: + adds the sign to To Learn, ✓ marks it learnt. A blue “To Learn” or green “Learnt” stamp shows its state.",
+    ])
+    d.figure("02-library.jpg", "The Sign Library: search, topic index, level filter and sort, with the + / ✓ buttons on each card.")
+    d.h2("2.2 Save several signs at once")
+    d.para(
+        "Select signs (above the cards in the Library, To Learn and Learnt) turns the grid into a multi-select: click "
+        "cards to tick them, then use the bar at the bottom of the screen. The Library offers Add to To Learn and Mark "
+        "as learnt; To Learn offers Mark as learnt and Remove; Learnt offers Move to To Learn and Remove. A sign is never "
+        "on both lists -- adding it to one takes it off the other. Done leaves selection mode."
+    )
+    d.figure("03-library-select.jpg", "Two signs selected, with the bulk-action bar at the bottom of the screen.")
+    d.h2("2.3 Learn a sign")
+    d.bullets([
+        "The sign page opens on Learn: the demonstration video (with a choice of versions where there are several, replay, and 0.5×-2× speed), the definition, and “How it's formed” -- the movement step by step.",
+        "Video / 3D avatar switches the stage to an avatar performing the same sign. Drag to turn it to any angle; Reset view puts it back. The avatar shows the overall movement -- exact handshapes come from the video.",
+        "Add to to-learn list and Mark as learnt save the sign; the arrows at the sides step to the previous and next sign in the list the learner came from.",
+    ])
+    d.figure("04-sign-learn.jpg", "A sign page in Learn mode with the demonstration video.", 15)
+    d.figure("05-sign-avatar.jpg", "The same sign on the 3D avatar.", 15)
+    d.h2("2.4 Practise a sign")
+    d.para(
+        "Practice (top-right of the sign page) is shown for the signs the recognition model knows. Read the note above "
+        "Start practice: follow the hand orientation in the video. After a short countdown the learner signs at the "
+        "webcam; the capture stops by itself when the hands come to rest. The result is Excellent (80+), Almost there "
+        "(60-79) or Keep practicing (under 60), with a tip and Try again. The camera picture never leaves the browser "
+        "(Section 7)."
+    )
+    d.figure("06-practice.jpg", "Practice mode, before the camera starts.", 15)
+    d.h2("2.5 To Learn and the personalise wizard")
+    d.para(
+        "To Learn lists the saved signs grouped by when they were added (Day / Week / Month / Year). Personalize your "
+        "learning opens a two-step wizard: pick topics, then set how many signs in total and how they split across "
+        "the topics (drag the pie chart or type numbers). The wizard adds signs the learner has not saved or learnt yet."
+    )
+    d.figure("07-to-learn.jpg", "The To Learn list, with the personalise card above it.", 15)
+    d.figure("08-personalise.jpg", "Step 1 of the personalise wizard: choosing topics.", 15)
+    d.h2("2.6 Learnt")
+    d.para("Learnt shows every sign marked learnt, grouped the same way, and progress against the whole dictionary.")
+    d.figure("09-learnt.jpg", "The Learnt list and its progress bar.", 15)
+    d.h2("2.7 Scenario journeys")
+    d.para(
+        "Scenarios groups signs by real situations -- ordering a coffee, a doctor's visit, family -- in three "
+        "directions (Daily Life, Professional, Language Basics) that open and close with the arrow on the left. "
+        "Each journey is a route of short stops. Hovering over a word shows its video with three buttons: Practise "
+        "this sign, Add to To Learn and Mark as learnt. Next stop moves along the route."
+    )
+    d.figure("10-scenarios.jpg", "The Scenarios page: how a journey works, and the first direction opened.", 15)
+    d.figure("11-journey.jpg", "One journey: the route of stops on the left, the current stop's signs on the right.", 15)
+    d.h2("2.8 Sign Chat")
+    d.para(
+        "Type a short English sentence (or press the record button to sign it on camera) and the avatar replies in "
+        "Auslan with subtitles; click a reply to watch it again, and New chat to start over. Sign Chat depends on the "
+        "GPU model service in Section 4 -- when that is not running, the page shows an error instead of a reply."
+    )
+    d.figure("12-sign-chat.jpg", "Sign Chat waiting for a message.", 15)
+
+    d.h1("3. System summary")
+    d.figure("arch.png", "How the parts connect. The browser talks to four services; only the Sign Chat service is not permanently hosted.")
     d.table(
         ["Component", "Technology", "Where it runs"],
         [
             ["Web client", "React 19 + TypeScript (Vite); three.js for the 3D avatar; MediaPipe for in-browser hand-tracking", "Vercel"],
             ["API", "Node.js + Express; ONNX Runtime for the Practice recognition model", "Railway"],
-            ["Database", "MySQL (signs, sign_videos, sign_poses)", "Railway"],
+            ["Database", "MySQL (signs, sign_videos, sign_poses, app_settings)", "Railway"],
             ["Demonstration videos", "MP4 files", "Cloudflare R2"],
-            ["Sign Chat service", "Python + FastAPI; sign-to-text, text-to-sign and dialogue models; needs a GPU", "See Section 3"],
+            ["Sign Chat service", "Python + FastAPI; sign-to-text, text-to-sign and dialogue models; needs a GPU", "Google Colab (Section 4)"],
         ],
         [2300, 5000, 2672],
     )
-    d.h1("3. Environments & access")
+
+    d.h1("4. Environments & access")
     d.table(
         ["Environment", "Component", "Address"],
         [
-            ["Production", "Client (Vercel)", LIVE],
+            ["Production", "Client (Vercel)", LIVE + " (public, no login)"],
             ["Production", "API (Railway)", API],
             ["Production", "Database", "MySQL on Railway (shared with the API service)"],
             ["Production", "Sign Chat service", "Google Colab GPU runtime behind a temporary trycloudflare.com URL (below)"],
@@ -365,27 +466,32 @@ def support(d: Doc):
     d.h2("Sign Chat hosting")
     d.para(
         "Sign Chat has no permanent host yet. It runs from sign_chat/sign_chat_backend/colab_server.ipynb on a Colab "
-        "A100 (an L4 with High-RAM also works; peak GPU memory is about 15 GB). Run sections 1-5 only: section 6 holds "
-        "optional checks that stop and restart the server, which leaves the site without Sign Chat for about two "
-        "minutes. Section 5 prints the public URL, which changes every time the runtime restarts."
+        "A100 (an L4 with High-RAM also works; peak GPU memory is about 15 GB). Run sections 1-4; section 4 has "
+        "finished when it prints “models loaded”. Section 3b (a 10-minute precision check) may be skipped, and "
+        "section 6 must not be run while the site is in use: it restarts the server, leaving Sign Chat down for about "
+        "two minutes."
     )
     d.bullets([
-        "Model weights (about 13 GB) are in the Google Drive of ruizisong11@gmail.com, folders auslan_work/ and smplx_models/. The notebook mounts the Drive of the account running it, so either run it from that account or share both folders and add them as shortcuts at the top of My Drive. They are not in the repository and cannot be downloaded from anywhere else -- copy them to storage the sponsor owns at handover.",
-        "The production client reads the URL from website/client/.env.production. When the URL changes, edit that line and push to master (develop → staging → master); Vercel rebuilds automatically. Local development uses website/client/.env.",
+        "The URL is handed over automatically. Each time section 3 opens a tunnel, it reports the new URL to the API (PUT /api/signchat-url, authorised by the SIGNCHAT_UPDATE_TOKEN secret), and the website reads it whenever Sign Chat is opened. Restarting Colab needs no code change and no redeploy. Section 3 prints “website updated: 200” when the hand-off worked.",
+        "One-time setup: the same secret value is stored as the Railway variable SIGNCHAT_UPDATE_TOKEN and as a Colab secret of the same name (key icon in Colab's left sidebar, with Notebook access switched on).",
+        "Model weights (about 13 GB) are in the Google Drive of ruizisong11@gmail.com, folders auslan_work/ and smplx_models/. The notebook mounts the Drive of the account running it, so either run it from that account or share both folders and add them as shortcuts at the top of My Drive. They are not in the repository -- copy them to storage the sponsor owns at handover.",
         "While the runtime is up, anyone with the URL can call the service. Stop the runtime when it is not needed.",
     ])
+    d.figure("signchat.png", "Top: how the website finds the Sign Chat service after a restart. Bottom: one conversation turn.")
     d.h2("Deployment triggers")
     d.para(
         "Both platforms deploy from the master branch automatically: Vercel builds the client, and Railway (project "
         "“pure-kindness”, service at " + API + ") redeploys the API. Pushes to other branches produce Vercel previews only."
     )
-    d.h1("4. Running & operating the product")
+    d.figure("release.png", "The release flow: work moves develop → staging → master, and master deploys itself.")
+
+    d.h1("5. Running & operating the product")
     d.para(
-        "Client: a static Vite build, auto-deployed by Vercel on every push to the master branch (code flows develop → "
-        "staging → master). API: a long-running Node process on Railway, started with npm start and restarted "
-        "automatically on crash; GET /api/health returns {\"status\":\"ok\"} when it is up. The Practice model files "
-        "(recognition/models, about 14 MB) are committed to the repository, so nothing needs fetching at deploy time. "
-        "The 3D avatar (client/public/smplx.glb, 6.2 MB) is a static file deployed with the client."
+        "Client: a static Vite build, auto-deployed by Vercel on every push to the master branch. API: a long-running "
+        "Node process on Railway, started with npm start and restarted automatically on crash; GET /api/health returns "
+        "{\"status\":\"ok\"} when it is up. The Practice model files (recognition/models, about 14 MB) are committed to "
+        "the repository, so nothing needs fetching at deploy time. The 3D avatar (client/public/smplx.glb, 6.2 MB) and "
+        "the home page cover clips (client/public/hero) are static files deployed with the client."
     )
     d.h2("Required environment variables")
     d.table(
@@ -398,23 +504,25 @@ def support(d: Doc):
             ["CORS_ORIGIN", "Server", "The exact origin allowed to call the API. If unset it defaults to “*” (any origin) -- always set it in production."],
             ["VIDEO_BASE_URL", "Server", "Base URL used to resolve a sign's demonstration video when its row has no explicit video_url."],
             ["RECOGNITION_MODELS", "Server", "Optional path to the recognition model folder; defaults to the repository's recognition/models."],
+            ["SIGNCHAT_UPDATE_TOKEN", "Server", "Shared secret the Colab notebook uses to report Sign Chat's URL (same value as the Colab secret). If unset, reporting is switched off (503)."],
             ["VITE_API_BASE_URL", "Client", "Base URL the client calls for the API, including /api (e.g. " + API + "/api)."],
-            ["VITE_SIGNCHAT_API_BASE_URL", "Client", "Base URL of the Sign Chat service. Production: committed in website/client/.env.production (Section 3)."],
+            ["VITE_SIGNCHAT_API_BASE_URL", "Client", "Fallback Sign Chat URL, used only when the API has none on record (website/client/.env.production)."],
         ],
         [2700, 1100, 6172],
     )
     d.para(
-        "Secret values live only in each platform's project settings (Vercel / Railway environment variables), never in "
-        "source control -- see Section 6. The one exception is the Sign Chat URL, which is public anyway (it is built "
-        "into the client) and is committed so that changing it is a one-line push."
+        "Secret values live only in each platform's project settings (Vercel / Railway environment variables, Colab "
+        "secrets), never in source control; the local .env files are git-ignored and .env.example lists the keys with "
+        "no values."
     )
 
-    d.h1("5. Data management")
+    d.h1("6. Data management")
     d.para(
-        "The database has three tables: signs (one row per sign -- gloss, definitions, usage notes, tags, keywords and a "
-        "source provenance string, several columns stored as native JSON), sign_videos (one or more demonstration videos "
-        "per sign) and sign_poses (one gzipped avatar motion clip per sign, keyed by sign id; a sign without a row simply "
-        "has no 3D avatar)."
+        "The database has four tables: signs (one row per sign -- gloss, definitions, usage notes, tags, keywords and a "
+        "source provenance string, several columns stored as native JSON), sign_videos (one or more demonstration "
+        "videos per sign), sign_poses (one gzipped avatar motion clip per sign; a sign without a row simply has no 3D "
+        "avatar) and app_settings (small key/value settings -- today only the current Sign Chat URL; created "
+        "automatically the first time the notebook reports one)."
     )
     d.h2("Loading data")
     d.bullets([
@@ -430,25 +538,55 @@ def support(d: Doc):
     )
     d.code("mysqldump -h <DB_HOST> -P <DB_PORT> -u <DB_USER> -p auslan_learning > backup.sql\nmysql -h <DB_HOST> -P <DB_PORT> -u <DB_USER> -p auslan_learning < backup.sql")
 
-    d.h1("6. Security & confidential information")
+    d.h1("7. Security, privacy & standards")
     d.para(
-        "There are no end-user accounts and no authentication layer. The sign endpoints are read-only; the only POST "
-        "endpoints score a Practice attempt or look a sign up from landmark data, and none of them write to the database. "
-        "Database credentials and other secrets exist only as environment variables in the Vercel/Railway project "
-        "settings; the local .env file is git-ignored (.env.example documents the keys with no real values)."
+        "There are no end-user accounts. The sign endpoints are read-only; the Practice endpoints score landmark data "
+        "without storing it. The only endpoint that writes is PUT /api/signchat-url, which requires the "
+        "SIGNCHAT_UPDATE_TOKEN secret (compared in constant time) and accepts only an https URL. Secrets exist only as "
+        "platform environment variables and Colab secrets."
     )
+    d.figure("practice.png", "Practice keeps the camera picture on the learner's device: only landmark numbers reach the API, and nothing is stored.")
+    d.h2("Privacy -- Australian Privacy Principles (Privacy Act 1988)")
+    d.table(
+        ["Principle", "How HandMirror complies"],
+        [
+            ["APP 1 -- open and transparent management", "This document and the Product Document describe exactly what each feature sends and keeps. Recommended: a short privacy notice in the site footer."],
+            ["APP 3 -- collection", "Only what a feature needs: landmark numbers for Practice, the message for Sign Chat. No names, emails, accounts or tracking cookies."],
+            ["APP 5 -- notice of collection", "Practice and Sign Chat run only after the learner starts them. Recommended: one line on Sign Chat saying messages go to the model service."],
+            ["APP 6 -- use and disclosure", "Data is used only to produce the score or the reply, and is not shared with anyone else."],
+            ["APP 11 -- security of personal information", "HTTPS everywhere; Practice data is not stored; uploaded Sign Chat clips are deleted when the request ends; conversation text is held in memory for the session only."],
+            ["APP 12 / 13 -- access and correction", "Nothing is stored about an identifiable learner; saved lists live in the learner's own browser and can be cleared there."],
+        ],
+        [3300, 6672],
+    )
+    d.h2("Security -- OWASP Top 10 (2021)")
+    d.table(
+        ["Risk", "Status in HandMirror"],
+        [
+            ["A01 Broken access control", "No accounts or private data. The one write endpoint (PUT /api/signchat-url) requires a secret token."],
+            ["A02 Cryptographic failures", "All traffic is HTTPS (Vercel, Railway, Cloudflare tunnel). No secrets in the repository."],
+            ["A03 Injection", "Every SQL query uses mysql2 parameter placeholders; the reported Sign Chat URL is parsed and reduced to its https origin."],
+            ["A04 Insecure design", "Data minimisation by design: Practice sends landmarks, never video."],
+            ["A05 Security misconfiguration", "Open items: CORS falls back to “*” when CORS_ORIGIN is unset, and there is no security-headers middleware (helmet). Set CORS_ORIGIN and add helmet before wider use."],
+            ["A06 Vulnerable and outdated components", "Run npm audit on client and server regularly; dependencies are pinned in package-lock.json."],
+            ["A07 Identification and authentication failures", "Not applicable (no logins). Rotate SIGNCHAT_UPDATE_TOKEN if it is ever exposed."],
+            ["A09 Logging and monitoring", "Railway and Vercel keep request and error logs; GET /api/health supports uptime monitoring."],
+            ["A10 Server-side request forgery", "The API never fetches a URL supplied by a user; the Sign Chat URL is only stored and handed to browsers."],
+        ],
+        [3300, 6672],
+    )
+    d.h2("Accessibility -- WCAG 2.1 Level AA")
+    d.para("Every page was checked with axe-core against WCAG 2.0-2.2 A/AA rules (Maintenance Document, Section 10). Keep new pages at the same level.")
     d.h2("Known limitations")
     d.bullets([
-        "No rate-limiting middleware. This matters more than before: each POST /api/recognize call runs model inference on the API server's CPU, so a flood of requests could slow the whole API.",
-        "No helmet or equivalent security-headers middleware.",
+        "No rate-limiting middleware: each POST /api/recognize call runs model inference on the API server's CPU, so a flood of requests could slow the whole API. Add express-rate-limit (tighter on /api/recognize).",
         "Request bodies up to 5 MB are accepted (a Practice capture is about 190 KB).",
-        "CORS falls back to allowing any origin if CORS_ORIGIN is not set.",
+        "While Colab is running, the Sign Chat tunnel URL is public and unauthenticated.",
         "The Practice score threshold was calibrated on studio (green-screen) footage; home webcams, lighting and framing can lower scores.",
         "Sign Chat's sign-to-text and text-to-sign models have not been validated by fluent signers; they do best on short, everyday sentences.",
     ])
-    d.para("Recommendation before wider public or commercial use: add express-rate-limit (with a tighter limit on /api/recognize) and helmet to the Express server, and always set CORS_ORIGIN.")
 
-    d.h1("7. API reference summary")
+    d.h1("8. API reference summary")
     d.table(
         ["Endpoint", "Notes"],
         [
@@ -456,18 +594,20 @@ def support(d: Doc):
             ["GET /api/signs", "Search/list signs. Optional: query (search across gloss, tags, keywords, definitions), tag, level (beginner / intermediate / advanced), sort, page, pageSize (default 6, max 50)."],
             ["GET /api/signs/tags", "Topic categories with counts. Optional exclude (comma-separated sign ids) so counts reflect what is still left to learn."],
             ["GET /api/signs/sample", "Random signs from one topic for the personalise wizard: tag, count (max 50), exclude."],
-            ["GET /api/signs/:id", "Single sign, including its demonstration videos. 404 if the id doesn't exist."],
+            ["GET /api/signs/:id", "Single sign with its demonstration videos and estimated level. 404 if the id doesn't exist."],
             ["GET /api/signs/:id/pose", "The sign's avatar motion clip (SMPL-X joint rotations per frame). 404 if the sign has none."],
             ["POST /api/recognize/verify", "Practice scoring. Body {word, capture}; returns matched, a 0–100 score, a tier (excellent / close / needs_practice) and a feedback sentence."],
             ["POST /api/recognize/identify", "Sign-to-search. Body {capture}; returns the four closest signs with a calibrated confidence."],
             ["GET /api/recognize/vocabulary", "Which signs the recognition model knows (?detail=1 adds the Signbank cross-reference)."],
+            ["GET /api/signchat-url", "The Sign Chat service's current URL and when it was reported; 404 if none yet."],
+            ["PUT /api/signchat-url", "Header Authorization: Bearer <SIGNCHAT_UPDATE_TOKEN>, body {url}. 401 wrong token, 400 not an https URL, 503 token not configured."],
             ["Sign Chat service", "POST /api/chat/text, POST /api/chat/sign (multipart video upload), DELETE /api/session/:id -- see sign_chat/sign_chat_backend/README.md."],
         ],
         [3000, 6972],
     )
     d.para("The landmark “capture” format and error codes (400 unusable_capture, 404 unknown_word, 503 model_unavailable) are specified in recognition/API.md.")
 
-    d.h1("8. Troubleshooting guide")
+    d.h1("9. Troubleshooting guide")
     d.table(
         ["Symptom", "Likely cause / fix"],
         [
@@ -477,14 +617,43 @@ def support(d: Doc):
             ["Search returns zero results", "The database hasn't been seeded or imported yet -- run npm run seed or npm run import:real."],
             ["Practice says “isn't switched on for this site yet”", "The API returned 503 model_unavailable: recognition/models is missing from the deployment, or RECOGNITION_MODELS points at the wrong folder."],
             ["Practice says “Didn't catch enough movement”", "400 unusable_capture: both hands weren't in frame, or the capture was too short. Ask the learner to step back so both shoulders are visible."],
-            ["“There's no 3D avatar for this sign yet”", "The sign has no sign_poses row -- import its motion clip (Section 5)."],
+            ["“There's no 3D avatar for this sign yet”", "The sign has no sign_poses row -- import its motion clip (Section 6)."],
             ["3D avatar panel stays blank", "smplx.glb failed to load, or the browser has WebGL disabled; check the browser console."],
-            ["Sign Chat replies fail", "Open <URL>/api/health. No answer: the Colab runtime has stopped or its URL changed -- rerun sections 1-5 and update website/client/.env.production. A 502 for a minute or two right after a restart is normal while the models load."],
-            ["Sign Chat repeats your text back and the avatar barely moves", "The client is talking to a mock server (SIGNCHAT_MOCK=1, echo dialogue), not the real models -- check which URL VITE_SIGNCHAT_API_BASE_URL points at."],
+            ["Sign Chat shows an error instead of a reply", "The Colab runtime is not running, or the models are still loading (about two minutes after a restart). Start the notebook (sections 1-4), then reload the Sign Chat page."],
+            ["Section 3 prints “website NOT updated: Secret SIGNCHAT_UPDATE_TOKEN does not exist”", "Add the Colab secret (key icon, Notebook access on), then re-run the report line or section 3."],
+            ["Section 3 prints 503 “SIGNCHAT_UPDATE_TOKEN is not set on the server” / 401 “Bad token”", "Set the Railway variable, or make the Railway and Colab values identical."],
+            ["Section 3 shows a URL of https://api.trycloudflare.com", "Cloudflare refused the tunnel (usually rate limiting). The notebook retries automatically; if all attempts fail, wait 10-15 minutes and run section 3 again."],
+            ["Sign Chat repeats your text back and the avatar barely moves", "The client is talking to a mock server (SIGNCHAT_MOCK=1, echo dialogue), not the real models."],
         ],
         [3300, 6672],
     )
-    d.h1("9. Support contacts")
+
+    d.h1("10. Knowledge transfer plan")
+    d.para(
+        "The handover is designed so a sponsor's staff can run and change HandMirror without the original team. It "
+        "happens in four steps, each led by the team members below and backed by these documents."
+    )
+    d.table(
+        ["Step", "Audience", "Content", "Material"],
+        [
+            ["1. Product walkthrough (1 hour)", "Sponsor's product owner, support staff", "Live demo of every feature in Section 2; who the product serves; licence and privacy position", "Product Document; this document, Section 2"],
+            ["2. Operations session (1.5 hours)", "Support staff", "Deploying, environment variables, starting Sign Chat on Colab, backups and restore, the troubleshooting table", "This document, Sections 3-9"],
+            ["3. Code walkthrough (2 hours)", "Technical team", "Codebase map, the recognition and avatar pipelines, the release flow, how to add signs and journeys", "Maintenance Document; repository READMEs"],
+            ["4. Account transfer", "Sponsor's administrator", "Ownership or admin rights moved to the sponsor (list below); secrets rotated afterwards", "Checklist below"],
+        ],
+        [2200, 2000, 3600, 2172],
+    )
+    d.para("Accounts and assets to transfer:")
+    d.bullets([
+        "GitHub repository " + REPO + " (transfer ownership or add the sponsor as admin).",
+        "Vercel project “handmirror” (team te-38) and Railway project “pure-kindness” (API and MySQL).",
+        "Cloudflare R2 bucket with the demonstration videos.",
+        "Google Drive folders with the Sign Chat model weights (auslan_work/, smplx_models/) and the Colab notebook.",
+        "The Project Governance Portfolio on Google Drive (" + GOVERNANCE + ").",
+        "After transfer: rotate DB_PASSWORD and SIGNCHAT_UPDATE_TOKEN so the team's copies stop working.",
+    ])
+
+    d.h1("11. Support contacts")
     d.table(
         ["Name", "Role", "Contact"],
         [
@@ -508,14 +677,15 @@ def maintenance(d: Doc):
     d.table(
         ["Path", "What's there"],
         [
-            ["website/client/src/pages", "One component per route: Home, SignLibrary, SignDetail, Scenario list and journey (ScenarioCategoryPage), ToLearn, LearnedSigns, Conversation (Sign Chat)."],
-            ["website/client/src/components", "Shared UI. Key pieces: SmplxAvatar (3D avatar), SignDemonstration (video / 3D avatar tabs), PracticeVerify and SignCaptureModal (webcam capture), GestureSearch (sign-to-search), PersonalizeSessionPanel + PieRatioChart (personalise wizard), SavedSignsPage + TimeGroupedList (To Learn / Learned)."],
-            ["website/client/src/api", "Typed fetch wrappers: signs.ts (dictionary), recognize.ts (Practice / sign-to-search), signChat.ts (Sign Chat service)."],
-            ["website/client/src/lib", "landmarks.ts (MediaPipe capture with motion-based auto-stop), smplx.ts (avatar pose format), scenarioCategories.ts (the 34 journeys and their words), pictograms.ts (journey icons), learnedSigns / toLearnSigns / idListStore (localStorage lists)."],
+            ["website/client/src/pages", "One component per route: Home, SignLibrary, SignDetail, Scenario list and journey (ScenarioCategoryPage), ToLearn, LearnedSigns (shown as “Learnt”; the route stays /learned), Conversation (Sign Chat)."],
+            ["website/client/src/components", "Shared UI. Key pieces: SmplxAvatar (3D avatar), SignDemonstration (video / 3D avatar tabs), PracticeVerify and SignCaptureModal (webcam capture), GestureSearch (sign-to-search), PersonalizeSessionPanel + PieRatioChart (personalise wizard), SavedSignsPage + TimeGroupedList (To Learn / Learnt), ResultCard (sign card with the + / ✓ buttons), BulkActions (the Select signs bar), WordPreviewModal (scenario hover preview)."],
+            ["website/client/src/api", "Typed fetch wrappers: signs.ts (dictionary), recognize.ts (Practice / sign-to-search), signChat.ts (Sign Chat service; asks the API for the service's current URL first)."],
+            ["website/client/src/hooks", "useSelection (multi-select state), useHoverPreview, useSignSearch, useTags and other small hooks."],
+            ["website/client/src/lib", "landmarks.ts (MediaPipe capture with motion-based auto-stop), smplx.ts (avatar pose format), scenarioCategories.ts (the 34 journeys and their words), pictograms.ts (journey icons), learnedSigns / toLearnSigns / idListStore (localStorage lists) and signLists.ts (the rule that a sign is on one list at most)."],
             ["website/client/src/assets/pictograms", "The 36 journey pictograms (Human Pictogram 2.0, recoloured)."],
             ["website/client/public/smplx.glb", "The 3D avatar: SMPL-X body with texture, hair and a “smile” morph target."],
             ["website/client/src/styles/theme.css", "The whole design system in one file -- colour/type/radius tokens plus every page's styles."],
-            ["website/server/src/routes", "signs.js (dictionary and avatar poses), recognize.js (Practice and sign-to-search)."],
+            ["website/server/src/routes", "signs.js (dictionary and avatar poses), recognize.js (Practice and sign-to-search), signchat.js (stores and serves the Sign Chat URL)."],
             ["website/server/src/recognition", "features.js (landmarks → model input, a port of the Python training pipeline) and model.js (ONNX encoder and template bank)."],
             ["website/server/src/utils", "formatSign / pagination / video helpers, difficulty.js (level heuristic), popularity.js (popularity sort)."],
             ["website/server/scripts", "importRealData.js, convert_poses.py and importPoses.js (data loading -- see the Support Document)."],
@@ -524,6 +694,7 @@ def maintenance(d: Doc):
         ],
         [3100, 6872],
     )
+    d.figure("arch.png", "The deployed system. Section 8 shows how a change reaches production.")
 
     d.h1("3. Adding or editing content")
     d.h2("Signs")
@@ -548,7 +719,7 @@ def maintenance(d: Doc):
         "A new journey also needs an entry in client/src/lib/pictograms.ts mapping its id to a pictogram file."
     )
     d.h2("Avatar motion")
-    d.para("Add or replace a sign's 3D motion with convert_poses.py and importPoses.js (Support Document, Section 5). The clip must be fitted to the same SMPL-X body the avatar uses (Section 6).")
+    d.para("Add or replace a sign's 3D motion with convert_poses.py and importPoses.js (Support Document, Section 6). The clip must be fitted to the same SMPL-X body the avatar uses (Section 6).")
 
     d.h1("4. Extending the API")
     d.bullets([
@@ -564,6 +735,7 @@ def maintenance(d: Doc):
         "(features.js), runs the encoder (encoder.onnx, 256-dimensional output) and compares the result with the "
         "target sign's 12 stored templates by cosine distance."
     )
+    d.figure("practice.png", "The Practice pipeline, split between the browser and the API.")
     d.bullets([
         "Verify (Practice): matched when the distance is below τ = 0.529 -- the equal-error point on the validation split (EER 0.73%). The 0–100 score is a rescaling of that distance anchored so 60 is exactly the pass line.",
         "Left- or right-handed: the attempt is scored as captured and mirrored (other hand leading), and the closer result is kept. This slightly raises the chance of accepting a wrong sign.",
@@ -599,28 +771,52 @@ def maintenance(d: Doc):
         "model that produces the avatar motion the client plays. Its README covers the models, the API, a mock mode for "
         "front-end work without a GPU (SIGNCHAT_MOCK=1), and the tests (python -m pytest -q tests)."
     )
+    d.para(
+        "Because Colab gives the service a new URL on every restart, the URL is looked up at run time: notebook "
+        "section 3 reports it to the API (PUT /api/signchat-url, routes/signchat.js, stored in app_settings), and "
+        "client/src/api/signChat.ts reads it once per page load (GET), falling back to VITE_SIGNCHAT_API_BASE_URL. "
+        "A permanent GPU host with a fixed address would make the hand-off unnecessary; it can stay as a fallback."
+    )
+    d.figure("signchat.png", "Finding the service, then one conversation turn.")
 
-    d.h1("8. Coding conventions observed")
+    d.h1("8. Release process")
+    d.para(
+        "Work is committed on develop, fast-forwarded to staging (Vercel builds a preview to check), then merged into "
+        "master, which deploys the client (Vercel) and the API (Railway) automatically. Before merging to master: "
+        "npm run build and npm run lint in website/client, npm run test:recognition in website/server, and a quick "
+        "check of the preview. Never push straight to master."
+    )
+    d.figure("release.png", "Branches and what each one deploys.")
+
+    d.h1("9. Coding conventions observed")
     d.bullets([
         "Client: TypeScript in strict mode (React 19 + Vite); lint with npm run lint (oxlint).",
         "Server: plain CommonJS Node.js (no TypeScript, no ORM -- raw parameterized SQL via mysql2).",
         "camelCase at the API/JSON boundary; snake_case for DB columns -- translated by the format helpers, never leaked across that boundary in either direction.",
         "Design system lives entirely in client/src/styles/theme.css: IBM Plex Mono for display/labels, IBM Plex Sans for body text, with colour/spacing/radius as CSS custom properties.",
         "Comments explain why a non-obvious choice was made; keep that habit when changing the recognition or avatar code, where the reasons are not visible in the code itself.",
+        "Interface wording uses Australian English (“Learnt”, “practise” as the verb); code identifiers keep their original names (learnedSigns, /learned) so saved lists and links keep working.",
     ])
 
-    d.h1("9. Standards & compliance")
+    d.h1("10. Standards & compliance")
     d.h2("Data and asset licensing")
     d.para(
         "Every sign record's source field must stay accurate. The licences of all third-party assets are listed in the "
-        "Product Document, Section 4 -- several are non-commercial, and the SMPL-X model may not be redistributed."
+        "Product Document, Section 4. The restricted ones are Creative Commons 4.0 non-commercial (or equivalent): the "
+        "product may be used for non-commercial purposes only, and any commercial use needs a separate licence from "
+        "each rights holder first. The SMPL-X model may not be redistributed, so it is not in the repository's build scripts."
     )
-    d.flag("confirm each licence against the sponsor's intended use before any commercial use, including the Avaturn hair.")
+    d.h2("Privacy and security")
+    d.para(
+        "Changes must keep the product within the Australian Privacy Principles (Privacy Act 1988) and the OWASP Top 10 "
+        "measures mapped in the Support Document, Section 7 -- in particular: no new collection of personal "
+        "information without a notice, parameterised SQL only, and authentication on any new write endpoint."
+    )
     d.h2("Accessibility")
     d.para(
         "Conformance level: WCAG 2.1 Level AA. Checked on 13 October 2026 with axe-core 4.10.2 (all WCAG 2.0, 2.1 and "
         "2.2 A/AA rules) in Chrome on every page: home, library, sign detail, scenarios, scenario categories, To Learn, "
-        "Learned and Sign Chat. The demonstration videos have no audio, so captions are not required."
+        "Learnt and Sign Chat. The demonstration videos have no audio, so captions are not required."
     )
     d.para(
         "Keep it at AA when changing the interface: text needs a contrast of at least 4.5:1 (3:1 for large text), "
@@ -634,20 +830,20 @@ def maintenance(d: Doc):
         "Run npm audit periodically on both client and server and address high-severity advisories.",
     ])
 
-    d.h1("10. Roadmap / open epics")
+    d.h1("11. Roadmap / open epics")
     d.table(
         ["Item", "Status"],
         [
             ["Basic quiz / self-check (Epic 3)", "Not yet built."],
             ["Family mode for parent-child signing (Epic 6)", "Not yet built."],
-            ["Permanent hosting for the Sign Chat service", "Runs from a Colab notebook today, with weights in a team member's Google Drive (Support Document, Section 3). Needs a GPU host with at least 24 GB (e.g. an L4) and a fixed URL."],
+            ["Permanent hosting for the Sign Chat service", "Runs from a Colab notebook today, with weights in a team member's Google Drive (Support Document, Section 4). Needs a GPU host with at least 24 GB (e.g. an L4) and a fixed URL."],
             ["Facial expression on the avatar", "Auslan grammar uses the face (e.g. raised brows for questions); the avatar's face is not driven yet."],
             ["Validation by fluent signers", "Practice thresholds and Sign Chat output have not yet been checked by Auslan signers."],
         ],
         [4300, 5672],
     )
 
-    d.h1("11. Known technical debt")
+    d.h1("12. Known technical debt")
     d.bullets([
         "ScenarioLearningPage (route /scenarios/:id) and its story data (scenarioStories.ts, useScenarioProgress, ScenarioWordLink) are no longer linked from anywhere and can be removed.",
         "Unused leftovers: the @pixiv/three-vrm dependency, client/public/avatar.vrm (untracked), and style rules in theme.css for the previous home page and scenario sidebar.",
@@ -657,6 +853,10 @@ def maintenance(d: Doc):
         "Automated tests: the recognition parity test (server) and the Sign Chat service's pytest suite. There are no client tests and no CI pipeline beyond Vercel/Railway building on push.",
     ])
     d.closing("HandMirror — Maintenance Document · Team TE38 (BitDance) · FIT5120")
+
+
+ITERATION_ITEMS = ["Presentation", "Iteration Analysis & Design Report", "Data Management Plan", "Agenda, Minutes and Reflection",
+                   "Usability Video", "Retrospectives", "Iteration project supporting documents"]
 
 
 def checklist(d: Doc):
@@ -675,23 +875,54 @@ def checklist(d: Doc):
         [3000, 6972],
     )
     d.h1("Project Governance Portfolio -- folder contents")
-    d.para("All folders below are complete in the Project Governance Portfolio (confirmed by the team, 13 October 2026).")
+    d.para("Every item below is in the Project Governance Portfolio on Google Drive (confirmed by the team, 15 October 2026).")
+    ok = "✓ In the Portfolio"
+    d.h2("Monash University Use")
     d.table(
-        ["Folder / item", "Contents"],
+        ["Item", "Status / location"],
         [
-            ["Project Proposal", "Inclusive_Auslan_Learning_Assistant_Proposal.pptx"],
-            ["Industry Mentor Pitch", "In the Portfolio"],
-            ["Persona", "Primary persona “Sarah Thompson” (see Product Document, Section 1)"],
-            ["Ethics Canvas", "In the Portfolio"],
-            ["System Architecture Diagrams", "website/docs/system-architecture.docx"],
-            ["Iterations folder (1-3)", "Presentation, Iteration Analysis & Design Report, Data Management Plan, Agenda/Minutes/Reflection, Usability Video, Retrospectives, per iteration"],
-            ["Code and Database folder", "schema.sql, server/data/signs.json, server/data/sign_videos.json, avatar motion clips (sign_poses), recognition/models, HandMirror-avatar-build-scripts.zip, Final Data Management Plan"],
-            ["Project Support folder", "Product video, stand-up notes, Expo content, team info doc"],
-            ["Security Folder", "Security Plan, Vulnerability Assessment Report"],
-            ["Handover Documents", "01-Product-Document.docx, 02-Support-Document.docx, 03-Maintenance-Document.docx (this folder); previous versions in handover/archive/"],
-            ["Code / backup", "GitHub repository: " + REPO],
+            ["Project Proposal", ok + " (Inclusive_Auslan_Learning_Assistant_Proposal.pptx)"],
+            ["Lotus Blossom", ok],
+            ["Industry Mentor Pitch", ok],
+            ["Customer Journey Map", ok],
+            ["Empathy Map", ok],
+            ["Persona", ok + " (primary persona “Sarah Thompson”, Product Document Section 1)"],
+            ["Prototype", ok],
+            ["Sitemap", ok],
+            ["Ethics Canvas", ok + " (mapped to the ACS Code of Conduct in the Product Document, Section 4)"],
+            ["System Architecture Diagrams", ok + " (the architecture diagram is also in the Support and Maintenance Documents)"],
+            ["Other project supporting documents", ok],
         ],
-        [3000, 6972],
+        [4000, 5972],
+    )
+    d.h2("Iterations folder")
+    for n in (1, 2, 3):
+        d.table(["Iteration " + str(n), "Status"], [[item, ok] for item in ITERATION_ITEMS], [6000, 3972])
+    d.table(["Other documents", "Status"], [["Other iteration documents", ok]], [6000, 3972])
+    d.h2("Code and Database folder")
+    d.table(
+        ["Item", "Status / location"],
+        [
+            ["Data pre-processing", ok + "; scripts in the repository: website/server/scripts (importRealData.js, convert_poses.py, importPoses.js), recognition/scripts, and HandMirror-avatar-build-scripts.zip"],
+            ["SQL script for database", ok + " (website/server/schema.sql)"],
+            ["Final Data Management Plan", ok],
+        ],
+        [4000, 5972],
+    )
+    d.h2("Project Support folder")
+    d.table(["Item", "Status"], [[i, ok] for i in ("Product video", "Stand-up meetings", "Expo content", "Team info doc")], [6000, 3972])
+    d.h2("Security folder")
+    d.table(["Item", "Status"], [[i, ok] for i in ("Security Plan", "Vulnerability Assessment Report")], [6000, 3972])
+    d.h2("Handover Documents")
+    d.table(
+        ["Item", "Status / location"],
+        [
+            ["Documentation -- Product Document", ok + " (01-Product-Document.docx)"],
+            ["Documentation -- Support Document", ok + " (02-Support-Document.docx)"],
+            ["Documentation -- Maintenance Document", ok + " (03-Maintenance-Document.docx)"],
+            ["Code -- backup", "GitHub repository: " + REPO + "; avatar build scripts: HandMirror-avatar-build-scripts.zip"],
+        ],
+        [4000, 5972],
     )
     d.h1("Sign-off")
     d.para("Team TE38 (“BitDance”)")

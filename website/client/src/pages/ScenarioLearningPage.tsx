@@ -27,7 +27,7 @@ function ScenarioStory({ scenario }: { scenario: (typeof SCENARIOS)[number] }) {
 
       <div className="scenario-story-progress">
         <p className="results-count">
-          {learnedCount} of {totalSteps} steps learned
+          {learnedCount} of {totalSteps} steps learnt
         </p>
         <div
           className="progress-bar"
@@ -64,7 +64,7 @@ function ScenarioStory({ scenario }: { scenario: (typeof SCENARIOS)[number] }) {
               </div>
               {!stepDone[i] && (
                 <p className="scenario-step-hint">
-                  Open a word above and mark it "Learned" on its Practice tab to check off this step.
+                  Open a word above and mark it "Learnt" on its Practice tab to check off this step.
                 </p>
               )}
             </div>

@@ -179,17 +179,20 @@ export function PersonalizeSessionPanel({ onBuilt }: Props) {
   return (
     <div className="personalize-panel">
       <button type="button" ref={openerRef} className="personalize-cta" onClick={openWizard}>
+        {/* Three sliders: "tune your list" -- a plain line icon, no box around it. */}
         <span className="personalize-cta-icon" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+            <path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1" />
+            <circle cx="15" cy="6" r="2" />
+            <circle cx="9" cy="12" r="2" />
+            <circle cx="17" cy="18" r="2" />
           </svg>
         </span>
         <span className="personalize-cta-text">
           <span className="personalize-cta-title">Personalize your learning</span>
           <span className="personalize-cta-sub">
             Pick the topics you care about and how many words you want &mdash; we&rsquo;ll fill your list
-            with signs you haven&rsquo;t learned yet.
+            with signs you haven&rsquo;t learnt yet.
           </span>
         </span>
         <span className="personalize-cta-go" aria-hidden="true">

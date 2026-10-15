@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { fetchRecognitionVocabulary, type IdentifyCandidate } from "../api/recognize";
 import { fetchSigns, type SignSort } from "../api/signs";
+import { BulkActions } from "../components/BulkActions";
 import { CategoryRail } from "../components/CategoryRail";
 import { EmptyState } from "../components/EmptyState";
 import { HandGlyphPagination } from "../components/Pagination/HandGlyphPagination";
@@ -9,6 +10,8 @@ import { ResultCard } from "../components/ResultCard";
 import { ResultCardSkeleton } from "../components/ResultCardSkeleton";
 import { SearchBar } from "../components/SearchBar";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { useSelection } from "../hooks/useSelection";
+import { addToLearn, markLearnt } from "../lib/signLists";
 import { useSignSearch } from "../hooks/useSignSearch";
 import { useTags } from "../hooks/useTags";
 import { tagChipStyle } from "../lib/tagColors";
@@ -87,6 +90,9 @@ export function SignLibraryPage() {
   // flag for which UI (this vs. the regular grid) is on screen.
   const [gestureResults, setGestureResults] = useState<Sign[] | null>(null);
   const [gestureResultsLoading, setGestureResultsLoading] = useState(false);
+  const selection = useSelection();
+  // Re-render the cards after a bulk action so their Learnt / To Learn state is fresh.
+  const [, setListVersion] = useState(0);
 
   async function handleGestureResults(candidates: IdentifyCandidate[]) {
     setGestureResultsLoading(true);
@@ -203,9 +209,15 @@ export function SignLibraryPage() {
               canGestureSearch={canGestureSearch}
               onGestureResults={handleGestureResults}
             />
-            {!isLoading && !isError && (
-              <p className="results-count library-hero-count">{totalResults} entries indexed</p>
-            )}
+            {/* Always in the layout, only hidden while loading -- adding it once
+                the count arrived made the band grow and the search bar jump. */}
+            <p
+              className="results-count library-hero-count"
+              style={{ visibility: isLoading || isError ? "hidden" : "visible" }}
+              aria-hidden={isLoading || isError}
+            >
+              {totalResults} entries indexed
+            </p>
           </div>
         </div>
       </header>
@@ -309,6 +321,16 @@ export function SignLibraryPage() {
                       </select>
                     </label>
                   </div>
+
+                  <BulkActions
+                    selection={selection}
+                    visibleIds={results.map((s) => s.id)}
+                    actions={[
+                      { label: "Add to To Learn", run: addToLearn },
+                      { label: "Mark as learnt", run: markLearnt },
+                    ]}
+                    onDone={() => setListVersion((v) => v + 1)}
+                  />
                 </div>
 
                 {tag && (
@@ -340,6 +362,7 @@ export function SignLibraryPage() {
                         sign={sign}
                         siblingIds={results.map((s) => s.id)}
                         returnTo={`${window.location.pathname}${window.location.search}`}
+                        selection={selection}
                       />
                     ))}
                   </ul>

@@ -230,7 +230,7 @@ router.get("/:id", async (req, res, next) => {
     }
 
     const [rows] = await pool.query(
-  "SELECT * FROM signs WHERE id = ?",
+  `SELECT *, ${DIFFICULTY_SQL} AS difficulty_score FROM signs WHERE id = ?`,
   [id]
 );
 
@@ -247,6 +247,9 @@ const [videoRows] = await pool.query(
 );
 
 const sign = formatSign(rows[0]);
+// Same estimated level as the list endpoint, so a card built from this
+// response (saved lists, related signs) shows its difficulty too.
+sign.level = levelForScore(rows[0].difficulty_score);
 
 sign.videos = videoRows.map(formatVideo);
 

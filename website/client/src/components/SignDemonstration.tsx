@@ -77,13 +77,20 @@ export function SignDemonstration({ signId, gloss, videos }: Props) {
 
   return (
     <div className="sign-demo">
-      <div className="video-variants sign-demo-view-toggle" role="group" aria-label="Video or 3D avatar">
-        <button type="button" className={view === "video" ? "active" : ""} onClick={() => setView("video")}>
-          Video
-        </button>
-        <button type="button" className={view === "avatar" ? "active" : ""} onClick={() => setView("avatar")}>
-          3D avatar
-        </button>
+      {/* One segmented bar, same control as Learn / Practice. */}
+      <div className="detail-mode-toggle sign-demo-view-toggle" role="tablist" aria-label="Video or 3D avatar">
+        {(["video", "avatar"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            role="tab"
+            aria-selected={view === v}
+            className={`detail-mode-tab ${view === v ? "active" : ""}`}
+            onClick={() => setView(v)}
+          >
+            {v === "video" ? "Video" : "3D avatar"}
+          </button>
+        ))}
       </div>
 
       {view === "avatar" ? (
@@ -128,34 +135,6 @@ export function SignDemonstration({ signId, gloss, videos }: Props) {
           Your browser does not support video playback.
         </video>
       </div>
-
-      {/* Mirror view, not flipped footage -- the camera faces the signer, so
-          on screen it works exactly like a bathroom mirror: whichever hand
-          appears on the video's right side is the signer's actual left
-          hand. Worth spelling out because it's the opposite of how a
-          "selfie" video usually gets described, and getting it backwards
-          means copying the sign with the wrong hand. Styled to stand out
-          (not a quiet footnote) since missing it means practicing every
-          sign with the wrong hand. */}
-      <p className="mirror-view-hint">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          width={18}
-          height={18}
-          aria-hidden="true"
-        >
-          <path d="M12 3.5 21.5 20H2.5z" />
-          <path d="M12 9.5v5" />
-          <circle cx="12" cy="17.25" r="0.75" fill="currentColor" stroke="none" />
-        </svg>
-        <span className="mirror-view-hint-title">Before learning or practising:</span>
-        <span className="mirror-view-hint-text">Auslan can be performed by both left- and right-handed users, but our learning and recognition system requires users to follow the hand orientation demonstrated in the instructional video.</span>
-      </p>
 
       {availableVideos.length > 1 && (
         <div

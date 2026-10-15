@@ -2,10 +2,29 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchSignById } from "../api/signs";
 import type { IdEntry } from "../lib/idListStore";
+import { useSelection } from "../hooks/useSelection";
+import { removeLearned } from "../lib/learnedSigns";
+import { addToLearn, markLearnt } from "../lib/signLists";
+import { removeFromToLearn } from "../lib/toLearnSigns";
+import { BulkActions, type BulkAction } from "./BulkActions";
 import { ResultCardSkeleton } from "./ResultCardSkeleton";
 import { TimeGroupedList, type TimedSign } from "./TimeGroupedList";
 
+/** Bulk actions offered on each list: move to the other list, or drop from this one. */
+const LIST_ACTIONS: Record<"toLearn" | "learnt", BulkAction[]> = {
+  toLearn: [
+    { label: "Mark as learnt", run: markLearnt },
+    { label: "Remove from To Learn", run: (ids) => ids.forEach(removeFromToLearn) },
+  ],
+  learnt: [
+    { label: "Move to To Learn", run: addToLearn },
+    { label: "Remove from Learnt", run: (ids) => ids.forEach(removeLearned) },
+  ],
+};
+
 interface Props {
+  /** Which saved list this page shows -- picks its bulk actions. */
+  list: "toLearn" | "learnt";
   eyebrow: string;
   title: string;
   getEntries: () => IdEntry[];
@@ -27,6 +46,7 @@ interface Props {
  *  or queued to learn) -- same fetch-by-id, sort, loading/empty/error
  *  states, different id source and copy. */
 export function SavedSignsPage({
+  list,
   eyebrow,
   title,
   getEntries,
@@ -41,6 +61,13 @@ export function SavedSignsPage({
   const [timedSigns, setTimedSigns] = useState<TimedSign[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
+  const selection = useSelection();
+  // Bumped after a card's quick buttons or a bulk action change the lists;
+  // signs no longer on this list drop out without a re-fetch.
+  const [, setListVersion] = useState(0);
+  const refreshLists = () => setListVersion((v) => v + 1);
+  const onList = new Set(getEntries().map((e) => e.id));
+  const visible = timedSigns.filter((t) => onList.has(t.sign.id));
 
   useEffect(() => {
     const controller = new AbortController();
@@ -90,7 +117,7 @@ export function SavedSignsPage({
             <p className="library-eyebrow-light">{eyebrow}</p>
             <h1 className="page-title">{title}</h1>
           </div>
-          {headerExtra?.(timedSigns.length)}
+          {headerExtra?.(visible.length)}
         </div>
       </header>
 
@@ -114,7 +141,7 @@ export function SavedSignsPage({
               ))}
             </ul>
           </>
-        ) : timedSigns.length === 0 ? (
+        ) : visible.length === 0 ? (
           <>
             <div className="empty-state learned-empty-state">
               {emptyIcon}
@@ -126,7 +153,20 @@ export function SavedSignsPage({
             </div>
           </>
         ) : (
-          <TimeGroupedList entries={timedSigns} returnTo={window.location.pathname} />
+          <TimeGroupedList
+            entries={visible}
+            returnTo={window.location.pathname}
+            selection={selection}
+            onListsChange={refreshLists}
+            headerExtra={
+              <BulkActions
+                selection={selection}
+                visibleIds={visible.map((t) => t.sign.id)}
+                actions={LIST_ACTIONS[list]}
+                onDone={refreshLists}
+              />
+            }
+          />
         )}
       </div>
     </>

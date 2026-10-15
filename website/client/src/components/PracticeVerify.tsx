@@ -133,6 +133,30 @@ export function PracticeVerify({ gloss }: Props) {
 
   return (
     <div className="practice-verify">
+      {/* Practice scores the hand orientation in the video, so this sits
+          right where the learner starts the camera. */}
+      {phase === "idle" && (
+        <p className="mirror-view-hint">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            width={18}
+            height={18}
+            aria-hidden="true"
+          >
+            <path d="M12 3.5 21.5 20H2.5z" />
+            <path d="M12 9.5v5" />
+            <circle cx="12" cy="17.25" r="0.75" fill="currentColor" stroke="none" />
+          </svg>
+          <span className="mirror-view-hint-title">Before you practise:</span>
+          <span className="mirror-view-hint-text">Auslan can be performed by both left- and right-handed users, but our learning and recognition system requires users to follow the hand orientation demonstrated in the instructional video.</span>
+        </p>
+      )}
+
       {(phase === "idle" || phase === "error" || phase === "result") && (
         <button type="button" className="practice-start-button" onClick={start}>
           {phase === "idle" ? "Start practice" : "Try again"}

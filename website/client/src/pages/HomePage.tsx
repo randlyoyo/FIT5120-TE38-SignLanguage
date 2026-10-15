@@ -211,17 +211,34 @@ export function HomePage() {
           onEnded={() => setClip((c) => (c + 1) % HERO_CLIPS.length)}
         />
         <div className="home3-hero-tint" aria-hidden="true" />
-        <h1 className="home3-hero-mark">
-          Learn Auslan
-          <br />
-          together
-        </h1>
-        <span className="home3-hero-scroll" aria-hidden="true">
-          ↓
-        </span>
+        {/* Five-second test: what this is, and who it's for, right next to the title. */}
+        <div className="home3-hero-copy">
+          <h1 className="home3-hero-mark">
+            Learn Auslan
+            <br />
+            together
+          </h1>
+          <p className="home3-hero-lede">
+            A free Auslan dictionary and practice tool for <strong>parents and families of Deaf and hard-of-hearing
+            children</strong> — look up a sign, watch it, then practise it on camera.
+          </p>
+        </div>
+        <a
+          href="#start"
+          className="home3-hero-scroll"
+          aria-label="Scroll to start"
+          onClick={(e) => {
+            e.preventDefault();
+            document.getElementById("start")?.scrollIntoView({ behavior: "smooth" });
+          }}
+        >
+          <span className="home3-hero-scroll-arrow" aria-hidden="true">
+            ↓
+          </span>
+        </a>
       </section>
 
-      <section className="home3-statement">
+      <section className="home3-statement" id="start">
         <div className="home3-statement-text">
           <p className="home3-kicker">A free Auslan dictionary for families</p>
           <h2 className="home3-title">Start with the word you need today.</h2>
@@ -355,8 +372,8 @@ export function HomePage() {
           <Points
             items={[
               ["To Learn", "Queue the signs you want to work on, grouped by when you added them."],
-              ["Personalised sessions", "Pick topics and a word count — we fill your list with signs you haven't learned."],
-              ["Learned", "Mark a sign learned and watch your progress grow across every journey."],
+              ["Personalised sessions", "Pick topics and a word count — we fill your list with signs you haven't learnt."],
+              ["Learnt", "Mark a sign learnt and watch your progress grow across every journey."],
             ]}
           />
         </Folder>

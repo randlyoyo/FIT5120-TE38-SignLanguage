@@ -7,3 +7,4 @@ export const getLearnedEntries = store.getEntries;
 export const isLearned = store.has;
 export const toggleLearned = store.toggle;
 export const removeLearned = store.remove;
+export const addAllLearned = store.addAll;

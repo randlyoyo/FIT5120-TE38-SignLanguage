@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import type { Sign } from "../api/types";
+import type { Selection } from "../hooks/useSelection";
 import { groupByPeriod, type Granularity } from "../lib/groupByPeriod";
 import { ResultCard } from "./ResultCard";
 
@@ -15,6 +16,8 @@ interface Props {
    *  right -- e.g. the "Personalize your learning" trigger, which only
    *  makes sense once there's an actual grouped list to sit beside. */
   headerExtra?: ReactNode;
+  selection?: Selection;
+  onListsChange?: () => void;
 }
 
 const GRANULARITIES: { id: Granularity; label: string }[] = [
@@ -28,7 +31,7 @@ const GRANULARITIES: { id: Granularity; label: string }[] = [
  *  bucketed by when they were added (day/week/month/year), each bucket a
  *  collapsible section behind a divider and a triangle disclosure arrow,
  *  instead of one long flat grid. */
-export function TimeGroupedList({ entries, returnTo, headerExtra }: Props) {
+export function TimeGroupedList({ entries, returnTo, headerExtra, selection, onListsChange }: Props) {
   const [granularity, setGranularity] = useState<Granularity>("month");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -98,7 +101,14 @@ export function TimeGroupedList({ entries, returnTo, headerExtra }: Props) {
             {!isCollapsed && (
               <ul className="result-list">
                 {group.items.map(({ sign }) => (
-                  <ResultCard key={sign.id} sign={sign} siblingIds={allIds} returnTo={returnTo} />
+                  <ResultCard
+                    key={sign.id}
+                    sign={sign}
+                    siblingIds={allIds}
+                    returnTo={returnTo}
+                    selection={selection}
+                    onListsChange={onListsChange}
+                  />
                 ))}
               </ul>
             )}

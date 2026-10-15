@@ -11,15 +11,14 @@ function hueForTag(tag: string): number {
   return hash;
 }
 
-// Specimen-label style: a neutral paper card with a colored left edge and
-// matching label text, rather than a filled pill -- the color still
-// encodes the category (helps repeat visitors learn the palette), but the
-// shape reads as an index label, not a generic chip.
+function shadeForTag(tag: string): string {
+  return `hsl(${hueForTag(tag)}, 42%, 32%)`;
+}
+
+// Specimen-label style: a neutral paper card with a coloured left edge and
+// matching label text -- the colour still encodes the category (helps repeat
+// visitors learn the palette), but the shape reads as an index label.
 export function tagChipStyle(tag: string): CSSProperties {
-  const hue = hueForTag(tag);
-  const shade = `hsl(${hue}, 42%, 32%)`;
-  return {
-    color: shade,
-    borderLeftColor: shade,
-  };
+  const shade = shadeForTag(tag);
+  return { color: shade, borderLeftColor: shade };
 }

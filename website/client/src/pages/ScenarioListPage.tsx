@@ -44,14 +44,30 @@ function JourneyCard({ group, learned }: { group: ScenarioGroup; learned: number
   );
 }
 
-function CategorySection({ category, title, learnedById }: { category: ScenarioCategory; title: string; learnedById: Map<string, number> }) {
+/** One of the three directions, collapsible (native <details>) so the page isn't one long wall of cards. */
+function CategorySection({
+  category,
+  title,
+  learnedById,
+  open = false,
+}: {
+  category: ScenarioCategory;
+  title: string;
+  learnedById: Map<string, number>;
+  open?: boolean;
+}) {
   const scenarios = SCENARIO_CATEGORIES.filter((s) => s.category === category);
   const wordCount = scenarios.reduce((sum, s) => sum + s.wordCount, 0);
 
   return (
-    <section className="scenario-category-section">
-      <div className="category-section-header">
+    <details className="scenario-category-section" open={open}>
+      <summary className="category-section-header">
         <div>
+          <span className="category-toggle" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 5l7 7-7 7" />
+            </svg>
+          </span>
           <img className="category-emoji" src={SECTION_PICTOGRAMS[category]} alt="" />
           <h2 className="category-section-title">{title}</h2>
           <p className="category-section-description">{CATEGORY_DESCRIPTIONS[category]}</p>
@@ -66,14 +82,14 @@ function CategorySection({ category, title, learnedById }: { category: ScenarioC
             <span className="stat-label">Signs</span>
           </div>
         </div>
-      </div>
+      </summary>
 
       <div className="category-grid">
         {scenarios.map((group) => (
           <JourneyCard key={group.id} group={group} learned={learnedById.get(group.id) ?? 0} />
         ))}
       </div>
-    </section>
+    </details>
   );
 }
 
@@ -106,25 +122,26 @@ export function ScenarioListPage() {
 
       <div className="page-container scenario-list-page">
         <section className="journey-intro" aria-label="How a journey works">
+          <h2 className="journey-intro-title">Learn the signs for the moments that matter</h2>
           <p className="journey-intro-lead">
-            Learn the signs you need for real situations — ordering a coffee, seeing a doctor, meeting family —
-            one small step at a time.
+            Ordering a coffee, a visit to the doctor, dinner with family — each journey gathers the signs for
+            one everyday moment, so you can learn a few at a time, whenever you have five minutes.
           </p>
           <ol className="journey-steps">
             <li>
               <span className="journey-step-num">1</span>
-              <strong>Pick a situation</strong>
-              <span>Choose a journey below that matches something you want to sign.</span>
+              <strong>Choose a moment</strong>
+              <span>Pick a journey that fits your day.</span>
             </li>
             <li>
               <span className="journey-step-num">2</span>
-              <strong>Go stop by stop</strong>
-              <span>Each journey is split into short stops of related signs.</span>
+              <strong>One stop at a time</strong>
+              <span>Each stop is a handful of related signs.</span>
             </li>
             <li>
               <span className="journey-step-num">3</span>
-              <strong>Watch, practise, mark learned</strong>
-              <span>Open each sign, try it, and mark it learned — your progress fills in as you go.</span>
+              <strong>Watch, try, tick it off</strong>
+              <span>Mark a sign learnt and watch your progress grow.</span>
             </li>
           </ol>
         </section>
@@ -136,7 +153,7 @@ export function ScenarioListPage() {
               <span className="journey-continue-label">Continue your journey</span>
               <span className="journey-continue-title">{current.title}</span>
               <span className="journey-continue-meta">
-                {learnedById.get(current.id)}/{current.wordCount} signs learned
+                {learnedById.get(current.id)}/{current.wordCount} signs learnt
               </span>
             </span>
             <span className="journey-continue-go" aria-hidden="true">
@@ -160,7 +177,7 @@ export function ScenarioListPage() {
         )}
 
         <div className="scenario-categories-container">
-          <CategorySection category="A" title="Daily Life" learnedById={learnedById} />
+          <CategorySection category="A" title="Daily Life" learnedById={learnedById} open />
           <CategorySection category="B" title="Professional" learnedById={learnedById} />
           <CategorySection category="C" title="Language Basics" learnedById={learnedById} />
         </div>

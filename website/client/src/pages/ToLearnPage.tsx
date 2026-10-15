@@ -8,6 +8,7 @@ export function ToLearnPage() {
 
   return (
     <SavedSignsPage
+      list="toLearn"
       eyebrow="Your list"
       title="To Learn"
       getEntries={getToLearnEntries}

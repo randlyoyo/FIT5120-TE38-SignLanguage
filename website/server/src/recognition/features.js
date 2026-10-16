@@ -166,24 +166,4 @@ function toFixedLength(feat, T) {
   return out;
 }
 
-// Left/right pairs within the stored 11-point pose subset
-// [0 nose, 2 l-eye, 5 r-eye, 7 l-ear, 8 r-ear, 11/12 shoulders, 13/14 elbows, 15/16 wrists].
-const POSE_LR_PAIRS = [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]];
-
-/**
- * The same capture as if signed with the other hand dominant: flip x in the
- * normalised frame and swap every left/right landmark, including the two
- * hands. Lets verify score a left-handed attempt against right-handed
- * templates (and vice versa) without retraining.
- */
-function mirrorCapture(capture) {
-  const flip = (frames) => frames.map((f) => f.map((p) => (present(p) ? [1 - p[0], p[1]] : p)));
-  const pose = flip(capture.pose).map((f) => {
-    const out = f.slice();
-    for (const [a, b] of POSE_LR_PAIRS) [out[a], out[b]] = [f[b], f[a]];
-    return out;
-  });
-  return { ...capture, pose, left_hand: flip(capture.right_hand), right_hand: flip(capture.left_hand) };
-}
-
-module.exports = { buildFeatures, toFixedLength, mirrorCapture, UnusableCapture, rint, FEAT_DIM, TARGET_FPS };
+module.exports = { buildFeatures, toFixedLength, UnusableCapture, rint, FEAT_DIM, TARGET_FPS };

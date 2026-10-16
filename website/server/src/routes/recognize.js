@@ -1,6 +1,6 @@
 const express = require("express");
 
-const { UnusableCapture, mirrorCapture } = require("../recognition/features");
+const { UnusableCapture } = require("../recognition/features");
 const {
   load, embed, distanceToWord, distanceToAll, confidenceFromMargin, similarityScore,
 } = require("../recognition/model");
@@ -105,13 +105,8 @@ router.post("/verify", async (req, res, next) => {
       return res.status(404).json({ error: "unknown_word", word });
     }
 
-    // Handedness-free: Auslan lets either hand lead, but the templates were
-    // all signed one way. Score the attempt as captured and mirrored (other
-    // hand dominant) and keep the closer one, so a left-handed signer isn't
-    // marked wrong for a correct sign.
     const { embedding, frames } = await embed(capture);
-    const { embedding: mirrored } = await embed(mirrorCapture(capture));
-    const distance = Math.min(distanceToWord(s, embedding, idx), distanceToWord(s, mirrored, idx));
+    const distance = distanceToWord(s, embedding, idx);
     const matched = distance < s.tauVerify;
     // 0-100 display score, NOT a probability -- a monotone rescaling of
     // distance anchored so score >= 60 exactly when matched is true (see

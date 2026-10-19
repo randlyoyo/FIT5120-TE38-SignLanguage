@@ -1,6 +1,7 @@
 import { FilesetResolver, HolisticLandmarker } from "@mediapipe/tasks-vision";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import type { Capture } from "../api/recognize";
+import { createRestDetector, type CapturePhase } from "./restDetector";
 
 // Pinned to match the exact bundle the training keypoints were extracted
 // with (recognition/API.md §2, recognition/ASSETS.md) -- a different
@@ -95,67 +96,6 @@ function facePoints(faceLandmarks: NormalizedLandmark[][]): [number, number][] {
   });
 }
 
-// Whole-body stillness, not just the wrists: a signer can hold their hands
-// dead still while still mid-sign -- leaning, a shoulder shift, torso sway --
-// and stopping on wrist-only silence cut those signs short. But "whole body"
-// stops at the 6 real pose points (shoulders, elbows, wrists) -- it
-// deliberately does NOT include the 42 hand/finger joints. Fingers are the
-// jitteriest, most often partially-occluded landmarks MediaPipe reports; with
-// ~50 points feeding one max() every frame, the odds that *something* reads a
-// one-frame glitch approach 1, and a single glitch resets the whole stillness
-// clock (see SPEED_WINDOW below for the other half of this fix). A `MISSING`
-// point contributes 0 rather than a false spike -- `pointDisplacement`
-// returns 0 whenever either side is the sentinel, so an undetected point
-// can't itself look like motion.
-//
-// This is deliberately broader than the server's own offline trim (API.md
-// §3.5, wrists only) -- trim only has to find where a clip's action already
-// is, this has to decide live whether to keep recording.
-function pointDisplacement(a: [number, number], b: [number, number]): number {
-  if (a[0] === MISSING[0] || b[0] === MISSING[0]) return 0;
-  return Math.hypot(a[0] - b[0], a[1] - b[1]);
-}
-
-function maxDisplacement(current: [number, number][], previous: [number, number][]): number {
-  let max = 0;
-  for (let i = 0; i < current.length; i++) {
-    const d = pointDisplacement(current[i], previous[i]);
-    if (d > max) max = d;
-  }
-  return max;
-}
-
-// Standard voice-activity-detection move: smooth the raw per-frame signal
-// before thresholding it, rather than reacting to every single reading.
-// MediaPipe jitter means even a genuinely still body reports the occasional
-// one-frame speed spike; without smoothing, that spike alone resets the
-// stillness clock and the 700ms hangover almost never gets to run
-// uninterrupted. The median of the last 3 raw readings absorbs a lone spike
-// (it takes 2 of 3 recent frames moving to move the median) without adding
-// the lag a longer average would.
-const SPEED_WINDOW = 3;
-
-function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.floor(sorted.length / 2)];
-}
-
-// Values are normalised [0,1] screen-fraction coordinates, so this is a
-// per-frame displacement of ~1.5% of the frame's width/height -- a starting
-// point, not a tuned constant (API.md §9: real webcam behaviour hasn't been
-// measured yet, so keep thresholds configurable rather than trusting a value
-// picked in a vacuum).
-const MOTION_THRESHOLD = 0.015;
-// How long the signer must hold still before capture auto-ends. Modelled on
-// voice-activity-detection "hangover" periods: end-of-speech/end-of-gesture
-// is never declared on the first quiet frame, since a real sign has brief
-// internal pauses that must not be mistaken for "finished".
-const SILENCE_HANGOVER_MS = 700;
-// No auto-stop before this much has elapsed, even if the signer is already
-// still -- covers the moment right after the countdown where hands haven't
-// been raised into frame yet, which would otherwise read as "already done".
-const MIN_CAPTURE_MS = 900;
-
 let landmarkerPromise: Promise<HolisticLandmarker> | null = null;
 
 // detectForVideo's timestamps must be strictly increasing for the *whole
@@ -190,7 +130,7 @@ function getLandmarker(): Promise<HolisticLandmarker> {
   return landmarkerPromise;
 }
 
-export type CapturePhase = "waiting" | "active" | "settling";
+export type { CapturePhase };
 
 export interface CaptureOptions {
   /** Hard upper bound, in milliseconds -- capture always stops here even if
@@ -205,19 +145,17 @@ export interface CaptureOptions {
   shouldStop?: () => boolean;
   /** Called once per detected frame, purely for UI feedback -- not used in
    *  the capture decision itself. `phase` mirrors the auto-stop state
-   *  machine: "waiting" (no motion seen yet), "active" (currently moving,
-   *  or too recently still to end), "settling" (still, and the auto-stop
-   *  hangover countdown is running). */
+   *  machine (restDetector.ts): "waiting" (hands not raised yet), "active"
+   *  (signing), "settling" (hands at rest or held still, about to stop). */
   onFrame?: (elapsedMs: number, maxDurationMs: number, phase: CapturePhase) => void;
 }
 
 /**
  * Records landmarks from `video` and assembles them into the exact Capture
- * shape recognition/API.md §6 expects. Ends automatically once the signer's
- * whole tracked body (pose, both hands) goes still after having moved,
- * rather than a fixed recording length or a manual "done" action -- see the
- * threshold/hangover constants and `maxDisplacement` above for the exact
- * rule. `video` must be
+ * shape recognition/API.md §6 expects. Ends automatically once the signer
+ * has raised their hands and brought them back to rest (restDetector.ts,
+ * API.md §8), rather than a fixed recording length or a manual "done"
+ * action. `video` must be
  * the raw, unmirrored camera feed -- if the on-screen preview is mirrored
  * for the user, that must be a CSS transform on the display only. A
  * mirrored tensor swaps left and right hands and the model scores a
@@ -235,39 +173,13 @@ export async function captureLandmarks(
   const face: number[][][] = [];
 
   const start = performance.now();
-  // The pose frame alone (shoulders, elbows, wrists -- not the 42 hand/finger
-  // points) drives the stop decision: broad enough to catch a torso sway or
-  // shoulder shift without the wrists themselves moving, but not so many
-  // points that landmark jitter never lets a truly still moment register as
-  // still. See maxDisplacement/SPEED_WINDOW above for the rest of the fix.
-  let prevPoseFrame: [number, number][] | null = null;
-  let recentSpeeds: number[] = [];
-  let hasMoved = false;
-  let lastMotionAt = start;
+  const restDetector = createRestDetector(video.videoWidth, video.videoHeight);
 
-  // In most real captures, the sign ends with the signer dropping their
-  // hand(s) out of frame rather than holding a final pose dead still -- the
-  // pose-stillness check above doesn't fire quickly for that case (the
-  // shoulders/elbows genuinely can stay put while a hand is mid-exit). A
-  // hand going from tracked to untracked is a clean, low-noise signal on its
-  // own -- unlike coordinate jitter, MediaPipe doesn't flicker a detection
-  // on and off from one real frame to the next -- so it gets its own,
-  // shorter hangover instead of waiting on the general stillness one.
-  // Armed only after a hand has actually been seen (`everSawHands`), so the
-  // pre-raise moment at the start of a capture can't itself look like "the
-  // hands left".
-  const HANDS_GONE_HANGOVER_MS = 300;
-  let everSawHands = false;
-  let lastHandsSeenAt = start;
-
-  // The stop decision below reacts to every frame's raw motion reading, as
-  // it should. But landmark jitter means that raw reading flips back and
-  // forth across MOTION_THRESHOLD within a single real pause (a signer's
-  // hand is never perfectly still), which used to feed straight into
-  // `onFrame`'s phase and made the on-screen "Recording…"/"Got it…" text
-  // flicker every couple of frames. Only forward a phase change to the
-  // caller once the raw reading has held steady for PHASE_DISPLAY_DEBOUNCE_MS
-  // -- display-only smoothing, the stop timing above is untouched.
+  // The detector's phase can flip between "active" and "settling" within a
+  // single real pause (landmark jitter), which made the on-screen
+  // "Recording…"/"Got it…" text flicker. Only forward a phase change to the
+  // caller once it has held for PHASE_DISPLAY_DEBOUNCE_MS -- display-only
+  // smoothing; the stop decision itself is untouched.
   const PHASE_DISPLAY_DEBOUNCE_MS = 200;
   let displayPhase: CapturePhase = "waiting";
   let pendingPhase: CapturePhase | null = null;
@@ -287,28 +199,11 @@ export async function captureLandmarks(
     rightHand.push(rightHandFrame);
     face.push(facePoints(result.faceLandmarks));
 
-    if (prevPoseFrame) {
-      const rawSpeed = maxDisplacement(poseFrame, prevPoseFrame);
-      recentSpeeds.push(rawSpeed);
-      if (recentSpeeds.length > SPEED_WINDOW) recentSpeeds.shift();
-      const speed = median(recentSpeeds);
-      if (speed > MOTION_THRESHOLD) {
-        hasMoved = true;
-        lastMotionAt = now;
-      }
-    }
-    prevPoseFrame = poseFrame;
-
-    const handsVisible = leftHandFrame[0][0] !== MISSING[0] || rightHandFrame[0][0] !== MISSING[0];
-    if (handsVisible) {
-      everSawHands = true;
-      lastHandsSeenAt = now;
-    }
-    const handsGoneFor = now - lastHandsSeenAt;
-
-    const stillFor = now - lastMotionAt;
-    const rawPhase: CapturePhase =
-      !hasMoved ? "waiting" : (stillFor > 150 || handsGoneFor > 150) ? "settling" : "active";
+    const { phase: rawPhase, stop } = restDetector(
+      poseFrame,
+      elapsed,
+      leftHandFrame[0][0] !== MISSING[0] || rightHandFrame[0][0] !== MISSING[0]
+    );
     if (rawPhase === displayPhase) {
       pendingPhase = null;
     } else if (rawPhase !== pendingPhase) {
@@ -319,12 +214,7 @@ export async function captureLandmarks(
       pendingPhase = null;
     }
     onFrame?.(elapsed, maxDurationMs, displayPhase);
-
-    if (hasMoved && elapsed >= MIN_CAPTURE_MS) {
-      const stoppedByStillness = stillFor >= SILENCE_HANGOVER_MS;
-      const stoppedByHandsGone = everSawHands && handsGoneFor >= HANDS_GONE_HANGOVER_MS;
-      if (stoppedByStillness || stoppedByHandsGone) break;
-    }
+    if (stop) break;
 
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   }

@@ -192,6 +192,44 @@ export function ConversationPage() {
               ))
             )}
           </div>
+        <div className="conversation-input-bar">
+          <div className="conversation-input-pill">
+            <button
+              type="button"
+              className="conversation-record-button"
+              onClick={() => setCaptureOpen(true)}
+              disabled={isGenerating}
+              title="Record a sign instead of typing"
+              aria-label="Record a sign instead of typing"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" />
+              </svg>
+            </button>
+            <input
+              id="conversation-input"
+              type="text"
+              value={input}
+              placeholder="Type a sentence, e.g. “Where is the bus stop?”"
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            />
+            <button
+              type="button"
+              className="conversation-send-button"
+              onClick={handleSend}
+              disabled={!input.trim() || isGenerating}
+              aria-label="Send"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="6 11 12 5 18 11" />
+              </svg>
+            </button>
+          </div>
+          <p className="conversation-input-hint">Press Enter to send · or tap ● to sign it on camera instead</p>
+        </div>
         </div>
 
         <div className="conversation-stage-area">
@@ -208,45 +246,6 @@ export function ConversationPage() {
             />
           </div>
         </div>
-      </div>
-
-      <div className="conversation-input-bar">
-        <div className="conversation-input-pill">
-          <button
-            type="button"
-            className="conversation-record-button"
-            onClick={() => setCaptureOpen(true)}
-            disabled={isGenerating}
-            title="Record a sign instead of typing"
-            aria-label="Record a sign instead of typing"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" />
-              <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" />
-            </svg>
-          </button>
-          <input
-            id="conversation-input"
-            type="text"
-            value={input}
-            placeholder="Type a sentence, e.g. “Where is the bus stop?”"
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          />
-          <button
-            type="button"
-            className="conversation-send-button"
-            onClick={handleSend}
-            disabled={!input.trim() || isGenerating}
-            aria-label="Send"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="19" x2="12" y2="5" />
-              <polyline points="6 11 12 5 18 11" />
-            </svg>
-          </button>
-        </div>
-        <p className="conversation-input-hint">Press Enter to send · or tap ● to sign it on camera instead</p>
       </div>
 
       {captureOpen && (

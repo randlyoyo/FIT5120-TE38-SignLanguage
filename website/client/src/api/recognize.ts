@@ -29,6 +29,8 @@ export interface VerifyResult {
   distance: number;
   threshold: number;
   matched: boolean;
+  /** On a fail, the word the attempt looked most like (null if none/it was the target). */
+  closest: string | null;
   /** 0-100, calibrated accuracy score for this attempt (recognition/API.md). */
   score: number;
   /** Which of three plain-language buckets this attempt landed in. */

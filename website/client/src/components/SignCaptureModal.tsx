@@ -64,7 +64,7 @@ export function SignCaptureModal({ onConfirm, onCancel }: Props) {
     let stream: MediaStream | null = null;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 640, height: 480 },
+        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 }, resizeMode: "none" } as MediaTrackConstraints,
         audio: false,
       });
       if (stale()) {

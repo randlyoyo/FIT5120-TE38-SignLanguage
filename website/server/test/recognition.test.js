@@ -8,7 +8,18 @@ const assert = require("node:assert");
 const fs = require("node:fs");
 const path = require("node:path");
 const { buildFeatures, toFixedLength } = require("../src/recognition/features");
-const { load, embed } = require("../src/recognition/model");
+const { load, embed, verifyScore } = require("../src/recognition/model");
+
+// Verify scoring: a pass needs distance under tau AND no other word clearly
+// closer; a fail shrinks with how much closer that other word was.
+{
+  const tau = 0.53;
+  assert.deepStrictEqual(verifyScore(0.22, 0, tau), { matched: true, score: 83 });
+  assert.strictEqual(verifyScore(0.40, 0.02, tau).matched, true);     // near-tie still passes
+  assert.ok(verifyScore(0.40, 0.12, tau).score <= 35);                // one-handed A: HORN (CAR) clearly closer
+  assert.strictEqual(verifyScore(0.67, 0.36, tau).score, 0);
+  assert.strictEqual(verifyScore(0.60, 0, tau).matched, false);       // best match but too far
+}
 
 const GOLDEN = path.join(__dirname, "..", "..", "..", "recognition", "test", "golden.json");
 

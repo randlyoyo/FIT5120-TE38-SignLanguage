@@ -232,10 +232,13 @@ export function HomePage() {
             document.getElementById("start")?.scrollIntoView({ behavior: "smooth" });
           }}
         >
-          <span className="home3-hero-scroll-arrow" aria-hidden="true">
-            ↓
-          </span>
+          <svg className="home3-hero-scroll-arrow" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 5l7 7 7-7M5 12l7 7 7-7" />
+          </svg>
         </a>
+        <Link to="/library" className="home3-hero-library">
+          Explore the library
+        </Link>
       </section>
 
       <section className="home3-statement" id="start">

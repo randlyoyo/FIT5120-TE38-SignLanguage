@@ -88,8 +88,11 @@ export function PracticeVerify({ gloss }: Props) {
     setErrorMessage("");
     setPhase("requesting-camera");
     try {
+      // The camera's own frame, uncropped: asking for an exact 640x480 made
+      // Chrome cut the sides off a 16:9 webcam, losing hands at the edges.
+      // The server corrects for any aspect ratio (API.md §3.1).
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 640, height: 480 },
+        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 }, resizeMode: "none" } as MediaTrackConstraints,
         audio: false,
       });
       streamRef.current = stream;
@@ -144,22 +147,24 @@ export function PracticeVerify({ gloss }: Props) {
             strokeWidth={1.5}
             strokeLinecap="round"
             strokeLinejoin="round"
-            width={18}
-            height={18}
+            width={28}
+            height={28}
             aria-hidden="true"
           >
             <path d="M12 3.5 21.5 20H2.5z" />
             <path d="M12 9.5v5" />
             <circle cx="12" cy="17.25" r="0.75" fill="currentColor" stroke="none" />
           </svg>
-          <span className="mirror-view-hint-title">Before you practise:</span>
-          <span className="mirror-view-hint-text">Auslan can be performed by both left- and right-handed users, but our learning and recognition system requires users to follow the hand orientation demonstrated in the instructional video.</span>
+          <span className="mirror-view-hint-title">Use the same hand as the signer</span>
+          <span className="mirror-view-hint-text">
+            Their right hand is your right hand. Don't copy it like a mirror.
+          </span>
         </p>
       )}
 
-      {(phase === "idle" || phase === "error" || phase === "result") && (
+      {phase === "idle" && (
         <button type="button" className="practice-start-button" onClick={start}>
-          {phase === "idle" ? "Start practice" : "Try again"}
+          Start practice
         </button>
       )}
 
@@ -191,6 +196,9 @@ export function PracticeVerify({ gloss }: Props) {
           <p className="practice-result-tier">{tierLabel(result.tier)}</p>
           <ScoreGauge score={result.score} />
           <p className="practice-result-feedback">{result.feedback}</p>
+          {result.closest && (
+            <p className="practice-result-feedback">That looked more like “{result.closest}”.</p>
+          )}
         </div>
       )}
 
@@ -198,6 +206,12 @@ export function PracticeVerify({ gloss }: Props) {
         <p role="alert" className="practice-error">
           {errorMessage}
         </p>
+      )}
+
+      {(phase === "error" || phase === "result") && (
+        <button type="button" className="practice-start-button" onClick={start}>
+          Try again
+        </button>
       )}
     </div>
   );

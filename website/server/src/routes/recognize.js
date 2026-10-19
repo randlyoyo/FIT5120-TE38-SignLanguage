@@ -2,7 +2,7 @@ const express = require("express");
 
 const { UnusableCapture } = require("../recognition/features");
 const {
-  load, embed, distanceToWord, distanceToAll, confidenceFromMargin, similarityScore,
+  load, embed, distanceToAll, confidenceFromMargin, verifyScore,
 } = require("../recognition/model");
 
 const router = express.Router();
@@ -106,13 +106,15 @@ router.post("/verify", async (req, res, next) => {
     }
 
     const { embedding, frames } = await embed(capture);
-    const distance = distanceToWord(s, embedding, idx);
-    const matched = distance < s.tauVerify;
-    // 0-100 display score, NOT a probability -- a monotone rescaling of
-    // distance anchored so score >= 60 exactly when matched is true (see
-    // recognition/model.js similarityScore). `matched` is still the real
-    // decision; score exists so "how accurate" isn't just binary.
-    const score = similarityScore(distance, s.tauVerify);
+    const dist = distanceToAll(s, embedding);
+    const distance = dist[idx];
+    const best = Math.min(...dist);
+    // 0-100 display score, NOT a probability; score >= 60 exactly when
+    // matched. Judged against every word, not just this one (model.js
+    // verifyScore).
+    const { matched, score } = verifyScore(distance, distance - best, s.tauVerify);
+    // What it looked like instead, so a fail says more than a number.
+    const closest = matched ? null : s.words[dist.indexOf(best)];
     const tier = tierFor(matched, score);
 
     res.json({
@@ -120,6 +122,7 @@ router.post("/verify", async (req, res, next) => {
       distance,
       threshold: s.tauVerify,
       matched,
+      closest: closest === word ? null : closest,
       score,
       // Three plain-language tiers a learner can act on -- see MESSAGES
       // above. `tier` is the stable machine-readable bucket; `feedback` is

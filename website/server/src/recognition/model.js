@@ -165,6 +165,32 @@ function similarityScore(distance, tau) {
     : Math.min(PASS_SCORE - 1, Math.round(score));
 }
 
+/**
+ * Verify -> {matched, score}, judged against the whole vocabulary and not
+ * just the target word. Distance alone is word-dependent: a short sign like A
+ * sits close to almost any hands-at-chest movement, so on real webcam
+ * captures a random wave scored 30-55 and doing A with one hand scored 66-70.
+ * `gap` is how much closer the best-matching word is than the target (0 when
+ * the target is the best match). Those one-handed attempts were all beaten by
+ * HORN (CAR) by 0.10-0.14; every correct attempt had gap 0.
+ *
+ * Pass needs distance under tau and gap under GAP_PASS (a near-tie with
+ * another word still counts). A fail's score shrinks with the gap, reaching 0
+ * at GAP_ZERO. ponytail: both picked from 12 real captures of one word,
+ * re-derive from the logged attempts once there are more words.
+ */
+const GAP_PASS = 0.05;
+const GAP_ZERO = 0.25;
+
+function verifyScore(distance, gap, tau) {
+  const matched = distance < tau && gap < GAP_PASS;
+  const base = similarityScore(distance, tau);
+  if (matched) return { matched, score: base };
+  const fall = Math.max(0, 1 - gap / GAP_ZERO);
+  return { matched, score: Math.round(Math.min(base, PASS_SCORE - 1) * fall) };
+}
+
 module.exports = {
-  load, embed, distanceToWord, distanceToAll, confidenceFromMargin, similarityScore, PASS_SCORE, ROOT,
+  load, embed, distanceToWord, distanceToAll, confidenceFromMargin, similarityScore, verifyScore,
+  PASS_SCORE, ROOT,
 };
